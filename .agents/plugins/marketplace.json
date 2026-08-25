@@ -1,0 +1,203 @@
+{
+  "name": "knowledge-hub-bdd-prototype",
+  "interface": {
+    "displayName": "Knowledge Hub BDD Prototype"
+  },
+  "plugins": [
+    {
+      "name": "writing-rules",
+      "source": {
+        "source": "local",
+        "path": "./plugins/skills/authoring/writing-rules"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.4.15"
+    },
+    {
+      "name": "content-types",
+      "source": {
+        "source": "local",
+        "path": "./plugins/skills/authoring/content-types"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.5.12"
+    },
+    {
+      "name": "visual-guidance",
+      "source": {
+        "source": "local",
+        "path": "./plugins/skills/authoring/visual-guidance"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.1.5"
+    },
+    {
+      "name": "doc-render",
+      "source": {
+        "source": "local",
+        "path": "./plugins/skills/authoring/doc-render"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.7.14"
+    },
+    {
+      "name": "write-doc",
+      "source": {
+        "source": "local",
+        "path": "./plugins/playbooks/authoring/write-doc"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.5.3"
+    },
+    {
+      "name": "grill",
+      "source": {
+        "source": "local",
+        "path": "./plugins/skills/authoring/grill"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.2.12"
+    },
+    {
+      "name": "domain-events",
+      "source": {
+        "source": "local",
+        "path": "./plugins/skills/domain/domain-events"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.2.11"
+    },
+    {
+      "name": "core-domain",
+      "source": {
+        "source": "local",
+        "path": "./plugins/skills/domain/core-domain"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.2.11"
+    },
+    {
+      "name": "data-model-bdd-discovery",
+      "source": {
+        "source": "local",
+        "path": "./plugins/playbooks/bdd/data-model-bdd-discovery"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.2.5"
+    },
+    {
+      "name": "domain-bdd-formulation",
+      "source": {
+        "source": "local",
+        "path": "./plugins/playbooks/bdd/domain-bdd-formulation"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.2.5"
+    },
+    {
+      "name": "data-model",
+      "source": {
+        "source": "local",
+        "path": "./plugins/skills/data-modeling/data-model"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.2.14"
+    },
+    {
+      "name": "persistence-scenarios",
+      "source": {
+        "source": "local",
+        "path": "./plugins/skills/data-modeling/persistence-scenarios"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.1.2"
+    },
+    {
+      "name": "rdb-design",
+      "source": {
+        "source": "local",
+        "path": "./plugins/skills/data-modeling/rdb-design"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.3.0"
+    },
+    {
+      "name": "data-model-bdd-formulation",
+      "source": {
+        "source": "local",
+        "path": "./plugins/playbooks/bdd/data-model-bdd-formulation"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.1.4"
+    },
+    {
+      "name": "domain-bdd-discovery",
+      "source": {
+        "source": "local",
+        "path": "./plugins/playbooks/bdd/domain-bdd-discovery"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.3.4"
+    }
+  ]
+}

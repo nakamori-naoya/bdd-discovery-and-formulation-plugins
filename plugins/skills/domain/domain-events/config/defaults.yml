@@ -1,0 +1,7 @@
+# event_dir: 業務イベント台帳の保存先。
+# instructions: 未確認事項を推測で埋めない探索規則。
+version: 1
+event_dir: domain/events
+instructions:
+  exploration:
+    directive: 業務で起きた事実を時系列に洗い出し、確かめられない箇所は未確認のまま残す

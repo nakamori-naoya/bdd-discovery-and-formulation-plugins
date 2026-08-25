@@ -1,0 +1,7 @@
+# scenario_dir: 永続化シナリオ台帳と資料の保存先。
+# instructions: 業務シナリオから永続化へ関心を絞る規則。
+version: 1
+scenario_dir: domain/persistence-scenarios
+instructions:
+  discovery:
+    directive: 業務イベントと事前状態から、作成・更新・削除で残す事実、履歴、保持の必要をシナリオとして先に記録する

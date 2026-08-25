@@ -1,0 +1,62 @@
+version: 1
+name: domain-bdd-formulation
+description: コアドメインの既存資料をQA観点で反証し、新しい理解・BDD・未決を同じ資料へ戻して深化させる
+instructions:
+  execution:
+    directive: stepsを上から順に実行し、コアドメインの既存資料だけを反証・検査・同一パス更新へ渡す
+
+focus: domain
+document_type: domain-rule
+output_format: markdown
+max_steps: 5
+allow_background: false
+examples_limits:
+  rows: 10
+  columns: 6
+
+requires:
+  - grill
+  - writing-rules
+  - write-doc
+
+contract:
+  grounding_sources: [user_input, referenced_artifacts, grill_decisions]
+  probe_dimensions: [同値分割, 境界値, 精度と単位, 条件組合せ, 状態遷移, イベント順序, 重複と再実行, 同時実行, アクターと権限, 悪用と不正, 時間, 規則変更と遡及, 失敗時保証, 不変条件]
+
+requirements:
+  input_grounded: true
+  clarify_with_grill: true
+  core_domain_only: true
+  existing_document_required: true
+  update_in_place: true
+  create_new_document: false
+
+steps:
+  - id: challenge
+    skill: grill
+    purpose: 既存資料を根拠にコアドメインをQA観点で問い、不明点と深掘りが必要な点を利用者へ1問ずつ確認して修正と未決を分ける
+    provides: [existing_domain_rule_path, core_scope, probe_findings, unresolved_questions, grounded_input]
+
+  - id: draft
+    skill: write-with-rules
+    purpose: 確認済みの発見を業務ルール・状態・BDDへ戻し、未決を未決のまま既存本文へ反映する
+    needs: [existing_domain_rule_path, core_scope, probe_findings, unresolved_questions, grounded_input]
+    provides: [scenario_draft, revised_body, requested_output_path]
+
+  - id: validate
+    script: scripts/scenario.py
+    purpose: 前提・行い・結果の境界、曖昧語、長さ、表を検査する
+    needs: [scenario_draft, grounded_input]
+    provides: [validated_scenarios]
+
+  - id: guard-update
+    script: scripts/update-guard.py
+    purpose: 更新先が入力された既存資料と同じパスであり、新規資料を作らないことを検査する
+    needs: [existing_domain_rule_path, requested_output_path, grounded_input]
+    provides: [update_target]
+
+  - id: document
+    playbook: write-doc
+    purpose: update_targetをwrite-docのreplace-existing-targetとして渡し、検査済みBDDと確認済みの理解を既存domain-ruleと同じパスへ差し替える
+    needs: [revised_body, validated_scenarios, update_target, grounded_input]
+    provides: [updated_domain_rule_path]

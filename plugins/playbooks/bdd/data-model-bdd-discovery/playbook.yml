@@ -1,0 +1,59 @@
+version: 1
+name: data-model-bdd-discovery
+description: 業務イベントから永続化の作成・更新・削除を発見し、BDDを含むRDB論理データモデル資料にする
+instructions:
+  execution:
+    directive: stepsを上から順に実行し、永続化シナリオを確定してから論理データモデルと資料へ渡す
+
+focus: data-model
+document_type: rdb-logical-data-modeling
+output_format: markdown
+modeling:
+  method: normalized
+out_dir: design/data-modeling/logical
+
+requires:
+  - domain-events
+  - grill
+  - persistence-scenarios
+  - data-model
+  - write-doc
+
+contract:
+  grounding_sources: [user_input, referenced_artifacts, grill_decisions]
+  persistence_operations: [create, update, delete]
+  scenario_roles: [actor, prior_state, business_event, condition, decision, result, next_state, persisted_fact, history, retention]
+
+requirements:
+  input_grounded: true
+  clarify_with_grill: true
+
+steps:
+  - id: settle
+    skill: grill
+    purpose: 入力だけでは不明または深掘りが必要な、業務イベント、残す事実、履歴、保持、物理削除の条件を利用者へ1問ずつ確かめる
+    provides: [decisions, grounded_input]
+
+  - id: explore
+    skill: explore-events
+    purpose: grounded_inputから、永続化の必要を生む業務イベントと関係する役割だけを抽出する
+    needs: [grounded_input]
+    provides: [events, actors]
+
+  - id: scenarios
+    skill: write-persistence-scenarios
+    purpose: 作成・更新・削除に関係する業務断面を独立した永続化シナリオへ記録する
+    needs: [events, actors, decisions, grounded_input]
+    provides: [persistence_scenarios, persistence_coverage]
+
+  - id: logical-model
+    skill: design-data-model
+    purpose: 検査済みシナリオから、記録する事実とRDB論理テーブル構造を設計する
+    needs: [persistence_scenarios, persistence_coverage, grounded_input]
+    provides: [logical_bdd_scenarios, logical_data_model]
+
+  - id: document
+    playbook: write-doc
+    purpose: 論理モデルと全BDDをrdb-logical-data-modelingテンプレートで保存する
+    needs: [logical_bdd_scenarios, logical_data_model, grounded_input]
+    provides: [logical_document_path]

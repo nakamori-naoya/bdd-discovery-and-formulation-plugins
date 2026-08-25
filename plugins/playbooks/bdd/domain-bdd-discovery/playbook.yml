@@ -1,0 +1,80 @@
+# domain-bdd-discovery — コアドメインの業務知識を探求し、ドメインルールとして残す。
+#
+# **この playbook は個々の手順を知らない。** 何を、どの順で呼ぶかだけを持つ。
+# 順番を変えたい・工程を差し替えたいときは、
+# <repo>/.harness-plugins/domain-bdd-discovery.config.yml で上書きする。
+version: 1
+name: domain-bdd-discovery
+description: 業務で起きる事実から、コアの業務ルールと代表BDDを共通理解にして1本の正本にする
+instructions:
+  execution:
+    directive: stepsを上から順に実行し、needsを前工程のprovidesから受け取る
+  material:
+    directive: 洗い出した事実・線引き・決定・振る舞い断面を、確からしさを保ったまま素材へ束ねる
+
+focus: domain
+document_type: domain-rule
+output_format: markdown
+map_dir: bdd/discovery/domain
+
+# 欠けていたら止める。黙って劣化した結果を出さない。
+requires:
+  - domain-events
+  - core-domain
+  - grill
+  - write-doc
+
+# 下段どうしをつなぐ契約。playbook が持つ。
+# 素材の役の名前だけを共有し、各工程は互いを見ずに自分の領分を決める。
+contract:
+  grounding_sources: [user_input, referenced_artifacts, grill_decisions]
+  material_roles: [業務イベント, 担い手, 常に守られること, 移り変わり, 業務ルール, 拒む理由, 未決]
+  confidence: [confirmed, assumed, unknown]
+  behavior_slice: [業務目的, 起点役割, 協働役割, 事前状態, 業務イベント, 条件, 業務判断, 判断権者, 結果, 次状態, 引継ぎ, 後続イベント]
+
+# 業務の正本は、作りを全部やめても残る範囲だけを持つ。
+# 実装の関心を落とす工程を外せないようにする。
+requirements:
+  input_grounded: true
+  clarify_with_grill: true
+  exclude_implementation: true
+
+out_dir: domain
+
+# stepsは上から実行する。needsは開始条件、providesは次工程へ渡す成果物。
+# skillは自己完結した手順、scriptは決定的処理、playbookは入れ子の段取り。
+steps:
+  - id: settle
+    skill: grill
+    purpose: 入力だけでは不明または深掘りが必要な業務の事実、役割、決まりを利用者へ1問ずつ確かめ、決定と未決を残す
+    provides: [decisions, grounded_input]
+
+  - id: explore
+    skill: explore-events
+    purpose: grounded_inputにある業務の事実だけを時系列に抽出し、確からしさつきで台帳へ残す
+    needs: [grounded_input]
+    provides: [events, actors]
+
+  - id: scope
+    skill: mark-core-domain
+    purpose: 業務の話に線を引き、コア・支援・汎用へ分け、実装の関心を落とす
+    needs: [events, grounded_input]
+    provides: [core_scope, implementation_excluded]
+
+  - id: record-behavior
+    script: scripts/map.py
+    purpose: コアの代表的な振る舞いを、事前状態・業務イベント・判断・次状態までの断面として記録する
+    needs: [events, actors, core_scope, decisions, grounded_input]
+    provides: [behavior_map, representative_bdd]
+
+  - id: assemble
+    script: scripts/material.sh
+    purpose: 事実・線引き・決定・代表的な振る舞いを、確からしさを保ったまま1つの素材へ束ねる
+    needs: [events, core_scope, decisions, behavior_map, representative_bdd, grounded_input]
+    provides: [material]
+
+  - id: document
+    playbook: write-doc
+    purpose: 素材から代表BDDを含むdomain-ruleの正本を1本書いて保存する
+    needs: [material, behavior_map, representative_bdd, grounded_input]
+    provides: [domain_rule_path]

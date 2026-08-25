@@ -1,0 +1,81 @@
+# data-model-bdd-formulation — 既存のRDB論理設計をQA観点で深化させ、物理設計へ写す。
+# 個々の設計手順は下段skillが持ち、このファイルは順番と入出力契約だけを持つ。
+version: 1
+name: data-model-bdd-formulation
+description: 既存のBDD付きRDB論理設計を永続化のQA観点で反証して同じ資料へ戻し、そのテーブル構造を変えずに対象RDBの物理設計を作る
+instructions:
+  execution:
+    directive: stepsを上から順に実行し、既存論理資料の同一パス更新を検査してから物理設計へ渡す
+
+output_format: markdown
+
+requires:
+  - grill
+  - persistence-scenarios
+  - data-model
+  - write-doc
+  - rdb-design
+
+contract:
+  grounding_sources: [user_input, referenced_artifacts, grill_decisions]
+  persistence_operations: [create, update, delete]
+  probe_dimensions: [同値分割, 境界値, 精度と単位, 条件組合せ, 状態遷移, イベント順序, 重複と再実行, 同時実行, アクターと権限, 悪用と不正, 時間, 規則変更と遡及, 失敗時保証, 不変条件]
+  logical_schema_markers: [table, column, business_constraint]
+  confidence: [confirmed, assumed, unknown]
+
+requirements:
+  input_grounded: true
+  clarify_with_grill: true
+  existing_logical_document_required: true
+  update_logical_in_place: true
+  create_new_logical_document: false
+  bdd_scenarios_in_logical_only: true
+  logical_schema_immutable_in_physical: true
+  read_scenarios_in_physical_only: true
+  rdb_only: true
+  verified_features_only: true
+
+database:
+  product: PostgreSQL
+  version: "18"
+
+modeling:
+  method: normalized
+
+out_dir: design/data-modeling
+
+steps:
+  - id: challenge-persistence
+    skill: grill
+    purpose: 既存論理資料を根拠にQA観点で問い、不明点と深掘りが必要な点を利用者へ1問ずつ確認して、確認済みの発見と未決を分ける
+    provides: [existing_logical_document_path, probe_findings, unresolved_questions, grounded_input]
+
+  - id: deepen-scenarios
+    skill: write-persistence-scenarios
+    purpose: 作成・更新・削除、履歴、保持、失敗時保証の不足を独立したBDDシナリオへ深化させる
+    needs: [existing_logical_document_path, probe_findings, unresolved_questions, grounded_input]
+    provides: [revised_persistence_scenarios, persistence_coverage]
+
+  - id: revise-logical-model
+    skill: design-data-model
+    purpose: 確認済みの発見を論理テーブルとBDDへ戻し、既存論理資料の更新本文を作る
+    needs: [existing_logical_document_path, revised_persistence_scenarios, persistence_coverage, grounded_input]
+    provides: [revised_logical_data_model, revised_logical_body, requested_logical_output_path]
+
+  - id: guard-logical-update
+    script: scripts/update-guard.py
+    purpose: 論理設計の更新先が入力資料と同じパスであり、新規の論理資料を作らないことを検査する
+    needs: [existing_logical_document_path, requested_logical_output_path, grounded_input]
+    provides: [logical_update_target]
+
+  - id: update-logical-document
+    playbook: write-doc
+    purpose: logical_update_targetをwrite-docのreplace-existing-targetとして渡し、深化したBDDと論理モデルを既存rdb-logical-data-modeling資料の同じパスへ差し替える
+    needs: [revised_logical_body, logical_update_target, grounded_input]
+    provides: [updated_logical_document_path]
+
+  - id: physical-design
+    skill: design-rdb-persistence
+    purpose: 典型的なReadシナリオを特定し、論理構造を変えずに指定RDB・版の型、制約、index、分離レベル、配置へ写す
+    needs: [updated_logical_document_path, revised_logical_data_model, grounded_input]
+    provides: [read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]

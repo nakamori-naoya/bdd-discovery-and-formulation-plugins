@@ -1,0 +1,7 @@
+# scope_dir: コア・支援・汎用の線引きを保存する先。
+# instructions: 実装都合を混ぜずに分類する規則。
+version: 1
+scope_dir: domain/scope
+instructions:
+  marking:
+    directive: 題材をコア・支援・汎用へ分け、実装の関心はスコープ外として理由つきで落とす

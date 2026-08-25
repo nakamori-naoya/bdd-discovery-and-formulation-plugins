@@ -1,0 +1,9 @@
+{
+  "name": "domain-bdd-discovery",
+  "version": "0.3.4",
+  "description": "コアドメインの共通理解を作り、代表BDDとともにdomain-rule資料へまとめる",
+  "author": {
+    "name": "NaoyaNakamori"
+  },
+  "skills": "."
+}

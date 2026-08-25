@@ -1,0 +1,8 @@
+# aspects: 問い詰める観点。空なら依頼から判断する。log_dir: 決定ログの保存先。
+# instructions: 質問時に必ず守る進め方。
+version: 1
+aspects: ""
+log_dir: decisions
+instructions:
+  questioning:
+    directive: 観点を読み、調べて分からない未決事項を推奨回答つきで1問ずつ聞く

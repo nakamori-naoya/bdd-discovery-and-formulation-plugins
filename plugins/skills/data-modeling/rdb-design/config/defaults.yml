@@ -1,0 +1,15 @@
+# design_dir: RDB物理設計と機能根拠台帳の保存先。
+# database: 依頼ごとに対象が変わるため、実値は上段playbookまたは単体呼出しから渡す。
+version: 1
+design_dir: design/data-modeling
+prompt_parameters:
+  database:
+    product:
+      type: string
+      required: true
+    version:
+      type: string
+      required: true
+instructions:
+  design:
+    directive: 論理構造を複製せず、対象バージョンで裏付けた物理制約・型・index・分離レベル・配置へ写す

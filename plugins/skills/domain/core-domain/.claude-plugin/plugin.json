@@ -1,0 +1,9 @@
+{
+  "name": "core-domain",
+  "version": "0.2.11",
+  "description": "題材をコア・支援・汎用へ分け、コアの境界を引き、実装の関心を業務の話から追い出す",
+  "author": {
+    "name": "NaoyaNakamori"
+  },
+  "skills": "."
+}

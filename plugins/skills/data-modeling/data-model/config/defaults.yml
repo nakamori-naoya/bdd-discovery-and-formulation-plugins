@@ -1,0 +1,14 @@
+# model_dir: モデルの保存先。
+# method: 依頼のたびに変わる目的依存値なので、ここには実値の既定を置かない。
+#   type/requiredだけを宣言し、値は依頼から --override=method=<value> で渡す。
+#   同梱の手法一覧は references/methods/ を見る。
+# instructions: シナリオから記録対象を決める規則。
+version: 1
+model_dir: domain/model
+prompt_parameters:
+  method:
+    type: string
+    required: true
+instructions:
+  design:
+    directive: 記録すべき事実を先に洗い出し、BDDシナリオを含む論理データモデルへ写す
