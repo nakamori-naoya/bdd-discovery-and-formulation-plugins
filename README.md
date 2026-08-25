@@ -2,6 +2,8 @@
 
 `harness-plugins`から、BDDのドメイン理解とデータモデリングに必要な配布物だけを切り出した検証用marketplaceである。正式な`knowledge-hub`内の配置、派生plugin名、marketplace名は未決のため、このdirectory自体はprototypeとして扱う。
 
+knowledge-hubへ移行する目的と対象範囲は[knowledge-hubへのBDDハーネス移行方針](KNOWLEDGE-HUB-MIGRATION.md)にまとめた。
+
 コピー元は`nakamori-naoya/harness-plugins`のcommit `f9e30db06f98309840066789c8d7844bd217ffe5`である。コピー対象と直近PRの判断は[VENDORING.md](VENDORING.md)、機械可読な固定情報は[vendor-lock.json](vendor-lock.json)に記録した。
 
 ## 含むもの
