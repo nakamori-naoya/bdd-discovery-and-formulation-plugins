@@ -16,15 +16,10 @@
 
 ## 必要なもの
 
-```bash
-claude plugin install grill@harness-plugins
-claude plugin install persistence-scenarios@harness-plugins
-claude plugin install data-model@harness-plugins
-claude plugin install write-doc@harness-plugins
-claude plugin install rdb-design@harness-plugins
-```
+このrepository外では、次のpluginがインストール済みである必要がある。
 
-Codexでは`codex plugin add <plugin>@harness-plugins`を使います。
+- `grill@grill`
+- `write-doc@write-doc`
 
 ## 設定
 

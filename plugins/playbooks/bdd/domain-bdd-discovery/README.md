@@ -23,14 +23,10 @@
 
 ## 必要なもの
 
-欠けていたら止まる。**黙って劣化した結果を出さない。**
+このrepository外では、次のpluginがインストール済みである必要がある。欠けていたら停止し、黙って劣化した結果を出さない。
 
-```bash
-claude plugin install domain-events@harness-plugins
-claude plugin install core-domain@harness-plugins
-claude plugin install grill@harness-plugins
-claude plugin install write-doc@harness-plugins
-```
+- `grill@grill`
+- `write-doc@write-doc`
 
 ## 設定
 
