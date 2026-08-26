@@ -1,105 +1,17 @@
 {
-  "name": "knowledge-hub-bdd-prototype",
-  "owner": {
-    "name": "NaoyaNakamori"
-  },
-  "description": "knowledge-hub向けにBDDのドメイン理解とデータモデリングだけを切り出した検証用marketplace",
+  "name": "bdd-discovery-and-formulation",
+  "owner": {"name": "NaoyaNakamori"},
+  "description": "BDDによるドメイン理解とデータモデリングのdiscovery/formulation marketplace",
   "plugins": [
-    {
-      "name": "writing-rules",
-      "source": "./plugins/skills/authoring/writing-rules",
-      "description": "文章を書くときの規律。媒体を知らないので資料に限らず使える",
-      "version": "0.4.15"
-    },
-    {
-      "name": "content-types",
-      "source": "./plugins/skills/authoring/content-types",
-      "description": "BDDのドメイン資料とRDB論理設計資料について、2種の型から選び、テンプレートと記載例を返す",
-      "version": "0.6.3"
-    },
-    {
-      "name": "visual-guidance",
-      "source": "./plugins/skills/authoring/visual-guidance",
-      "description": "主要な主張と読み手の問いから、目的に合う図を選んで設計する",
-      "version": "0.2.0"
-    },
-    {
-      "name": "intermediate-cleanup",
-      "source": "./plugins/skills/authoring/intermediate-cleanup",
-      "description": "最終成果物を残し、明示された未追跡の中間生成物だけを安全に削除する",
-      "version": "0.1.0"
-    },
-    {
-      "name": "doc-render",
-      "source": "./plugins/skills/authoring/doc-render",
-      "description": "書けたものを媒体へ出す。意味上の役を HTML/Markdown へ写し、安全に保存する",
-      "version": "0.7.14"
-    },
-    {
-      "name": "write-doc",
-      "source": "./plugins/playbooks/authoring/write-doc",
-      "description": "資料を1本書く。型・文章規律・図の設計・媒体表現を組み合わせる上段プラグイン",
-      "version": "0.5.3"
-    },
-    {
-      "name": "grill",
-      "source": "./plugins/skills/authoring/grill",
-      "description": "合意に達するまで1問ずつ問い詰めて曖昧さを潰す。決定と未決を残す",
-      "version": "0.2.12"
-    },
-    {
-      "name": "domain-events",
-      "source": "./plugins/skills/domain/domain-events",
-      "description": "業務で起きる事実を時系列に洗い出し、確からしさつきで台帳へ残す",
-      "version": "0.2.11"
-    },
-    {
-      "name": "core-domain",
-      "source": "./plugins/skills/domain/core-domain",
-      "description": "題材をコア・支援・汎用へ分け、実装の関心を業務の話から追い出す",
-      "version": "0.2.11"
-    },
-    {
-      "name": "data-model-bdd-discovery",
-      "source": "./plugins/playbooks/bdd/data-model-bdd-discovery",
-      "description": "業務イベントから永続化の作成・更新・削除を発見し、BDDを含むRDB論理データモデル資料にする",
-      "version": "0.2.6"
-    },
-    {
-      "name": "domain-bdd-formulation",
-      "source": "./plugins/playbooks/bdd/domain-bdd-formulation",
-      "description": "既存のコアドメイン資料をQA観点で反証し、同じ資料へ戻して深化させる",
-      "version": "0.2.6"
-    },
-    {
-      "name": "data-model",
-      "source": "./plugins/skills/data-modeling/data-model",
-      "description": "業務シナリオから永続化すべき事実を見出し、BDDシナリオを含む論理データモデルを作る",
-      "version": "0.2.14"
-    },
-    {
-      "name": "persistence-scenarios",
-      "source": "./plugins/skills/data-modeling/persistence-scenarios",
-      "description": "業務イベントと事前状態から、作成・更新・削除に関係する永続化シナリオを先に記録する",
-      "version": "0.1.2"
-    },
-    {
-      "name": "rdb-design",
-      "source": "./plugins/skills/data-modeling/rdb-design",
-      "description": "論理テーブル構造を変えず、指定RDB・バージョンの索引・分離レベル・配置を物理設計する",
-      "version": "0.3.0"
-    },
-    {
-      "name": "data-model-bdd-formulation",
-      "source": "./plugins/playbooks/bdd/data-model-bdd-formulation",
-      "description": "既存のBDD付き論理設計をQA観点で深化させ、同じ資料へ戻してからRDB物理設計を作る",
-      "version": "0.1.5"
-    },
-    {
-      "name": "domain-bdd-discovery",
-      "source": "./plugins/playbooks/bdd/domain-bdd-discovery",
-      "description": "コアドメインの共通理解を代表BDDとともにdomain-rule資料へまとめる",
-      "version": "0.3.5"
-    }
+    {"name":"domain-bdd-discovery","source":"./plugins/playbooks/bdd/domain-bdd-discovery","description":"コアドメインの共通理解を代表BDDとともに正本へまとめる","version":"0.4.0"},
+    {"name":"domain-bdd-formulation","source":"./plugins/playbooks/bdd/domain-bdd-formulation","description":"既存のコアドメイン資料をQA観点で反証し深化させる","version":"0.3.0"},
+    {"name":"data-model-bdd-discovery","source":"./plugins/playbooks/bdd/data-model-bdd-discovery","description":"業務イベントからBDD付きRDB論理データモデルを作る","version":"0.3.0"},
+    {"name":"data-model-bdd-formulation","source":"./plugins/playbooks/bdd/data-model-bdd-formulation","description":"BDD付き論理設計を深化させRDB物理設計を作る","version":"0.2.0"},
+    {"name":"domain-events","source":"./plugins/skills/domain/domain-events","description":"業務で起きる事実を時系列に台帳へ残す","version":"0.2.11"},
+    {"name":"core-domain","source":"./plugins/skills/domain/core-domain","description":"題材をコア・支援・汎用へ分類する","version":"0.2.11"},
+    {"name":"persistence-scenarios","source":"./plugins/skills/data-modeling/persistence-scenarios","description":"永続化の作成・更新・削除シナリオを記録する","version":"0.1.2"},
+    {"name":"data-model","source":"./plugins/skills/data-modeling/data-model","description":"BDDシナリオを含む論理データモデルを作る","version":"0.2.14"},
+    {"name":"rdb-design","source":"./plugins/skills/data-modeling/rdb-design","description":"論理構造を保ったままRDB物理設計を作る","version":"0.3.0"},
+    {"name":"intermediate-cleanup","source":"./plugins/skills/authoring/intermediate-cleanup","description":"最終成果物を残して中間生成物を安全に削除する","version":"0.1.0"}
   ]
 }

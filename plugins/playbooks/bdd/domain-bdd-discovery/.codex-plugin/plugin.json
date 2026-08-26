@@ -1,9 +1,20 @@
 {
   "name": "domain-bdd-discovery",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "description": "コアドメインの共通理解を作り、代表BDDとともにdomain-rule資料へまとめる",
-  "skills": "./SKILL.md",
+  "skills": "./skills",
   "author": {
     "name": "NaoyaNakamori"
+  },
+  "interface": {
+    "displayName": "Domain Bdd Discovery",
+    "shortDescription": "コアドメインの共通理解を作り、代表BDDとともにdomain-rule資料へまとめる",
+    "longDescription": "コアドメインの共通理解を作り、代表BDDとともにdomain-rule資料へまとめる",
+    "developerName": "NaoyaNakamori",
+    "category": "Productivity",
+    "capabilities": [
+      "Skills"
+    ],
+    "defaultPrompt": "domain-bdd-discoveryを使ってこの作業を進めてください。"
   }
 }

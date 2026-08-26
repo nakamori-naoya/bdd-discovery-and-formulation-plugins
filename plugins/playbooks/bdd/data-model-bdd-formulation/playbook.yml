@@ -1,6 +1,6 @@
 # data-model-bdd-formulation — 既存のRDB論理設計をQA観点で深化させ、物理設計へ写す。
 # 個々の設計手順は下段skillが持ち、このファイルは順番と入出力契約だけを持つ。
-version: 1
+version: 2
 name: data-model-bdd-formulation
 description: 既存のBDD付きRDB論理設計を永続化のQA観点で反証して同じ資料へ戻し、そのテーブル構造を変えずに対象RDBの物理設計を作る
 instructions:
@@ -10,12 +10,12 @@ instructions:
 output_format: markdown
 
 requires:
-  - grill
-  - persistence-scenarios
-  - data-model
-  - write-doc
-  - rdb-design
-  - intermediate-cleanup
+  - {plugin: grill, marketplace: grill, version: 0.2.12}
+  - {plugin: persistence-scenarios, marketplace: bdd-discovery-and-formulation, version: 0.1.2}
+  - {plugin: data-model, marketplace: bdd-discovery-and-formulation, version: 0.2.14}
+  - {plugin: write-doc, marketplace: write-doc, version: 0.6.0}
+  - {plugin: rdb-design, marketplace: bdd-discovery-and-formulation, version: 0.3.0}
+  - {plugin: intermediate-cleanup, marketplace: bdd-discovery-and-formulation, version: 0.1.0}
 
 contract:
   grounding_sources: [user_input, referenced_artifacts, grill_decisions]

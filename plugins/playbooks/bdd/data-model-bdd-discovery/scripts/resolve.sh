@@ -67,9 +67,17 @@ pb=$(yq -o=json -I=0 '.' "$selected" 2>/dev/null) || { echo "[error] YAML が壊
 missing=$(jq -rn --argjson req "$bundled" --argjson got "$pb" 'def required_paths($v;$p): if ($v|type)=="object" then [$v|to_entries[]|required_paths(.value;$p+[.key])[]] else [$p] end;[$req|required_paths(.;[])[] as $p|select($got|getpath($p)==null)|$p|map(tostring)|join(".")]|join(", ")')
 [ -z "$missing" ] || { echo "[error] 選択したplaybook設定が自己完結していない: ${selected}（不足: ${missing}）" >&2; exit 2; }
 jq -e --arg expected "$name" --argjson bundled "$bundled" '
-  .version==1 and .name==$expected and (.description|type=="string" and length>0) and
+  .version==2 and .name==$expected and (.description|type=="string" and length>0) and
   (.instructions|type=="object" and all(.[]; type=="object" and (.directive|type=="string" and length>0))) and
-  (.requires|type=="array" and all(.[]; type=="string" and test("^[A-Za-z0-9._-]+$")) and length==(unique|length)) and
+  (.requires | type=="array" and length>0 and
+    all(.[];
+      type=="object" and
+      ((keys|sort)==["marketplace","plugin","version"]) and
+      (.plugin|type=="string" and test("^[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)*$")) and
+      (.marketplace|type=="string" and test("^[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)*$")) and
+      (.version|type=="string" and test("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"))) and
+    ((map(.plugin)|length)==(map(.plugin)|unique|length))) and
+  (.requires==$bundled.requires) and
   (.steps|type=="array" and length>0 and all(.[];
     type=="object" and (.id|type=="string" and test("^[A-Za-z0-9._-]+$")) and
     (.purpose|type=="string" and length>0) and
@@ -120,69 +128,21 @@ while [ "$i" -lt "$n" ]; do
   i=$((i + 1))
 done
 
-MARKET="${CLAUDE_MARKETPLACE:-harness-plugins}"
-find_dep() {
-  local nm="$1" d v manifest plugins_root manifest_name
-  # marketplaceリポジトリ自身では、編集中のplaybook/skillを最優先する。
-  # playbook は plugins/playbooks/<name> と <group>/<name> の両方を許すため、
-  # 固定個数の ../ ではなく、確認できる祖先だけを plugins まで辿る。
-  plugins_root="$PB_ROOT"
-  while [ "$plugins_root" != "/" ] && [ "$(basename "$plugins_root")" != "plugins" ]; do
-    plugins_root=$(dirname "$plugins_root")
-  done
-  # 単体配布先で広い祖先を走査しない。repository内探索は
-  # 「plugins」rootと形を確認できる場合だけに限る。
-  if [ "$(basename "$plugins_root")" = "plugins" ] \
-    && [ -d "$plugins_root/skills" ] && [ -d "$plugins_root/playbooks" ]; then
-    while IFS= read -r manifest; do
-      [ "$(jq -r '.name // ""' "$manifest")" = "$nm" ] || continue
-      d=$(dirname "$(dirname "$manifest")")
-      (cd "$d" && pwd); return 0
-    done < <(find "$plugins_root/skills" "$plugins_root/playbooks" \
-      -path '*/.claude-plugin/plugin.json' -type f | sort)
-  fi
-  for b in "${CLAUDE_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}" "${CODEX_PLUGIN_CACHE:-$HOME/.codex/plugins/cache}"; do
-    d="${b}/${MARKET}/${nm}"; [ -d "$d" ] || continue
-    # ディレクトリがあるだけでは入っているとは言えない（消し損ねた殻が残る）。
-    # マニフェストの実体で判定する。
-    for v in $(ls -1 "$d" 2>/dev/null | sort -Vr); do
-      manifest="$d/$v/.claude-plugin/plugin.json"
-      [ -f "$manifest" ] || continue
-      manifest_name=$(jq -r '.name // ""' "$manifest" 2>/dev/null)
-      [ "$manifest_name" = "$nm" ] || continue
-      printf '%s' "$d/$v"; return 0
-    done
-  done
-  for d in "$HOME/.codex/.tmp/marketplaces/${MARKET}/plugins/${nm}"; do
-    manifest="$d/.claude-plugin/plugin.json"
-    [ -f "$manifest" ] || continue
-    [ "$(jq -r '.name // ""' "$manifest" 2>/dev/null)" = "$nm" ] \
-      && { (cd "$d" && pwd); return 0; }
-  done
-  return 1
-}
-
-deps='{}'; missing=""
-for dep in $(jq -r '.requires[]?' <<<"$pb"); do
-  if p=$(find_dep "$dep"); then deps=$(jq -c --arg k "$dep" --arg v "$p" '.[$k]=$v' <<<"$deps")
-  else missing="${missing} ${dep}"; fi
-done
-if [ -n "$missing" ]; then
-  echo "[error] 必要なものが見つからない:${missing}" >&2
-  echo "        playbook は組み合わせ役なので、欠けたまま走ると結果の質が担保されない。" >&2
-  for m in $missing; do
-    echo "          claude plugin install ${m}@${MARKET}" >&2
-    echo "          codex  plugin add     ${m}@${MARKET}" >&2
-  done
-  exit 2
-fi
+dependency_resolver="$PB_ROOT/scripts/resolve-dependency.py"
+[ -f "$dependency_resolver" ] || { echo "[error:dependency-invalid] resolver-missing=$dependency_resolver" >&2; exit 2; }
+deps='{}'
+while IFS=$'\t' read -r dep market version; do
+  candidate=$(python3 "$dependency_resolver" --plugin-root "$PB_ROOT" \
+    --plugin "$dep" --marketplace "$market" --version "$version") || exit 2
+  deps=$(jq -c --arg k "$dep" --argjson v "$candidate" '.[$k]=$v' <<<"$deps") || exit 2
+done < <(jq -r '.requires[] | [.plugin,.marketplace,.version] | @tsv' <<<"$pb")
 
 # requires はプラグイン名、steps[].skill はスキル名で、名前空間が違う。
 # **両方を検査しないと片方だけが素通りする。** requires を通っても、steps が
 # 存在しないスキルを指していれば、実行するエージェントはそれを呼べず自力で始める。
 # 「規律なしで資料が出る」は、資料が出ないことより悪い。ここで止める。
 available=""
-for dep_root in $(jq -r '.[]' <<<"$deps"); do
+for dep_root in $(jq -r '.[].root' <<<"$deps"); do
   # 単一skill pluginはrootのSKILL.md、複数skill pluginだけは
   # skills/<name>/SKILL.mdを持つ。どちらも深さが決まっているので、
   # **単体配布先で広域をfindしない。**
@@ -217,7 +177,7 @@ while IFS='|' read -r owner rel; do
   esac
   base="$PB_ROOT"
   if [ -n "$owner" ]; then
-    base=$(jq -r --arg k "$owner" '.[$k] // ""' <<<"$deps")
+    base=$(jq -r --arg k "$owner" '.[$k].root // ""' <<<"$deps")
     [ -n "$base" ] || { echo "[error] steps の plugin「${owner}」が requires に無い" >&2; exit 2; }
   fi
   [ -f "$base/$rel" ] \
@@ -227,8 +187,10 @@ done < <(jq -r '.steps[]? | select(.when == null) | select(.script != null)
 
 # 入れ子の段取りも requires を通っていること。requires に無ければ実体を探せない。
 for want in $(jq -r '.steps[]? | select(.when == null) | select(.playbook != null) | .playbook' <<<"$pb"); do
-  jq -e --arg k "$want" 'has($k)' >/dev/null <<<"$deps" \
-    || { echo "[error] steps が指す段取り「${want}」が requires に無い" >&2; exit 2; }
+  nested=$(jq -r --arg k "$want" '.[$k].root // ""' <<<"$deps")
+  [ -n "$nested" ] || { echo "[error] steps が指す段取り「${want}」が requires に無い" >&2; exit 2; }
+  [ -f "$nested/playbook.yml" ] && [ -x "$nested/scripts/resolve.sh" ] \
+    || { echo "[error:dependency-invalid] plugin=${want} reason=playbook-entry-missing" >&2; exit 2; }
 done
 
 out=$(jq -cn --argjson pb "$pb" --argjson d "$deps" --arg root "$root" --arg pr "$PB_ROOT" \
@@ -240,7 +202,7 @@ if [ "$explain" = "1" ]; then
   echo "# playbook: ${name}" >&2
   jq -r '.playbook.steps[] | "  \(.id): \(.skill // .script // ("playbook:" + .playbook))  — \(.purpose)"' <<<"$out" >&2
   echo "# 依存:" >&2
-  jq -r '.deps | to_entries[] | "  \(.key): \(.value)"' <<<"$out" >&2
+  jq -r '.deps | to_entries[] | "  \(.key)@\(.value.marketplace) \(.value.version) [\(.value.runtime)/\(.value.source_kind)]: \(.value.root)"' <<<"$out" >&2
   echo "# 選択した設定: ${source} (${selected})" >&2
   if [ -d "$scope_root" ]; then
     echo "# scope: ${scope_root}" >&2

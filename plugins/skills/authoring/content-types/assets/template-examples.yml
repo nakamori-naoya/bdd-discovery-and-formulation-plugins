@@ -1,8 +1,0 @@
-version: 1
-pairs:
-  domain-rule:
-    template: templates/domain-rule.md
-    example: examples/domain-rule.example.md
-  rdb-logical-data-modeling:
-    template: templates/rdb-logical-data-modeling.md
-    example: examples/rdb-logical-data-modeling.example.md

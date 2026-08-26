@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Scenario: vendored manifestを現在のCodex plugin-creator契約でも検査する
-# Given: harness-plugins由来の15個の.codex-plugin/plugin.jsonがある
+# Given: BDD marketplaceの10個の.codex-plugin/plugin.jsonがある
 # When: plugin-creatorのvalidatorを各plugin rootへ実行する
 # Then: 現行validatorとの互換差分をpluginごとに報告する
 set -uo pipefail

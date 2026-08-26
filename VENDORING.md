@@ -14,7 +14,7 @@
 2. [PR #145 電子チケット業界題材とProduct Strategyの整理](https://github.com/nakamori-naoya/harness-plugins/pull/145)
    - product planningと`docs`の変更であり、BDD実行時依存ではないためコピーしない。
 3. [PR #144 product planning用template](https://github.com/nakamori-naoya/harness-plugins/pull/144)
-   - `content-types`へ追加されたproduct型はコピーしない。prototypeではBDD用2型だけを保つ。
+   - `content-types`は`write-doc` repositoryの責務なのでコピーしない。
 4. [PR #143 product directionの分割](https://github.com/nakamori-naoya/harness-plugins/pull/143)
    - product pluginだけの変更であり、コピーしない。
 5. [PR #142 画像生成向け図解ガイダンス](https://github.com/nakamori-naoya/harness-plugins/pull/142)
@@ -43,11 +43,11 @@
 | `doc-render` | 0.7.14 | [plugins/skills/authoring/doc-render](plugins/skills/authoring/doc-render/) |
 | `intermediate-cleanup` | 0.1.0 | [plugins/skills/authoring/intermediate-cleanup](plugins/skills/authoring/intermediate-cleanup/) |
 
-上流からの初回取込はplugin directory単位で行う。prototypeで削減・修正した内容は、次のローカルパッチとしてversionと`vendor-lock.json`へ明示する。
+上流からの初回取込はplugin directory単位で行う。分離時に削減・修正した内容は、次のローカルパッチとしてversionと`vendor-lock.json`へ明示する。
 
-### prototypeで追加した修正
+### 分離時に追加した修正
 
-上流0.2.5では`data-model-bdd-discovery`の論理モデル工程が`data-model`に必須の`method`を渡さず、実工程の`prepare.sh`でexit 2になる。prototypeでは上流のcleanup契約へ`modeling.method: normalized`、工程へのoverride指示、validator、負の試験を重ねて0.2.6とした。上流との差分は[vendor-lock.json](vendor-lock.json)の`local_patches`にも固定した。
+上流0.2.5では`data-model-bdd-discovery`の論理モデル工程が`data-model`に必須の`method`を渡さず、実工程の`prepare.sh`でexit 2になる。本repositoryでは上流のcleanup契約へ`modeling.method: normalized`、工程へのoverride指示、validator、負の試験を重ねた。上流との差分は[vendor-lock.json](vendor-lock.json)の`local_patches`にも固定した。
 
 上流0.6.2の`content-types`は27型を一つの配布単位に持ち、product planning、期間ダイジェスト、PR実装解説、Slackを含む記載例も公開する。今回の最小境界に合わせ、`domain-rule`と`rdb-logical-data-modeling`のtemplate・example・detailだけへ縮小して0.6.3とした。
 

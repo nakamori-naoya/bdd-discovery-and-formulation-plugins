@@ -2,8 +2,19 @@
   "name": "rdb-design",
   "version": "0.3.0",
   "description": "論理構造を重複掲載せず、指定RDB・版のRead・index・分離レベル・配置を物理設計する",
-  "skills": "./SKILL.md",
+  "skills": "./skills",
   "author": {
     "name": "NaoyaNakamori"
+  },
+  "interface": {
+    "displayName": "Rdb Design",
+    "shortDescription": "論理構造を重複掲載せず、指定RDB・版のRead・index・分離レベル・配置を物理設計する",
+    "longDescription": "論理構造を重複掲載せず、指定RDB・版のRead・index・分離レベル・配置を物理設計する",
+    "developerName": "NaoyaNakamori",
+    "category": "Productivity",
+    "capabilities": [
+      "Skills"
+    ],
+    "defaultPrompt": "rdb-designを使ってこの作業を進めてください。"
   }
 }

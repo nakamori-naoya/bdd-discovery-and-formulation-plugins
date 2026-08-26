@@ -2,8 +2,19 @@
   "name": "core-domain",
   "version": "0.2.11",
   "description": "題材をコア・支援・汎用へ分け、コアの境界を引き、実装の関心を業務の話から追い出す",
-  "skills": "./SKILL.md",
+  "skills": "./skills",
   "author": {
     "name": "NaoyaNakamori"
+  },
+  "interface": {
+    "displayName": "Core Domain",
+    "shortDescription": "題材をコア・支援・汎用へ分け、コアの境界を引き、実装の関心を業務の話から追い出す",
+    "longDescription": "題材をコア・支援・汎用へ分け、コアの境界を引き、実装の関心を業務の話から追い出す",
+    "developerName": "NaoyaNakamori",
+    "category": "Productivity",
+    "capabilities": [
+      "Skills"
+    ],
+    "defaultPrompt": "core-domainを使ってこの作業を進めてください。"
   }
 }

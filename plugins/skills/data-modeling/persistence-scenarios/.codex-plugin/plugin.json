@@ -2,8 +2,19 @@
   "name": "persistence-scenarios",
   "version": "0.1.2",
   "description": "業務シナリオと業務イベントから、作成・更新・削除に関係する永続化シナリオを先に記録する",
-  "skills": "./SKILL.md",
+  "skills": "./skills",
   "author": {
     "name": "NaoyaNakamori"
+  },
+  "interface": {
+    "displayName": "Persistence Scenarios",
+    "shortDescription": "業務シナリオと業務イベントから、作成・更新・削除に関係する永続化シナリオを先に記録する",
+    "longDescription": "業務シナリオと業務イベントから、作成・更新・削除に関係する永続化シナリオを先に記録する",
+    "developerName": "NaoyaNakamori",
+    "category": "Productivity",
+    "capabilities": [
+      "Skills"
+    ],
+    "defaultPrompt": "persistence-scenariosを使ってこの作業を進めてください。"
   }
 }

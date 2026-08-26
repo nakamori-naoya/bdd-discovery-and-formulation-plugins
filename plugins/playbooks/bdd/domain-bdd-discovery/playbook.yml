@@ -3,7 +3,7 @@
 # **この playbook は個々の手順を知らない。** 何を、どの順で呼ぶかだけを持つ。
 # 順番を変えたい・工程を差し替えたいときは、
 # <repo>/.harness-plugins/domain-bdd-discovery.config.yml で上書きする。
-version: 1
+version: 2
 name: domain-bdd-discovery
 description: 業務で起きる事実から、コアの業務ルールと代表BDDを共通理解にして1本の正本にする
 instructions:
@@ -19,11 +19,11 @@ map_dir: bdd/discovery/domain
 
 # 欠けていたら止める。黙って劣化した結果を出さない。
 requires:
-  - domain-events
-  - core-domain
-  - grill
-  - write-doc
-  - intermediate-cleanup
+  - {plugin: domain-events, marketplace: bdd-discovery-and-formulation, version: 0.2.11}
+  - {plugin: core-domain, marketplace: bdd-discovery-and-formulation, version: 0.2.11}
+  - {plugin: grill, marketplace: grill, version: 0.2.12}
+  - {plugin: write-doc, marketplace: write-doc, version: 0.6.0}
+  - {plugin: intermediate-cleanup, marketplace: bdd-discovery-and-formulation, version: 0.1.0}
 
 # 下段どうしをつなぐ契約。playbook が持つ。
 # 素材の役の名前だけを共有し、各工程は互いを見ずに自分の領分を決める。

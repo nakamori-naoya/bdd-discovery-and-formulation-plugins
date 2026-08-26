@@ -1,9 +1,20 @@
 {
   "name": "data-model-bdd-formulation",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "既存のBDD付き論理設計をQA観点で深化させ、同じ資料へ戻してからRDB物理設計を作る",
-  "skills": "./SKILL.md",
+  "skills": "./skills",
   "author": {
     "name": "NaoyaNakamori"
+  },
+  "interface": {
+    "displayName": "Data Model Bdd Formulation",
+    "shortDescription": "既存のBDD付き論理設計をQA観点で深化させ、同じ資料へ戻してからRDB物理設計を作る",
+    "longDescription": "既存のBDD付き論理設計をQA観点で深化させ、同じ資料へ戻してからRDB物理設計を作る",
+    "developerName": "NaoyaNakamori",
+    "category": "Productivity",
+    "capabilities": [
+      "Skills"
+    ],
+    "defaultPrompt": "data-model-bdd-formulationを使ってこの作業を進めてください。"
   }
 }

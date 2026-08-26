@@ -144,6 +144,6 @@ Claude CodeとCodexで発見方法やpackage manifestは異なっても、実際
 
 これらを後から決める場合も、「入力にない概念を作らない」「不明点は対話で確認する」「ドメインBDDとデータモデリングBDDだけに絞る」という目的を変えない。
 
-## 検証済みprototypeとの関係
+## 分離済みmarketplaceとの関係
 
-この方針の実現可能性は、現在の検証済みprototypeで確認している。コピー境界と上流差分は[VENDORING.md](VENDORING.md)、実行した検証は[VALIDATION.md](VALIDATION.md)を参照する。
+この方針の実現可能性は、分離済みのBDD marketplaceで確認している。コピー境界と上流差分は[VENDORING.md](VENDORING.md)、実行する検証は[VALIDATION.md](VALIDATION.md)を参照する。

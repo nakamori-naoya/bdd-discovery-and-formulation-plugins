@@ -3,7 +3,7 @@ set -euo pipefail
 file="$1"
 jq -e '
   . as $root |
-  (.requires | index("intermediate-cleanup") != null) and
+  (any(.requires[]; .plugin=="intermediate-cleanup")) and
   (.contract.cleanup.delete_after_document | type=="array" and length>0) and
   (.contract.cleanup.preserve | type=="array" and length>0) and
   ((.contract.cleanup.delete_after_document + .contract.cleanup.preserve) - .steps[-1].needs | length==0) and
@@ -16,7 +16,7 @@ jq -e '
   $root.requirements.input_grounded==true and
   $root.requirements.clarify_with_grill==true and
   $root.contract.grounding_sources==["user_input","referenced_artifacts","grill_decisions"] and
-  ($root.requires | index("grill") != null) and
+  (any($root.requires[]; .plugin=="grill")) and
   ($grill|length)==1 and
   $grill[0].key==0 and
   ($grill[0].value.provides | index("grounded_input") != null) and

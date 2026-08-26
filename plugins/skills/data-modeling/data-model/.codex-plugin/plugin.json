@@ -2,8 +2,19 @@
   "name": "data-model",
   "version": "0.2.14",
   "description": "業務シナリオから永続化すべき事実を見出し、BDDシナリオを含む論理データモデルを作る",
-  "skills": "./SKILL.md",
+  "skills": "./skills",
   "author": {
     "name": "NaoyaNakamori"
+  },
+  "interface": {
+    "displayName": "Data Model",
+    "shortDescription": "業務シナリオから永続化すべき事実を見出し、BDDシナリオを含む論理データモデルを作る",
+    "longDescription": "業務シナリオから永続化すべき事実を見出し、BDDシナリオを含む論理データモデルを作る",
+    "developerName": "NaoyaNakamori",
+    "category": "Productivity",
+    "capabilities": [
+      "Skills"
+    ],
+    "defaultPrompt": "data-modelを使ってこの作業を進めてください。"
   }
 }

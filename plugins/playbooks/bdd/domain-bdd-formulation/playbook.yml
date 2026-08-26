@@ -1,4 +1,4 @@
-version: 1
+version: 2
 name: domain-bdd-formulation
 description: コアドメインの既存資料をQA観点で反証し、新しい理解・BDD・未決を同じ資料へ戻して深化させる
 instructions:
@@ -15,10 +15,10 @@ examples_limits:
   columns: 6
 
 requires:
-  - grill
-  - writing-rules
-  - write-doc
-  - intermediate-cleanup
+  - {plugin: grill, marketplace: grill, version: 0.2.12}
+  - {plugin: writing-rules, marketplace: write-doc, version: 0.4.15}
+  - {plugin: write-doc, marketplace: write-doc, version: 0.6.0}
+  - {plugin: intermediate-cleanup, marketplace: bdd-discovery-and-formulation, version: 0.1.0}
 
 contract:
   grounding_sources: [user_input, referenced_artifacts, grill_decisions]
