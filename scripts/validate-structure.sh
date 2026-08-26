@@ -13,13 +13,13 @@ for cmd in jq yq python3 bash cmp find sort diff rg; do
   command -v "$cmd" >/dev/null 2>&1 && pass "command $cmd" || fail "command $cmd が無い"
 done
 
-if jq -e '.schema==2 and (.plugins|length==10) and (.external_dependencies|length==3)' "$ROOT/vendor-lock.json" >/dev/null; then
-  pass "vendor lock schemaと境界"
+if jq -e '.name=="bdd-discovery-and-formulation" and (.plugins|length==10)' "$ROOT/.agents/plugins/marketplace.json" >/dev/null; then
+  pass "Codex marketplaceの配布境界"
 else
-  fail "vendor lock schemaと境界"
+  fail "Codex marketplaceの配布境界"
 fi
 
-jq -r '.plugins[].name' "$ROOT/vendor-lock.json" | sort > "$TMP_ROOT/expected"
+jq -r '.plugins[].name' "$ROOT/.agents/plugins/marketplace.json" | sort > "$TMP_ROOT/expected"
 find "$ROOT/plugins" -path '*/.codex-plugin/plugin.json' -type f -exec jq -r '.name' {} \; | sort > "$TMP_ROOT/actual"
 diff -u "$TMP_ROOT/expected" "$TMP_ROOT/actual" >/dev/null && pass "配布pluginは10件だけ" || fail "配布plugin集合"
 
@@ -43,7 +43,7 @@ while IFS='|' read -r name version rel; do
   else
     fail "$name manifest identity"
   fi
-done < <(jq -r '.plugins[] | [.name,.version,.path] | join("|")' "$ROOT/vendor-lock.json")
+done < <(jq -r '.plugins[] | [.name,.version,(.source.path | ltrimstr("./"))] | join("|")' "$ROOT/.agents/plugins/marketplace.json")
 
 for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation; do
   pb="$ROOT/plugins/playbooks/bdd/$directory"
@@ -56,7 +56,7 @@ for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-disc
   cmp -s "$ROOT/shared/playbook/resolve-dependency.py" "$pb/scripts/resolve-dependency.py" && pass "$directory dependency resolver同期" || fail "$directory dependency resolver同期"
 done
 
-if rg -n 'knowledge-hub-bdd-prototype|plugin prototype|prototypeとして' "$ROOT" -g '*.md' -g '*.json' >/dev/null; then
+if rg -n -i 'prototype|プロトタイプ' "$ROOT" -g '*.md' -g '*.json' >/dev/null; then
   fail "prototype表現が残存"
 else
   pass "prototype表現なし"

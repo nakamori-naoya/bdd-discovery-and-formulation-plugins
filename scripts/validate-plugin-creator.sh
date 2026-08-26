@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario: vendored manifestを現在のCodex plugin-creator契約でも検査する
+# Scenario: 配布manifestを現在のCodex plugin-creator契約でも検査する
 # Given: BDD marketplaceの10個の.codex-plugin/plugin.jsonがある
 # When: plugin-creatorのvalidatorを各plugin rootへ実行する
 # Then: 現行validatorとの互換差分をpluginごとに報告する
@@ -29,7 +29,7 @@ while IFS= read -r rel; do
     echo "FAIL: $rel"
     failed=$((failed + 1))
   fi
-done < <(jq -r '.plugins[].path' "$ROOT/vendor-lock.json")
+done < <(jq -r '.plugins[].source.path | ltrimstr("./")' "$ROOT/.agents/plugins/marketplace.json")
 
 printf '\nPlugin creator compatibility: %d passed, %d failed\n' "$passed" "$failed"
 [ "$failed" -eq 0 ]
