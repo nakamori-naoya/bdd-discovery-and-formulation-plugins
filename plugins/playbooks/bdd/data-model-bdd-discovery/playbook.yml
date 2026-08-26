@@ -18,11 +18,15 @@ requires:
   - persistence-scenarios
   - data-model
   - write-doc
+  - intermediate-cleanup
 
 contract:
   grounding_sources: [user_input, referenced_artifacts, grill_decisions]
   persistence_operations: [create, update, delete]
   scenario_roles: [actor, prior_state, business_event, condition, decision, result, next_state, persisted_fact, history, retention]
+  cleanup:
+    delete_after_document: [events, actors, persistence_scenarios, persistence_coverage, logical_bdd_scenarios, logical_data_model]
+    preserve: [grounded_input, logical_document_path]
 
 requirements:
   input_grounded: true
@@ -57,3 +61,9 @@ steps:
     purpose: 論理モデルと全BDDをrdb-logical-data-modelingテンプレートで保存する
     needs: [logical_bdd_scenarios, logical_data_model, grounded_input]
     provides: [logical_document_path]
+
+  - id: cleanup
+    skill: remove-intermediate-artifacts
+    purpose: 最終資料の保存を確認した後、contract.cleanupで削除候補にしたイベント、永続化シナリオ、論理設計の作業用ファイルだけを削除し、入力資料と論理設計資料を保持する
+    needs: [events, actors, persistence_scenarios, persistence_coverage, logical_bdd_scenarios, logical_data_model, grounded_input, logical_document_path]
+    provides: [cleanup_report]

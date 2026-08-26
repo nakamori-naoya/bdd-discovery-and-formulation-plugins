@@ -15,6 +15,7 @@ requires:
   - data-model
   - write-doc
   - rdb-design
+  - intermediate-cleanup
 
 contract:
   grounding_sources: [user_input, referenced_artifacts, grill_decisions]
@@ -22,6 +23,9 @@ contract:
   probe_dimensions: [同値分割, 境界値, 精度と単位, 条件組合せ, 状態遷移, イベント順序, 重複と再実行, 同時実行, アクターと権限, 悪用と不正, 時間, 規則変更と遡及, 失敗時保証, 不変条件]
   logical_schema_markers: [table, column, business_constraint]
   confidence: [confirmed, assumed, unknown]
+  cleanup:
+    delete_after_document: [revised_persistence_scenarios, persistence_coverage, revised_logical_data_model, revised_logical_body]
+    preserve: [grounded_input, existing_logical_document_path, updated_logical_document_path, read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]
 
 requirements:
   input_grounded: true
@@ -79,3 +83,9 @@ steps:
     purpose: 典型的なReadシナリオを特定し、論理構造を変えずに指定RDB・版の型、制約、index、分離レベル、配置へ写す
     needs: [updated_logical_document_path, revised_logical_data_model, grounded_input]
     provides: [read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]
+
+  - id: cleanup
+    skill: remove-intermediate-artifacts
+    purpose: 論理資料の更新と物理設計の完了を確認した後、contract.cleanupで削除候補にした改訂案と検査用ファイルだけを削除し、入力資料、更新済み論理資料、物理設計成果を保持する
+    needs: [revised_persistence_scenarios, persistence_coverage, revised_logical_data_model, revised_logical_body, grounded_input, existing_logical_document_path, updated_logical_document_path, read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]
+    provides: [cleanup_report]

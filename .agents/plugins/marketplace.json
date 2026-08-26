@@ -28,7 +28,7 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity",
-      "version": "0.5.12"
+      "version": "0.6.3"
     },
     {
       "name": "visual-guidance",
@@ -41,7 +41,20 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity",
-      "version": "0.1.5"
+      "version": "0.2.0"
+    },
+    {
+      "name": "intermediate-cleanup",
+      "source": {
+        "source": "local",
+        "path": "./plugins/skills/authoring/intermediate-cleanup"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "version": "0.1.0"
     },
     {
       "name": "doc-render",
@@ -119,7 +132,7 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity",
-      "version": "0.2.5"
+      "version": "0.2.6"
     },
     {
       "name": "domain-bdd-formulation",
@@ -132,7 +145,7 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity",
-      "version": "0.2.5"
+      "version": "0.2.6"
     },
     {
       "name": "data-model",
@@ -184,7 +197,7 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity",
-      "version": "0.1.4"
+      "version": "0.1.5"
     },
     {
       "name": "domain-bdd-discovery",
@@ -197,7 +210,7 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity",
-      "version": "0.3.4"
+      "version": "0.3.5"
     }
   ]
 }

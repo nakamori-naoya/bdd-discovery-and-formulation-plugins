@@ -4,6 +4,15 @@ set -euo pipefail
 file="$1"
 jq -e '
   . as $root |
+  (.requires | index("intermediate-cleanup") != null) and
+  (.contract.cleanup.delete_after_document | type=="array" and length>0) and
+  (.contract.cleanup.preserve | type=="array" and length>0) and
+  ((.contract.cleanup.delete_after_document + .contract.cleanup.preserve) - .steps[-1].needs | length==0) and
+  (.steps[-1].id=="cleanup" and .steps[-1].skill=="remove-intermediate-artifacts" and .steps[-1].provides==["cleanup_report"]) and
+  ([.steps | to_entries[] | select(.value.playbook=="write-doc") | .key] | length>0 and max < (($root.steps|length)-1))
+' "$file" >/dev/null || { echo "[error] write-doc後の中間生成物の後片付け契約は外せない" >&2; exit 2; }
+jq -e '
+  . as $root |
   ($root.steps | to_entries | map(select(.value.skill=="grill"))) as $grill |
   $root.requirements.input_grounded==true and
   $root.requirements.clarify_with_grill==true and

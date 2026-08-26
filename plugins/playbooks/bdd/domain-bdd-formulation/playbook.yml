@@ -8,7 +8,7 @@ instructions:
 focus: domain
 document_type: domain-rule
 output_format: markdown
-max_steps: 5
+max_steps: 6
 allow_background: false
 examples_limits:
   rows: 10
@@ -18,10 +18,14 @@ requires:
   - grill
   - writing-rules
   - write-doc
+  - intermediate-cleanup
 
 contract:
   grounding_sources: [user_input, referenced_artifacts, grill_decisions]
   probe_dimensions: [同値分割, 境界値, 精度と単位, 条件組合せ, 状態遷移, イベント順序, 重複と再実行, 同時実行, アクターと権限, 悪用と不正, 時間, 規則変更と遡及, 失敗時保証, 不変条件]
+  cleanup:
+    delete_after_document: [scenario_draft, revised_body, validated_scenarios]
+    preserve: [grounded_input, existing_domain_rule_path, updated_domain_rule_path]
 
 requirements:
   input_grounded: true
@@ -60,3 +64,9 @@ steps:
     purpose: update_targetをwrite-docのreplace-existing-targetとして渡し、検査済みBDDと確認済みの理解を既存domain-ruleと同じパスへ差し替える
     needs: [revised_body, validated_scenarios, update_target, grounded_input]
     provides: [updated_domain_rule_path]
+
+  - id: cleanup
+    skill: remove-intermediate-artifacts
+    purpose: 既存資料の差し替えを確認した後、contract.cleanupで削除候補にしたBDD草案、改訂本文、検査用ファイルだけを削除し、入力資料と更新済みdomain-ruleを保持する
+    needs: [scenario_draft, revised_body, validated_scenarios, grounded_input, existing_domain_rule_path, updated_domain_rule_path]
+    provides: [cleanup_report]

@@ -15,13 +15,19 @@
       "name": "content-types",
       "source": "./plugins/skills/authoring/content-types",
       "description": "BDDのドメイン資料とRDB論理設計資料について、2種の型から選び、テンプレートと記載例を返す",
-      "version": "0.5.12"
+      "version": "0.6.3"
     },
     {
       "name": "visual-guidance",
       "source": "./plugins/skills/authoring/visual-guidance",
       "description": "主要な主張と読み手の問いから、目的に合う図を選んで設計する",
-      "version": "0.1.5"
+      "version": "0.2.0"
+    },
+    {
+      "name": "intermediate-cleanup",
+      "source": "./plugins/skills/authoring/intermediate-cleanup",
+      "description": "最終成果物を残し、明示された未追跡の中間生成物だけを安全に削除する",
+      "version": "0.1.0"
     },
     {
       "name": "doc-render",
@@ -57,13 +63,13 @@
       "name": "data-model-bdd-discovery",
       "source": "./plugins/playbooks/bdd/data-model-bdd-discovery",
       "description": "業務イベントから永続化の作成・更新・削除を発見し、BDDを含むRDB論理データモデル資料にする",
-      "version": "0.2.5"
+      "version": "0.2.6"
     },
     {
       "name": "domain-bdd-formulation",
       "source": "./plugins/playbooks/bdd/domain-bdd-formulation",
       "description": "既存のコアドメイン資料をQA観点で反証し、同じ資料へ戻して深化させる",
-      "version": "0.2.5"
+      "version": "0.2.6"
     },
     {
       "name": "data-model",
@@ -87,13 +93,13 @@
       "name": "data-model-bdd-formulation",
       "source": "./plugins/playbooks/bdd/data-model-bdd-formulation",
       "description": "既存のBDD付き論理設計をQA観点で深化させ、同じ資料へ戻してからRDB物理設計を作る",
-      "version": "0.1.4"
+      "version": "0.1.5"
     },
     {
       "name": "domain-bdd-discovery",
       "source": "./plugins/playbooks/bdd/domain-bdd-discovery",
       "description": "コアドメインの共通理解を代表BDDとともにdomain-rule資料へまとめる",
-      "version": "0.3.4"
+      "version": "0.3.5"
     }
   ]
 }

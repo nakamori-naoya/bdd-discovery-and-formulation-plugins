@@ -3,19 +3,19 @@
   "upstream": {
     "repository": "https://github.com/nakamori-naoya/harness-plugins",
     "branch": "main",
-    "commit": "f9e30db06f98309840066789c8d7844bd217ffe5",
-    "copied_at": "2026-08-25"
+    "commit": "10852c3365df0c454160082b1458ca381e5d3dab",
+    "copied_at": "2026-08-26"
   },
   "reviewed_pull_requests": [
-    {"number": 140, "merge_commit": "f9e30db06f98309840066789c8d7844bd217ffe5", "included": true},
-    {"number": 139, "merge_commit": "a8907c9286ff59230d3119382090ae8a2e5f6f76", "included": true},
-    {"number": 138, "merge_commit": "562f0692fef2c1cfb9fb1971e1f9b95d41820add", "included": false}
+    {"number": 146, "merge_commit": "10852c3365df0c454160082b1458ca381e5d3dab", "included": true},
+    {"number": 145, "merge_commit": "3638170f38d7c410641bd84c51e5e847d77a2cb6", "included": false},
+    {"number": 144, "merge_commit": "18521bec28b65fb3e4182b21914d5970a44bab0e", "included": false}
   ],
   "plugins": [
-    {"name":"domain-bdd-discovery","version":"0.3.4","path":"plugins/playbooks/bdd/domain-bdd-discovery"},
-    {"name":"domain-bdd-formulation","version":"0.2.5","path":"plugins/playbooks/bdd/domain-bdd-formulation"},
-    {"name":"data-model-bdd-discovery","version":"0.2.5","path":"plugins/playbooks/bdd/data-model-bdd-discovery"},
-    {"name":"data-model-bdd-formulation","version":"0.1.4","path":"plugins/playbooks/bdd/data-model-bdd-formulation"},
+    {"name":"domain-bdd-discovery","version":"0.3.5","path":"plugins/playbooks/bdd/domain-bdd-discovery"},
+    {"name":"domain-bdd-formulation","version":"0.2.6","path":"plugins/playbooks/bdd/domain-bdd-formulation"},
+    {"name":"data-model-bdd-discovery","version":"0.2.6","path":"plugins/playbooks/bdd/data-model-bdd-discovery"},
+    {"name":"data-model-bdd-formulation","version":"0.1.5","path":"plugins/playbooks/bdd/data-model-bdd-formulation"},
     {"name":"domain-events","version":"0.2.11","path":"plugins/skills/domain/domain-events"},
     {"name":"core-domain","version":"0.2.11","path":"plugins/skills/domain/core-domain"},
     {"name":"grill","version":"0.2.12","path":"plugins/skills/authoring/grill"},
@@ -23,20 +23,23 @@
     {"name":"data-model","version":"0.2.14","path":"plugins/skills/data-modeling/data-model"},
     {"name":"rdb-design","version":"0.3.0","path":"plugins/skills/data-modeling/rdb-design"},
     {"name":"write-doc","version":"0.5.3","path":"plugins/playbooks/authoring/write-doc"},
-    {"name":"content-types","version":"0.5.12","path":"plugins/skills/authoring/content-types"},
+    {"name":"content-types","version":"0.6.3","path":"plugins/skills/authoring/content-types"},
     {"name":"writing-rules","version":"0.4.15","path":"plugins/skills/authoring/writing-rules"},
-    {"name":"visual-guidance","version":"0.1.5","path":"plugins/skills/authoring/visual-guidance"},
-    {"name":"doc-render","version":"0.7.14","path":"plugins/skills/authoring/doc-render"}
+    {"name":"visual-guidance","version":"0.2.0","path":"plugins/skills/authoring/visual-guidance"},
+    {"name":"doc-render","version":"0.7.14","path":"plugins/skills/authoring/doc-render"},
+    {"name":"intermediate-cleanup","version":"0.1.0","path":"plugins/skills/authoring/intermediate-cleanup"}
   ],
   "local_patches": [
     {
       "plugin": "data-model-bdd-discovery",
+      "upstream_version": "0.2.5",
       "reason": "design-data-model工程へmodeling.methodが伝播せずprepareがexit 2になる",
       "changes": ["modeling.method=normalized", "design-data-modelへmethod overrideを渡す", "validatorと負の試験を追加"]
     },
     {
       "plugin": "content-types",
-      "reason": "BDD以外の25型を公開すると最小コピー境界を越え、digest・PR・Slack関連資産まで持ち込む",
+      "upstream_version": "0.6.2",
+      "reason": "BDD用2型以外の25型を公開すると最小コピー境界を越え、product planning・digest・PR・Slack関連資産まで持ち込む",
       "changes": ["domain-ruleとrdb-logical-data-modelingの2型だけへ縮小", "未使用template・example・detailを除外", "既定型をdomain-ruleへ変更"]
     }
   ]

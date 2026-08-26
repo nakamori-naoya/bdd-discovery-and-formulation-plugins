@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Scenario: prototypeの全受入検査を一度に実行する
-# Given: 最新commitから15 pluginと必要sharedだけをコピーしている
+# Given: 最新commitからBDD依存閉包の16 pluginと必要sharedだけをコピーしている
 # When: 構造、runtime、Codex manifest互換を順に検査する
 # Then: 一つでも不具合があれば最終終了codeを非0にする
 set -uo pipefail

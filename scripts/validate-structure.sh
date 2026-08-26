@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario: 15 pluginだけを配布できる構造になっている
+# Scenario: BDD実行に必要な16 pluginだけを配布できる構造になっている
 # Given: vendor-lockと2つのmarketplaceにコピー対象が固定されている
 # When: manifest、shared正本、構文、除外境界を検査する
 # Then: 対象の欠落・余分なplugin・byte差分・構文不正を一つも見逃さない
@@ -19,8 +19,8 @@ for cmd in jq yq python3 bash cmp find sort diff rg xargs; do
   if command -v "$cmd" >/dev/null 2>&1; then pass "command $cmd"; else fail "command $cmd が無い"; fi
 done
 
-if jq -e '.schema == 1 and (.plugins | length == 15)' "$ROOT/vendor-lock.json" >/dev/null; then
-  pass "vendor-lock schemaと15件"
+if jq -e '.schema == 1 and (.plugins | length == 16)' "$ROOT/vendor-lock.json" >/dev/null; then
+  pass "vendor-lock schemaと16件"
 else
   fail "vendor-lock schemaまたは件数"
 fi
@@ -28,15 +28,15 @@ fi
 jq -r '.plugins[].name' "$ROOT/vendor-lock.json" | sort > "$TMP_ROOT/expected-names"
 find "$ROOT/plugins" -path '*/.codex-plugin/plugin.json' -type f -exec jq -r '.name' {} \; | sort > "$TMP_ROOT/actual-names"
 if diff -u "$TMP_ROOT/expected-names" "$TMP_ROOT/actual-names" >/dev/null; then
-  pass "plugin directoryはlock記載の15件だけ"
+  pass "plugin directoryはlock記載の16件だけ"
 else
   diff -u "$TMP_ROOT/expected-names" "$TMP_ROOT/actual-names" || true
   fail "plugin directoryの集合"
 fi
 
 for market in .agents/plugins/marketplace.json .claude-plugin/marketplace.json; do
-  if jq -e '.plugins | length == 15' "$ROOT/$market" >/dev/null; then
-    pass "$market は15件"
+  if jq -e '.plugins | length == 16' "$ROOT/$market" >/dev/null; then
+    pass "$market は16件"
   else
     fail "$market の件数"
   fi
@@ -86,7 +86,7 @@ done < <(jq -r '.plugins[] | [.name,.version,.path] | join("|")' "$ROOT/vendor-l
 
 content_manifest_description=$(jq -r '.description' "$ROOT/plugins/skills/authoring/content-types/.claude-plugin/plugin.json")
 content_marketplace_description=$(jq -r '.plugins[] | select(.name=="content-types") | .description' "$ROOT/.claude-plugin/marketplace.json")
-if [ "$content_manifest_description" = "$content_marketplace_description" ] && ! rg -n '25種' "$ROOT/.claude-plugin/marketplace.json" >/dev/null; then
+if [ "$content_manifest_description" = "$content_marketplace_description" ] && ! rg -n '25種|27種' "$ROOT/.claude-plugin/marketplace.json" >/dev/null; then
   pass "content-types Claude marketplace description"
 else
   fail "content-types Claude marketplace description"

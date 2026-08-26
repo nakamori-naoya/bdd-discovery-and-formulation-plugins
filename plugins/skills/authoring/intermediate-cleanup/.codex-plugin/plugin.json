@@ -1,0 +1,7 @@
+{
+  "name": "intermediate-cleanup",
+  "version": "0.1.0",
+  "description": "最終成果物を残し、明示された未追跡の中間生成物だけを安全に削除する",
+  "skills": "./SKILL.md",
+  "author": { "name": "NaoyaNakamori" }
+}

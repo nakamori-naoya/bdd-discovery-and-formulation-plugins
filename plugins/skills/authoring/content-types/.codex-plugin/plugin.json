@@ -1,6 +1,6 @@
 {
   "name": "content-types",
-  "version": "0.5.12",
+  "version": "0.6.3",
   "description": "BDDのドメイン資料とRDB論理設計資料について、2種の型から選び、テンプレートと記載例を返す",
   "skills": "./SKILL.md",
   "author": {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Scenario: 4入口が依存を解決し、入力根拠の制約を実行時に強制する
-# Given: 15 pluginを同一marketplace rootへ隔離配置している
+# Given: BDD依存閉包の16 pluginを同一marketplace rootへ隔離配置している
 # When: resolver、全skill工程のprepare、意図的に壊した設定を実行する
 # Then: 正常系は成功し、不正な設定・欠落依存・呼べない工程は必ず失敗する
 set -uo pipefail
@@ -84,6 +84,8 @@ for directory in $entries; do
   negative_case "$directory clarify_with_grill=false" "$pb" '.requirements.clarify_with_grill=false'
   negative_case "$directory grillが第2工程" "$pb" '.steps = [.steps[1], .steps[0]] + .steps[2:]'
   negative_case "$directory grillのgrounded_input提供欠落" "$pb" '.steps[0].provides = [.steps[0].provides[] | select(. != "grounded_input")]'
+  negative_case "$directory 最終cleanup欠落" "$pb" 'del(.steps[-1])'
+  negative_case "$directory cleanupが最終工程でない" "$pb" '.steps = (.steps[0:-2] + [.steps[-1], .steps[-2]])'
 done
 
 copy_case() {
@@ -110,6 +112,15 @@ else
   pass "依存skill欠落を拒否"
 fi
 
+case_root="$TMP_ROOT/missing-cleanup-dependency"
+copy_case "$case_root"
+rm -f "$case_root/plugins/skills/authoring/intermediate-cleanup/.claude-plugin/plugin.json"
+if CLAUDE_MARKETPLACE=knowledge-hub-bdd-prototype bash "$case_root/plugins/playbooks/bdd/domain-bdd-discovery/scripts/resolve.sh" "$FIXTURE" >/dev/null 2>&1; then
+  fail "cleanup依存manifest欠落を拒否しなかった"
+else
+  pass "cleanup依存manifest欠落を拒否"
+fi
+
 case_root="$TMP_ROOT/missing-script"
 copy_case "$case_root"
 rm -f "$case_root/plugins/playbooks/bdd/domain-bdd-discovery/scripts/map.py"
@@ -126,6 +137,35 @@ if CLAUDE_MARKETPLACE=knowledge-hub-bdd-prototype bash "$case_root/plugins/playb
   fail "入れ子保存script欠落を拒否しなかった"
 else
   pass "入れ子保存script欠落を拒否"
+fi
+
+cleanup_script="$ROOT/plugins/skills/authoring/intermediate-cleanup/scripts/cleanup.py"
+cleanup_repo="$TMP_ROOT/cleanup-repo"
+mkdir -p "$cleanup_repo/work/nested" "$cleanup_repo/final"
+git -C "$cleanup_repo" init -q
+printf 'draft\n' > "$cleanup_repo/work/nested/draft.md"
+printf 'final\n' > "$cleanup_repo/final/result.md"
+if python3 "$cleanup_script" check --repo-root "$cleanup_repo" --delete "$cleanup_repo/work/nested/draft.md" --keep "$cleanup_repo/final/result.md" >/dev/null \
+  && python3 "$cleanup_script" delete --repo-root "$cleanup_repo" --delete "$cleanup_repo/work/nested/draft.md" --keep "$cleanup_repo/final/result.md" >/dev/null \
+  && [ ! -e "$cleanup_repo/work/nested/draft.md" ] && [ ! -d "$cleanup_repo/work" ] && [ -f "$cleanup_repo/final/result.md" ]; then
+  pass "cleanupは明示した未追跡中間ファイルだけを削除"
+else
+  fail "cleanup正常系"
+fi
+
+printf 'tracked\n' > "$cleanup_repo/tracked.md"
+git -C "$cleanup_repo" add tracked.md
+if python3 "$cleanup_script" check --repo-root "$cleanup_repo" --delete "$cleanup_repo/tracked.md" --keep "$cleanup_repo/final/result.md" >/dev/null 2>&1; then
+  fail "cleanupがGit追跡中ファイルを許可"
+else
+  pass "cleanupはGit追跡中ファイルを拒否"
+fi
+
+printf 'outside\n' > "$TMP_ROOT/outside.md"
+if python3 "$cleanup_script" check --repo-root "$cleanup_repo" --delete "$TMP_ROOT/outside.md" --keep "$cleanup_repo/final/result.md" >/dev/null 2>&1; then
+  fail "cleanupがrepository外ファイルを許可"
+else
+  pass "cleanupはrepository外ファイルを拒否"
 fi
 
 find_skill_root() {

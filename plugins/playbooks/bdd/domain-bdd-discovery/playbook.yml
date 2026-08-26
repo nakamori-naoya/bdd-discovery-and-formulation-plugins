@@ -23,6 +23,7 @@ requires:
   - core-domain
   - grill
   - write-doc
+  - intermediate-cleanup
 
 # 下段どうしをつなぐ契約。playbook が持つ。
 # 素材の役の名前だけを共有し、各工程は互いを見ずに自分の領分を決める。
@@ -31,6 +32,9 @@ contract:
   material_roles: [業務イベント, 担い手, 常に守られること, 移り変わり, 業務ルール, 拒む理由, 未決]
   confidence: [confirmed, assumed, unknown]
   behavior_slice: [業務目的, 起点役割, 協働役割, 事前状態, 業務イベント, 条件, 業務判断, 判断権者, 結果, 次状態, 引継ぎ, 後続イベント]
+  cleanup:
+    delete_after_document: [events, actors, core_scope, implementation_excluded, behavior_map, representative_bdd, material]
+    preserve: [grounded_input, domain_rule_path]
 
 # 業務の正本は、作りを全部やめても残る範囲だけを持つ。
 # 実装の関心を落とす工程を外せないようにする。
@@ -78,3 +82,9 @@ steps:
     purpose: 素材から代表BDDを含むdomain-ruleの正本を1本書いて保存する
     needs: [material, behavior_map, representative_bdd, grounded_input]
     provides: [domain_rule_path]
+
+  - id: cleanup
+    skill: remove-intermediate-artifacts
+    purpose: 正本の保存を確認した後、contract.cleanupで削除候補にしたイベント台帳、境界図、代表BDD、束ねた素材の作業用ファイルだけを削除し、入力資料とdomain-rule正本を保持する
+    needs: [events, actors, core_scope, implementation_excluded, behavior_map, representative_bdd, material, grounded_input, domain_rule_path]
+    provides: [cleanup_report]
