@@ -4,7 +4,9 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 ## インストール
 
-Codexでは、marketplaceを登録した後、必要なpluginのコマンドを実行する。
+### Codex
+
+Codexのpluginコマンドには`--scope`がない。通常の手順はuser単位でmarketplaceとpluginを登録する。
 
 ```bash
 codex plugin marketplace add nakamori-naoya/bdd-discovery-and-formulation-plugins
@@ -20,20 +22,54 @@ codex plugin add rdb-design@bdd-discovery-and-formulation
 codex plugin add intermediate-cleanup@bdd-discovery-and-formulation
 ```
 
-Claude Codeでは、marketplaceを登録した後、必要なpluginのコマンドを実行する。
+このrepositoryだけに分離したい場合は、repository専用の`CODEX_HOME`を作り、インストール時と利用時に同じ値を指定する。
 
 ```bash
-claude plugin marketplace add nakamori-naoya/bdd-discovery-and-formulation-plugins
-claude plugin install domain-bdd-discovery@bdd-discovery-and-formulation
-claude plugin install domain-bdd-formulation@bdd-discovery-and-formulation
-claude plugin install data-model-bdd-discovery@bdd-discovery-and-formulation
-claude plugin install data-model-bdd-formulation@bdd-discovery-and-formulation
-claude plugin install domain-events@bdd-discovery-and-formulation
-claude plugin install core-domain@bdd-discovery-and-formulation
-claude plugin install persistence-scenarios@bdd-discovery-and-formulation
-claude plugin install data-model@bdd-discovery-and-formulation
-claude plugin install rdb-design@bdd-discovery-and-formulation
-claude plugin install intermediate-cleanup@bdd-discovery-and-formulation
+mkdir -p .codex-home
+export CODEX_HOME="$PWD/.codex-home"
+
+codex plugin marketplace add nakamori-naoya/bdd-discovery-and-formulation-plugins
+codex plugin add domain-bdd-discovery@bdd-discovery-and-formulation
+codex plugin add domain-bdd-formulation@bdd-discovery-and-formulation
+codex plugin add data-model-bdd-discovery@bdd-discovery-and-formulation
+codex plugin add data-model-bdd-formulation@bdd-discovery-and-formulation
+codex plugin add domain-events@bdd-discovery-and-formulation
+codex plugin add core-domain@bdd-discovery-and-formulation
+codex plugin add persistence-scenarios@bdd-discovery-and-formulation
+codex plugin add data-model@bdd-discovery-and-formulation
+codex plugin add rdb-design@bdd-discovery-and-formulation
+codex plugin add intermediate-cleanup@bdd-discovery-and-formulation
+codex
+```
+
+`CODEX_HOME`には認証、設定、ログ、session、plugin metadataも保存されるため、このdirectoryはGit管理しない。
+
+### Claude Code
+
+Claude Codeは次のscopeを選べる。
+
+| scope | 対象 |
+|---|---|
+| `user` | user全体。省略時の既定値 |
+| `project` | このrepositoryで有効にする設定をGitでチーム共有する |
+| `local` | このrepositoryで有効にするが、Git共有せず自分だけで使う |
+
+repository設定としてインストールする場合は`project`を指定する。`CLAUDE_PLUGIN_SCOPE`を`user`または`local`へ変えれば、同じ手順でscopeを切り替えられる。
+
+```bash
+CLAUDE_PLUGIN_SCOPE=project
+
+claude plugin marketplace add nakamori-naoya/bdd-discovery-and-formulation-plugins --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install domain-bdd-discovery@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install domain-bdd-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install data-model-bdd-discovery@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install data-model-bdd-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install domain-events@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install core-domain@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install persistence-scenarios@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install data-model@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install rdb-design@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install intermediate-cleanup@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 ```
 
 ## 配布するplugin
