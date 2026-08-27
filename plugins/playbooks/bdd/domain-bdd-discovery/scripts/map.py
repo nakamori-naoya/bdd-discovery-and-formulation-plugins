@@ -68,7 +68,7 @@ def playbook_config(cfg):
 
 def focus_of(cfg):
     focus = playbook_config(cfg).get("focus") or ""
-    if focus not in ("domain", "use-case", "journey"):
+    if focus != "domain":
         fail("playbookのfocusが不正: {!r}".format(focus))
     return focus
 

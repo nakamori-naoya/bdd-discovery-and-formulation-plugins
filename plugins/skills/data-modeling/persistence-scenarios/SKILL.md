@@ -30,7 +30,7 @@ trap 'rm -f "$CFG_FILE"' EXIT
 本文中の `${...}` は解決済みYAMLのプロパティである。使用時に `yq -er` で読み、欠落または `null` なら停止する。
 <!-- END shared:skill-entry/config-load -->
 
-`${.actors_stakeholders}`、`${.use_cases}`、`${.domain_events}`、`${.ubiquitous_language}`、`${.immutable_data_modeling}`を必ず読む。成果は`${.scenario_dir}`へ置く。
+`${.actors_stakeholders}`、`${.domain_events}`、`${.ubiquitous_language}`を必ず読む。成果は`${.scenario_dir}`へ置く。ここでは既存の業務シナリオから永続化に必要な断面だけを選び、目的や経路を再設計せず、エンティティ、テーブル、正本方式、投影を決めない。
 
 ## 2. 作成・更新・削除を検討した証拠を残す
 

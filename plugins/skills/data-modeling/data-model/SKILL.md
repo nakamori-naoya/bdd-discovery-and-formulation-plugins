@@ -43,7 +43,7 @@ trap 'rm -f "$CFG_FILE"' EXIT
 
 ## 2. 手法によらない部分を先に済ませる
 
-`${.fact_contract}`、`${.domain_events}`、`${.event_sourcing}`、`${.data_models}`、`${.concept_map}`、`${.immutable_data_modeling}`、`${.null_avoidance}` を必ず読む。関係データベースへ写す場合は、`${.relational_data_modeling}`、`${.relational_data_lifecycle}`、`${.logical_rdb_template}`も読む。**ドメインモデルから業務上の永続化が必要な事実を見つけ、記録すべき事実のシナリオを手法選択より前に洗い出す。** 業務イベントから成立済みの事実を見つけ、正本と現在状態を分ける。NULL、汎用属性、JSON、削除フラグで業務上の違いを隠さない。
+`${.fact_contract}`、`${.domain_events}`、`${.event_sourcing}`、`${.data_models}`、`${.concept_map}`、`${.immutable_data_modeling}`、`${.null_avoidance}` を必ず読む。関係データベースへ写す場合は、`${.relational_data_modeling}`と`${.logical_rdb_template}`も読む。**ドメインモデルから業務上の永続化が必要な事実を見つけ、記録すべき事実のシナリオを手法選択より前に洗い出す。** 業務イベントから成立済みの事実を見つけ、正本と現在状態を分ける。NULL、汎用属性、JSON、削除フラグで業務上の違いを隠さない。schema移行、製品version更新、backup、restore、監視、index、実行計画、性能測定は論理設計で扱わない。
 
 業務イベントとevent record、記録すべき事実、目的別のモデルを分ける。Event Sourcingは履歴が要るというだけでは採用しない。
 

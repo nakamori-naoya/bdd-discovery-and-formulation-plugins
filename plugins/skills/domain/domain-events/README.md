@@ -54,4 +54,4 @@ instructions:
 | `references/grain.md` | 何を1件と数えるか（名前・粒度・引き金・確からしさ） |
 | `skills/explore-events/` | 洗い出しの入口と進め方 |
 
-保存するevent record、Event Sourcingの採否、目的指向のユースケースはこのpluginでは扱わない。必要な後続pluginが自身の指示として持つ。
+保存するevent recordとEvent Sourcingの採否はこのpluginでは扱わない。必要な後続pluginが自身の指示として持つ。

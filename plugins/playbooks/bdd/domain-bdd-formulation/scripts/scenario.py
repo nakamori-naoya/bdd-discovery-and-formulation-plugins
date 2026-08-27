@@ -22,23 +22,12 @@ import re
 import subprocess
 import sys
 
-FOCUSES = ("domain", "use-case", "journey")
-
-# 高さごとに書けない語。**同じ規律を3つの高さへ当てるのが間違いのもとである。**
 STORAGE = ["テーブル", "カラム", "SQL", "スキーマ", "インデックス", "主キー"]
 WIRE = ["エンドポイント", "リクエスト", "レスポンス", "HTTP", "gRPC", "JSON", "ペイロード"]
 SCREEN = ["画面", "ボタン", "クリック", "押下", "入力欄", "プルダウン", "モーダル", "URL", "タブ"]
 CODE = ["クラス", "メソッド", "関数", "enum", "セレクタ", "HTML", "CSS"]
-FORBIDDEN = {
-    "domain": STORAGE + WIRE + SCREEN + CODE,
-    "use-case": STORAGE + SCREEN + CODE,
-    "journey": STORAGE + WIRE + CODE,
-}
-WHY = {
-    "domain": "業務の決まりは、作りを変えても変わらない言葉だけで書く",
-    "use-case": "要求と応答の話に、保存や画面の都合を持ち込まない",
-    "journey": "通しの確認に、保存や境界の実装を持ち込まない",
-}
+FORBIDDEN = {"domain": STORAGE + WIRE + SCREEN + CODE}
+WHY = {"domain": "業務の決まりは、作りを変えても変わらない言葉だけで書く"}
 
 FEATURE = re.compile(r"^\s*(Feature|機能)\s*:\s*(.*)$")
 RULE = re.compile(r"^\s*(Rule|ルール)\s*:\s*(.*)$")
@@ -265,8 +254,8 @@ def playbook_config(cfg):
 
 def resolve_focus(cfg):
     focus = playbook_config(cfg).get("focus") or ""
-    if focus not in FOCUSES:
-        fail("playbookのfocusが不正: {!r}（{}）".format(focus, " / ".join(FOCUSES)))
+    if focus != "domain":
+        fail("playbookのfocusが不正: {!r}（domainのみ）".format(focus))
     return focus
 
 

@@ -92,11 +92,17 @@ fi
 
 domain_events="$ROOT/plugins/skills/domain/domain-events"
 if [ ! -e "$domain_events/references/event-sourcing.md" ] \
-  && [ ! -e "$domain_events/references/use-cases.md" ] \
-  && ! rg -n 'event_sourcing|use_cases' "$domain_events/SKILL.md" "$domain_events/scripts/finalize.sh" >/dev/null; then
-  pass "domain-eventsはEvent Sourcingとuse-case設計を同梱しない"
+  && ! rg -n 'event_sourcing' "$domain_events/SKILL.md" "$domain_events/scripts/finalize.sh" >/dev/null; then
+  pass "domain-eventsは後続の保存方式設計を同梱しない"
 else
   fail "domain-eventsに後続設計の関心が混入"
+fi
+
+legacy_bdd_pattern='use''[- ]?case|jour''ney|ユース''ケース|ジャー''ニー'
+if rg -n -i "$legacy_bdd_pattern" "$ROOT/plugins" "$ROOT/shared" >/dev/null; then
+  fail "旧BDD焦点の資産または記述が残存"
+else
+  pass "旧BDD焦点の資産と記述なし"
 fi
 
 syntax_failed=0

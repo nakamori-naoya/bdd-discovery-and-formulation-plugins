@@ -39,14 +39,13 @@ out=$(jq -cn --arg m "$model_dir" --arg mp "$method_path" --arg ms "$method_sour
   --arg im "$PLUGIN_ROOT/references/immutable-data-modeling.md" \
   --arg rd "$PLUGIN_ROOT/references/relational-data-modeling-principles.md" \
   --arg na "$PLUGIN_ROOT/references/null-avoidance.md" \
-  --arg rl "$PLUGIN_ROOT/references/relational-data-lifecycle.md" \
   --arg lt "$PLUGIN_ROOT/assets/logical-design.md" \
   --arg root "$root" --arg pr "$PLUGIN_ROOT" --argjson instructions "$(jq -c '.instructions' <<<"$merged")" \
   --arg cfgsrc "$source" --argjson psrc "$sources" \
   '{contract:1, model_dir:$m, method:{id:$mi, path:$mp, source:$ms},
     fact_contract:$f, domain_events:$de, event_sourcing:$es,
     data_models:$dm, concept_map:$cm, immutable_data_modeling:$im,
-    relational_data_modeling:$rd, null_avoidance:$na, relational_data_lifecycle:$rl,
+    relational_data_modeling:$rd, null_avoidance:$na,
     logical_rdb_template:$lt,
     instructions:$instructions, repo_root:$root, plugin_root:$pr,
     resolution:{config_source:$cfgsrc}, _sources:$psrc}')

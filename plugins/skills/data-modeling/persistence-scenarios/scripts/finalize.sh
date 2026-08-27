@@ -7,13 +7,11 @@ scenario_dir=$(jq -r '.scenario_dir' <<<"$merged"); scenario_dir="${scenario_dir
 case "$scenario_dir" in /*) ;; *) scenario_dir="${root}/${scenario_dir}" ;; esac
 out=$(jq -cn --arg d "$scenario_dir" \
   --arg as "$PLUGIN_ROOT/references/actors-and-stakeholders.md" \
-  --arg uc "$PLUGIN_ROOT/references/use-cases.md" \
   --arg de "$PLUGIN_ROOT/references/domain-events.md" \
   --arg ul "$PLUGIN_ROOT/references/ubiquitous-language.md" \
-  --arg im "$PLUGIN_ROOT/references/immutable-data-modeling.md" \
   --arg root "$root" --arg pr "$PLUGIN_ROOT" --argjson instructions "$(jq -c '.instructions' <<<"$merged")" \
   --arg cfgsrc "$source" --argjson psrc "$sources" \
-  '{contract:1, scenario_dir:$d, actors_stakeholders:$as, use_cases:$uc,
-    domain_events:$de, ubiquitous_language:$ul, immutable_data_modeling:$im,
+  '{contract:1, scenario_dir:$d, actors_stakeholders:$as,
+    domain_events:$de, ubiquitous_language:$ul,
     instructions:$instructions, repo_root:$root, plugin_root:$pr,
     resolution:{config_source:$cfgsrc}, _sources:$psrc}')

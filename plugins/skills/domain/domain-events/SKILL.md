@@ -38,7 +38,7 @@ trap 'rm -f "$CFG_FILE"' EXIT
 
 `${.grain}`、`${.actors_stakeholders}`、`${.domain_events}`、`${.concept_map}` を必ず読む。名前の付け方、粒度、引き金の4種、確からしさの3段は `${.grain}` にある。**ここを読まずに始めると、粒度が途中で変わって並べ直せなくなる。**
 
-要求と起きた事実、内部の事実と外部契約を混同しない。保存するevent recordやEvent Sourcingの採否、目的指向のユースケースは後続工程の関心であり、このskillでは決めない。
+要求と起きた事実、内部の事実と外部契約を混同しない。保存するevent recordやEvent Sourcingの採否は後続工程の関心であり、このskillでは決めない。
 
 ## 3. 幹から枝へ、1つずつ問う
 
