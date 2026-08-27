@@ -90,6 +90,15 @@ else
   pass "write-docとgrillを同梱しない"
 fi
 
+domain_events="$ROOT/plugins/skills/domain/domain-events"
+if [ ! -e "$domain_events/references/event-sourcing.md" ] \
+  && [ ! -e "$domain_events/references/use-cases.md" ] \
+  && ! rg -n 'event_sourcing|use_cases' "$domain_events/SKILL.md" "$domain_events/scripts/finalize.sh" >/dev/null; then
+  pass "domain-eventsはEvent Sourcingとuse-case設計を同梱しない"
+else
+  fail "domain-eventsに後続設計の関心が混入"
+fi
+
 syntax_failed=0
 while IFS= read -r script; do bash -n "$script" || syntax_failed=1; done < <(find "$ROOT/plugins" "$ROOT/scripts" -type f -name '*.sh' | sort)
 [ "$syntax_failed" -eq 0 ] && pass "shell構文" || fail "shell構文"

@@ -49,9 +49,9 @@ instructions:
 | `scripts/resolve.sh` | 設定を1件選び、完全性を検証して解決済みYAMLを返す |
 | `scripts/event.py` | 台帳への追記・読み出し・表化。必須項目と引き金・確からしさの値をここで拒否する |
 | `references/actors-and-stakeholders.md` | actorの目的・責任と、直接操作しないstakeholderの利害 |
-| `references/use-cases.md` | actor goalを達成する経路の集合と、要求・保証・extensions |
 | `references/domain-events.md` | 要求や通知と区別した、すでに起きた業務事実 |
-| `references/event-sourcing.md` | domain eventとevent recordを分け、変更列を保持する採否の問い |
 | `references/concept-map.md` | 振る舞い・記録・仕様例の関係と、混同したときの失敗 |
 | `references/grain.md` | 何を1件と数えるか（名前・粒度・引き金・確からしさ） |
 | `skills/explore-events/` | 洗い出しの入口と進め方 |
+
+保存するevent record、Event Sourcingの採否、目的指向のユースケースはこのpluginでは扱わない。必要な後続pluginが自身の指示として持つ。

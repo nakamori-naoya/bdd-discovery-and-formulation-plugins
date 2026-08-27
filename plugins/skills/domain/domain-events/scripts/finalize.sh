@@ -11,9 +11,8 @@ event_dir=$(jq -r '.event_dir' <<<"$merged"); event_dir="${event_dir/#\~/$HOME}"
 case "$event_dir" in /*) ;; *) event_dir="${root}/${event_dir}" ;; esac
 out=$(jq -cn --arg e "$event_dir" --arg g "$PLUGIN_ROOT/references/grain.md" \
   --arg as "$PLUGIN_ROOT/references/actors-and-stakeholders.md" \
-  --arg uc "$PLUGIN_ROOT/references/use-cases.md" --arg de "$PLUGIN_ROOT/references/domain-events.md" \
-  --arg es "$PLUGIN_ROOT/references/event-sourcing.md" --arg cm "$PLUGIN_ROOT/references/concept-map.md" \
+  --arg de "$PLUGIN_ROOT/references/domain-events.md" --arg cm "$PLUGIN_ROOT/references/concept-map.md" \
   --arg root "$root" --arg pr "$PLUGIN_ROOT" --argjson instructions "$(jq -c '.instructions' <<<"$merged")" \
-  '{contract:1, event_dir:$e, grain:$g, actors_stakeholders:$as, use_cases:$uc,
-    domain_events:$de, event_sourcing:$es, concept_map:$cm,
+  '{contract:1, event_dir:$e, grain:$g, actors_stakeholders:$as,
+    domain_events:$de, concept_map:$cm,
     instructions:$instructions, repo_root:$root, plugin_root:$pr}')
