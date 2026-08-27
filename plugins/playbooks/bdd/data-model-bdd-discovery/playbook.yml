@@ -13,12 +13,12 @@ modeling:
 out_dir: design/data-modeling/logical
 
 requires:
-  - {plugin: domain-events, marketplace: bdd-discovery-and-formulation, version: 0.2.11}
-  - {plugin: grill, marketplace: grill, version: 0.2.13}
-  - {plugin: persistence-scenarios, marketplace: bdd-discovery-and-formulation, version: 0.1.2}
-  - {plugin: data-model, marketplace: bdd-discovery-and-formulation, version: 0.2.14}
-  - {plugin: write-doc, marketplace: write-doc, version: 0.6.0}
-  - {plugin: intermediate-cleanup, marketplace: bdd-discovery-and-formulation, version: 0.1.0}
+  - {plugin: domain-events, marketplace: bdd-discovery-and-formulation}
+  - {plugin: grill, marketplace: grill}
+  - {plugin: persistence-scenarios, marketplace: bdd-discovery-and-formulation}
+  - {plugin: data-model, marketplace: bdd-discovery-and-formulation}
+  - {plugin: write-doc, marketplace: write-doc}
+  - {plugin: intermediate-cleanup, marketplace: bdd-discovery-and-formulation}
 
 contract:
   grounding_sources: [user_input, referenced_artifacts, grill_decisions]

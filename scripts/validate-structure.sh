@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario: BDD marketplaceがBDD責務だけを配布し、外部依存を完全修飾している
+# Scenario: BDD marketplaceがBDD責務だけを配布し、外部依存を名前で修飾している
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -53,10 +53,10 @@ done < <(jq -r '.plugins[] | [.name,.version,(.source.path | ltrimstr("./"))] | 
 
 for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation; do
   pb="$ROOT/plugins/playbooks/bdd/$directory"
-  if yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -e '.version==2 and (.requires|length>0) and all(.requires[]; (keys|sort)==["marketplace","plugin","version"])' >/dev/null; then
-    pass "$directory qualified requirements"
+  if yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -e '.version==2 and (.requires|length>0) and all(.requires[]; (keys|sort)==["marketplace","plugin"])' >/dev/null; then
+    pass "$directory name-qualified requirements"
   else
-    fail "$directory qualified requirements"
+    fail "$directory name-qualified requirements"
   fi
   cmp -s "$ROOT/shared/playbook/resolve.sh" "$pb/scripts/resolve.sh" && pass "$directory resolver同期" || fail "$directory resolver同期"
   cmp -s "$ROOT/shared/playbook/resolve-dependency.py" "$pb/scripts/resolve-dependency.py" && pass "$directory dependency resolver同期" || fail "$directory dependency resolver同期"

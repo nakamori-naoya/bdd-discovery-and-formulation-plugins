@@ -17,7 +17,7 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 - `write-doc@write-doc`
 - `writing-rules@write-doc`
 
-依存は`marketplace / plugin / exact version / runtime`で解決する。同名pluginを推測で選ばず、要求したidentityがinstall済みcacheに無ければ停止する。開発時だけ`HARNESS_PLUGIN_DEV_ROOTS`の明示mapでsource checkoutを指定できる。
+依存は`marketplace / plugin / runtime`の名前で解決し、versionは固定しない。install済みcacheに複数versionがあれば最新のsemantic versionを選び、そのmanifestのplugin名と、工程が要求するskill名の存在を検査する。同名pluginを別marketplaceから推測せず、名前が一致する配布物が無ければ停止する。開発時だけ`HARNESS_PLUGIN_DEV_ROOTS`の明示mapでsource checkoutを指定できる。
 
 ## 設定の上書きと優先順位
 

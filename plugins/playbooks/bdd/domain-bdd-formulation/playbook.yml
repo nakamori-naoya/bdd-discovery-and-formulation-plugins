@@ -15,10 +15,10 @@ examples_limits:
   columns: 6
 
 requires:
-  - {plugin: grill, marketplace: grill, version: 0.2.13}
-  - {plugin: writing-rules, marketplace: write-doc, version: 0.4.15}
-  - {plugin: write-doc, marketplace: write-doc, version: 0.6.0}
-  - {plugin: intermediate-cleanup, marketplace: bdd-discovery-and-formulation, version: 0.1.0}
+  - {plugin: grill, marketplace: grill}
+  - {plugin: writing-rules, marketplace: write-doc}
+  - {plugin: write-doc, marketplace: write-doc}
+  - {plugin: intermediate-cleanup, marketplace: bdd-discovery-and-formulation}
 
 contract:
   grounding_sources: [user_input, referenced_artifacts, grill_decisions]
