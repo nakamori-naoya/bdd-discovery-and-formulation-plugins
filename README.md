@@ -2,6 +2,40 @@
 
 BDDを使ってドメイン理解とRDBデータモデリングを探索・反証する、Claude Code/Codex両対応のmarketplaceである。
 
+## インストール
+
+Codexでは、marketplaceを登録した後、必要なpluginのコマンドを実行する。
+
+```bash
+codex plugin marketplace add nakamori-naoya/bdd-discovery-and-formulation-plugins
+codex plugin add domain-bdd-discovery@bdd-discovery-and-formulation
+codex plugin add domain-bdd-formulation@bdd-discovery-and-formulation
+codex plugin add data-model-bdd-discovery@bdd-discovery-and-formulation
+codex plugin add data-model-bdd-formulation@bdd-discovery-and-formulation
+codex plugin add domain-events@bdd-discovery-and-formulation
+codex plugin add core-domain@bdd-discovery-and-formulation
+codex plugin add persistence-scenarios@bdd-discovery-and-formulation
+codex plugin add data-model@bdd-discovery-and-formulation
+codex plugin add rdb-design@bdd-discovery-and-formulation
+codex plugin add intermediate-cleanup@bdd-discovery-and-formulation
+```
+
+Claude Codeでは、marketplaceを登録した後、必要なpluginのコマンドを実行する。
+
+```bash
+claude plugin marketplace add nakamori-naoya/bdd-discovery-and-formulation-plugins
+claude plugin install domain-bdd-discovery@bdd-discovery-and-formulation
+claude plugin install domain-bdd-formulation@bdd-discovery-and-formulation
+claude plugin install data-model-bdd-discovery@bdd-discovery-and-formulation
+claude plugin install data-model-bdd-formulation@bdd-discovery-and-formulation
+claude plugin install domain-events@bdd-discovery-and-formulation
+claude plugin install core-domain@bdd-discovery-and-formulation
+claude plugin install persistence-scenarios@bdd-discovery-and-formulation
+claude plugin install data-model@bdd-discovery-and-formulation
+claude plugin install rdb-design@bdd-discovery-and-formulation
+claude plugin install intermediate-cleanup@bdd-discovery-and-formulation
+```
+
 ## 配布するplugin
 
 - 入口: `domain-bdd-discovery`、`domain-bdd-formulation`、`data-model-bdd-discovery`、`data-model-bdd-formulation`
