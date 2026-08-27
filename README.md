@@ -1,6 +1,6 @@
 # BDD Discovery and Formulation
 
-BDDを使ってドメイン理解とRDBデータモデリングを探索・反証する、Claude Code/Codex両対応のmarketplaceである。
+BDDを使ってドメイン理解とRDBデータモデリングを探索・反証し、ユーザーの目的達成をE2Eストーリーとして資料化する、Claude Code/Codex両対応のmarketplaceである。
 
 ## インストール
 
@@ -14,6 +14,7 @@ codex plugin add domain-bdd-discovery@bdd-discovery-and-formulation
 codex plugin add domain-bdd-formulation@bdd-discovery-and-formulation
 codex plugin add data-model-bdd-discovery@bdd-discovery-and-formulation
 codex plugin add data-model-bdd-formulation@bdd-discovery-and-formulation
+codex plugin add e2e-bdd-documentation@bdd-discovery-and-formulation
 codex plugin add domain-events@bdd-discovery-and-formulation
 codex plugin add core-domain@bdd-discovery-and-formulation
 codex plugin add persistence-scenarios@bdd-discovery-and-formulation
@@ -33,6 +34,7 @@ codex plugin add domain-bdd-discovery@bdd-discovery-and-formulation
 codex plugin add domain-bdd-formulation@bdd-discovery-and-formulation
 codex plugin add data-model-bdd-discovery@bdd-discovery-and-formulation
 codex plugin add data-model-bdd-formulation@bdd-discovery-and-formulation
+codex plugin add e2e-bdd-documentation@bdd-discovery-and-formulation
 codex plugin add domain-events@bdd-discovery-and-formulation
 codex plugin add core-domain@bdd-discovery-and-formulation
 codex plugin add persistence-scenarios@bdd-discovery-and-formulation
@@ -64,6 +66,7 @@ claude plugin install domain-bdd-discovery@bdd-discovery-and-formulation --scope
 claude plugin install domain-bdd-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install data-model-bdd-discovery@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install data-model-bdd-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install e2e-bdd-documentation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install domain-events@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install core-domain@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install persistence-scenarios@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
@@ -74,8 +77,10 @@ claude plugin install intermediate-cleanup@bdd-discovery-and-formulation --scope
 
 ## 配布するplugin
 
-- 入口: `domain-bdd-discovery`、`domain-bdd-formulation`、`data-model-bdd-discovery`、`data-model-bdd-formulation`
+- 入口: `domain-bdd-discovery`、`domain-bdd-formulation`、`data-model-bdd-discovery`、`data-model-bdd-formulation`、`e2e-bdd-documentation`
 - 下段: `domain-events`、`core-domain`、`persistence-scenarios`、`data-model`、`rdb-design`、`intermediate-cleanup`
+
+`e2e-bdd-documentation`は、目的を持つユーザーが開始地点から最終地点へ到達するまでを、複数のインタラクション場面が連なる長いBDDストーリーとして資料にする。domain-ruleやdata modelを変更せず、画面・API・テスト実行環境も扱わない。
 
 各入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`references/execution-guidance.md`が背景・前提・目的と各skill実行時の付加的な指示を持つ。grillへdomainやdata model固有の文脈を与えるのは後者であり、grill pluginへ観点を持ち込まない。
 

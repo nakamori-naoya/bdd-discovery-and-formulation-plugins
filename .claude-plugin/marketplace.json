@@ -1,12 +1,13 @@
 {
   "name": "bdd-discovery-and-formulation",
   "owner": {"name": "NaoyaNakamori"},
-  "description": "BDDによるドメイン理解とデータモデリングのdiscovery/formulation marketplace",
+  "description": "BDDによるドメイン理解、データモデリング、E2Eストーリー資料化のmarketplace",
   "plugins": [
     {"name":"domain-bdd-discovery","source":"./plugins/playbooks/bdd/domain-bdd-discovery","description":"コアドメインの共通理解を代表BDDとともに正本へまとめる","version":"0.4.2"},
     {"name":"domain-bdd-formulation","source":"./plugins/playbooks/bdd/domain-bdd-formulation","description":"既存のコアドメイン資料をQA観点で反証し深化させる","version":"0.3.1"},
     {"name":"data-model-bdd-discovery","source":"./plugins/playbooks/bdd/data-model-bdd-discovery","description":"業務イベントからBDD付きRDB論理データモデルを作る","version":"0.3.1"},
     {"name":"data-model-bdd-formulation","source":"./plugins/playbooks/bdd/data-model-bdd-formulation","description":"BDD付き論理設計を深化させRDB物理設計を作る","version":"0.2.2"},
+    {"name":"e2e-bdd-documentation","source":"./plugins/playbooks/bdd/e2e-bdd-documentation","description":"ユーザーの目的達成を開始地点から最終地点までのBDDストーリーとして資料にする","version":"0.1.0"},
     {"name":"domain-events","source":"./plugins/skills/domain/domain-events","description":"業務で起きる事実を時系列に台帳へ残す","version":"0.2.11"},
     {"name":"core-domain","source":"./plugins/skills/domain/core-domain","description":"題材をコア・支援・汎用へ分類する","version":"0.2.11"},
     {"name":"persistence-scenarios","source":"./plugins/skills/data-modeling/persistence-scenarios","description":"永続化の作成・更新・削除シナリオを記録する","version":"0.1.2"},

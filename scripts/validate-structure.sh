@@ -19,7 +19,7 @@ for cmd in jq yq python3 bash cmp find sort diff rg; do
   command -v "$cmd" >/dev/null 2>&1 && pass "command $cmd" || fail "command $cmd が無い"
 done
 
-if jq -e '.name=="bdd-discovery-and-formulation" and (.plugins|length==10)' "$ROOT/.agents/plugins/marketplace.json" >/dev/null; then
+if jq -e '.name=="bdd-discovery-and-formulation" and (.plugins|length==11)' "$ROOT/.agents/plugins/marketplace.json" >/dev/null; then
   pass "Codex marketplaceの配布境界"
 else
   fail "Codex marketplaceの配布境界"
@@ -27,7 +27,7 @@ fi
 
 jq -r '.plugins[].name' "$ROOT/.agents/plugins/marketplace.json" | sort > "$TMP_ROOT/expected"
 find "$ROOT/plugins" -path '*/.codex-plugin/plugin.json' -type f -exec jq -r '.name' {} \; | sort > "$TMP_ROOT/actual"
-diff -u "$TMP_ROOT/expected" "$TMP_ROOT/actual" >/dev/null && pass "配布pluginは10件だけ" || fail "配布plugin集合"
+diff -u "$TMP_ROOT/expected" "$TMP_ROOT/actual" >/dev/null && pass "配布pluginは11件だけ" || fail "配布plugin集合"
 
 for market in .agents/plugins/marketplace.json .claude-plugin/marketplace.json; do
   jq -r '.plugins[].name' "$ROOT/$market" | sort > "$TMP_ROOT/market"
@@ -51,7 +51,7 @@ while IFS='|' read -r name version rel; do
   fi
 done < <(jq -r '.plugins[] | [.name,.version,(.source.path | ltrimstr("./"))] | join("|")' "$ROOT/.agents/plugins/marketplace.json")
 
-for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation; do
+for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation e2e-bdd-documentation; do
   pb="$ROOT/plugins/playbooks/bdd/$directory"
   if yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -e '.version==2 and (.requires|length>0) and all(.requires[]; (keys|sort)==["marketplace","plugin"])' >/dev/null; then
     pass "$directory name-qualified requirements"
@@ -103,6 +103,39 @@ if rg -n -i "$legacy_bdd_pattern" "$ROOT/plugins" "$ROOT/shared" >/dev/null; the
   fail "旧BDD焦点の資産または記述が残存"
 else
   pass "旧BDD焦点の資産と記述なし"
+fi
+
+e2e="$ROOT/plugins/playbooks/bdd/e2e-bdd-documentation"
+good_story="$TMP_ROOT/good-e2e.md"
+cat > "$good_story" <<'EOF'
+# 予約を完了する
+- ユーザー: 予約者
+- 目的: 希望する条件で予約を成立させる
+- 開始地点: 予約者が希望条件を決めている
+- 最終地点: 予約が成立している
+- 完了条件: 予約者が成立した予約を確認できる
+### 場面 1: 希望を伝える
+Given 予約者が希望条件を決めている
+When 予約者が希望を伝える
+Then 希望に合う候補が示される
+接続: 示された候補を選べる状態になる
+### 場面 2: 予約を成立させる
+Given 予約者が候補を選べる
+When 予約者が候補を選ぶ
+Then 予約が成立し予約者が確認できる
+EOF
+if python3 "$e2e/scripts/scenario.py" check --config "$e2e/playbook.yml" --file "$good_story" >/dev/null; then
+  pass "E2Eの長いストーリーを複数場面として受理"
+else
+  fail "E2Eストーリー正常系"
+fi
+
+bad_story="$TMP_ROOT/bad-e2e.md"
+sed 's/予約者が希望を伝える/予約者がAPIを呼び出す/' "$good_story" > "$bad_story"
+if python3 "$e2e/scripts/scenario.py" check --config "$e2e/playbook.yml" --file "$bad_story" >/dev/null 2>&1; then
+  fail "E2E資料にAPI操作を許可"
+else
+  pass "E2E資料からAPI操作を拒否"
 fi
 
 syntax_failed=0

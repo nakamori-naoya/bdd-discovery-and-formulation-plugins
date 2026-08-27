@@ -32,7 +32,7 @@ fixture_plugin grill grill 9.9.9 skill grill
 fixture_plugin write-doc write-doc 0.6.0 playbook write-doc
 fixture_plugin write-doc writing-rules 0.4.15 skill write-with-rules
 
-entries='domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation'
+entries='domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation e2e-bdd-documentation'
 for runtime in codex claude; do
   for directory in $entries; do
     pb="$ROOT/plugins/playbooks/bdd/$directory"

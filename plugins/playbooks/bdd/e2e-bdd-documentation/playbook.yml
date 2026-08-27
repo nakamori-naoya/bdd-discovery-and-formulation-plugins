@@ -1,0 +1,64 @@
+version: 2
+name: e2e-bdd-documentation
+description: ユーザーが目的を持って開始地点から最終地点へ到達するまでを、インタラクティブなBDDストーリーとして1本の資料にする
+instructions:
+  execution:
+    directive: stepsを上から順に実行し、目的と両端を確定してから、場面の連なりと資料化へ渡す
+
+focus: e2e-story
+document_type: e2e-bdd-scenarios
+output_format: markdown
+out_dir: bdd/e2e
+
+requires:
+  - {plugin: grill, marketplace: grill}
+  - {plugin: writing-rules, marketplace: write-doc}
+  - {plugin: write-doc, marketplace: write-doc}
+  - {plugin: intermediate-cleanup, marketplace: bdd-discovery-and-formulation}
+
+contract:
+  grounding_sources: [user_input, referenced_artifacts, grill_decisions]
+  story_frame: [user, purpose, starting_point, final_point, completion_condition]
+  interaction_scene: [sequence, prior_state, acting_role, action, observable_response, next_state]
+  excluded_concerns: [domain_rule_discovery, data_model_design, interface_operation_details, test_execution]
+  cleanup:
+    delete_after_document: [story_draft, validated_story]
+    preserve: [grounded_input, e2e_document_path]
+
+requirements:
+  input_grounded: true
+  clarify_with_grill: true
+  one_user_purpose_per_document: true
+  interactive_story: true
+  allow_multiple_interactions: true
+  exclude_test_execution: true
+
+steps:
+  - id: settle
+    skill: grill
+    purpose: ユーザー、目的、開始地点、最終地点、到達と判断する条件、途中で関わる役割について、入力から分からない点だけを1問ずつ確かめる
+    provides: [decisions, story_frame, grounded_input]
+
+  - id: compose
+    skill: write-with-rules
+    purpose: 1つの目的達成を、前の結果が次の状態へつながる必要な数のインタラクション場面と、各場面のBDDとして一続きのストーリーへ組み立てる
+    needs: [decisions, story_frame, grounded_input]
+    provides: [story_draft, requested_output_path]
+
+  - id: validate
+    script: scripts/scenario.py
+    purpose: 目的と両端、1つ以上の場面、場面間の接続、各場面のBDD、対象外の実装・テスト実行関心を検査する
+    needs: [story_draft, grounded_input]
+    provides: [validated_story]
+
+  - id: document
+    playbook: write-doc
+    purpose: 検査済みストーリーをe2e-bdd-scenariosの型でMarkdown資料として1本保存する
+    needs: [validated_story, requested_output_path, grounded_input]
+    provides: [e2e_document_path]
+
+  - id: cleanup
+    skill: remove-intermediate-artifacts
+    purpose: 資料の保存を確認した後、contract.cleanupで削除候補にしたストーリー草案と検査済み中間ファイルだけを削除し、入力資料とE2E BDD資料を保持する
+    needs: [story_draft, validated_story, grounded_input, e2e_document_path]
+    provides: [cleanup_report]
