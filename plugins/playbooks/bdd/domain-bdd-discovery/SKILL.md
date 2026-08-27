@@ -34,6 +34,8 @@ trap 'rm -f "$CFG_FILE"' EXIT
 
 `${.instructions.execution.directive}` に従い、`${.playbook.contract}` と `${.deps}` を工程へ渡し、成果は `${.playbook.out_dir}` へ集める。契約の役を確認するときだけ[役の契約](references/roles.md)を読む。
 
+[実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は工程順・依存・入出力を決定し、実行指示書は背景・前提・目的と各skillで意識することを補う。grill工程には実行指示書のdomain固有の文脈を与え、grill自身にdomainの観点を求めない。
+
 **各工程を呼ぶときは `--scope=${.resolution.scope_root}` を必ず渡す。**この段取りを通るときだけ効く設定がそこにある。渡さなければ効かない。入れ子の段取りへは、受け取ったものをそのまま渡す（自分の名前で作り直さない）。
 
 **exit 2 で止まったら先へ進まない。** 何が起きたかは `scripts/resolve.sh` の冒頭に書いてある。

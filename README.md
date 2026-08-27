@@ -41,6 +41,8 @@ claude plugin install intermediate-cleanup@bdd-discovery-and-formulation
 - 入口: `domain-bdd-discovery`、`domain-bdd-formulation`、`data-model-bdd-discovery`、`data-model-bdd-formulation`
 - 下段: `domain-events`、`core-domain`、`persistence-scenarios`、`data-model`、`rdb-design`、`intermediate-cleanup`
 
+各入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`references/execution-guidance.md`が背景・前提・目的と各skill実行時の付加的な指示を持つ。grillへdomainやdata model固有の文脈を与えるのは後者であり、grill pluginへ観点を持ち込まない。
+
 ## インストール済みである必要があるplugin
 
 このrepository外の依存だけを記載する。利用する工程に応じて、次がインストール済みである必要がある。
@@ -49,7 +51,7 @@ claude plugin install intermediate-cleanup@bdd-discovery-and-formulation
 - `write-doc@write-doc`
 - `writing-rules@write-doc`
 
-依存は`marketplace / plugin / exact version / runtime`で解決する。同名pluginを推測で選ばず、要求したidentityがinstall済みcacheに無ければ停止する。開発時だけ`HARNESS_PLUGIN_DEV_ROOTS`の明示mapでsource checkoutを指定できる。
+依存は`marketplace / plugin / runtime`の名前で解決し、versionは固定しない。install済みcacheに複数versionがあれば最新のsemantic versionを選び、そのmanifestのplugin名と、工程が要求するskill名の存在を検査する。同名pluginを別marketplaceから推測せず、名前が一致する配布物が無ければ停止する。開発時だけ`HARNESS_PLUGIN_DEV_ROOTS`の明示mapでsource checkoutを指定できる。
 
 ## 設定の上書きと優先順位
 

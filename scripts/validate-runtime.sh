@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario: runtime別cacheから完全修飾依存だけを解決し、不正系はfail closedする
+# Scenario: runtime別cacheから名前一致の依存を解決し、不正系はfail closedする
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -27,7 +27,8 @@ fixture_plugin() {
   fi
 }
 
-fixture_plugin grill grill 0.2.12 skill grill
+fixture_plugin grill grill 0.2.13 skill grill
+fixture_plugin grill grill 9.9.9 skill grill
 fixture_plugin write-doc write-doc 0.6.0 playbook write-doc
 fixture_plugin write-doc writing-rules 0.4.15 skill write-with-rules
 
@@ -37,10 +38,11 @@ for runtime in codex claude; do
     pb="$ROOT/plugins/playbooks/bdd/$directory"
     out="$TMP_ROOT/$runtime-$directory.yml"
     if HARNESS_PLUGIN_RUNTIME="$runtime" HARNESS_PLUGIN_CACHE_ROOT="$CACHE" bash "$pb/scripts/resolve.sh" "$REPO" > "$out" 2> "$out.err" \
-      && yq -o=json -I=0 '.' "$out" | jq -e --arg runtime "$runtime" 'all(.deps[]; .runtime==$runtime)' >/dev/null; then
-      pass "$runtime/$directory exact dependency resolution"
+      && yq -o=json -I=0 '.' "$out" | jq -e --arg runtime "$runtime" \
+        'all(.deps[]; .runtime==$runtime) and .deps.grill.version=="9.9.9"' >/dev/null; then
+      pass "$runtime/$directory name dependency resolution"
     else
-      fail "$runtime/$directory exact dependency resolution"
+      fail "$runtime/$directory name dependency resolution"
     fi
   done
 done
@@ -48,22 +50,22 @@ done
 entry="$ROOT/plugins/playbooks/bdd/domain-bdd-discovery"
 if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$TMP_ROOT/missing" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/missing.err"; then
   fail "missing dependencyを許可"
-elif rg -n '\[error:dependency-missing\].*marketplace=grill.*version=0.2.12' "$TMP_ROOT/missing.err" >/dev/null; then
+elif rg -n '\[error:dependency-missing\].*plugin=grill.*marketplace=grill.*runtime=codex' "$TMP_ROOT/missing.err" >/dev/null; then
   pass "missing dependencyはidentity付きで停止"
 else
   fail "missing dependency error contract"
 fi
 
-mv "$CACHE/grill/grill/0.2.12/.codex-plugin/plugin.json" "$TMP_ROOT/grill-manifest"
-printf '{"name":"grill","version":"9.9.9"}\n' > "$CACHE/grill/grill/0.2.12/.codex-plugin/plugin.json"
-if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$CACHE" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/version.err"; then
-  fail "manifest版違いを許可"
-elif rg -n '\[error:dependency-invalid\].*manifest-identity-mismatch' "$TMP_ROOT/version.err" >/dev/null; then
-  pass "manifest版違いを停止"
+mv "$CACHE/grill/grill/9.9.9/.codex-plugin/plugin.json" "$TMP_ROOT/grill-manifest"
+printf '{"name":"not-grill","version":"9.9.9"}\n' > "$CACHE/grill/grill/9.9.9/.codex-plugin/plugin.json"
+if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$CACHE" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/name.err"; then
+  fail "manifest名違いを許可"
+elif rg -n '\[error:dependency-invalid\].*manifest-identity-mismatch' "$TMP_ROOT/name.err" >/dev/null; then
+  pass "manifest名違いを停止"
 else
-  fail "manifest版違いerror contract"
+  fail "manifest名違いerror contract"
 fi
-mv "$TMP_ROOT/grill-manifest" "$CACHE/grill/grill/0.2.12/.codex-plugin/plugin.json"
+mv "$TMP_ROOT/grill-manifest" "$CACHE/grill/grill/9.9.9/.codex-plugin/plugin.json"
 
 if HARNESS_PLUGIN_CACHE_ROOT="$CACHE" CODEX_HOME= CLAUDE_PLUGIN_ROOT= bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/runtime.err"; then
   fail "runtime不明を許可"
@@ -79,6 +81,13 @@ if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$CACHE" bash "$entry/
   fail "bare dependency nameを許可"
 else
   pass "schema v2はbare dependency nameを拒否"
+fi
+
+yq -o=json -I=0 '.' "$entry/playbook.yml" | jq '.requires[0].version="0.2.13"' | yq -P > "$REPO/.harness-plugins/domain-bdd-discovery.config.yml"
+if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$CACHE" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/pin.err"; then
+  fail "dependency version pinを許可"
+else
+  pass "schema v2はdependency version pinを拒否"
 fi
 
 printf '\nRuntime: %d passed, %d failed\n' "$passed" "$failed"

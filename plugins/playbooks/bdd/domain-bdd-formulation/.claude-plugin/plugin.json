@@ -1,6 +1,6 @@
 {
   "name": "domain-bdd-formulation",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "既存のコアドメイン資料をQA観点で反証し、同じ資料へ戻して深化させる",
   "author": {
     "name": "NaoyaNakamori"
