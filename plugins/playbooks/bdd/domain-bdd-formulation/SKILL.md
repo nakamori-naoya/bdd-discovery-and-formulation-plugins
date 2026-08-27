@@ -32,6 +32,8 @@ trap 'rm -f "$CFG_FILE"' EXIT
 
 `${.playbook.focus}`は`domain`に固定される。既存資料のパスが無い、資料内でコアの範囲が分からない、更新先に別パスを指定された場合は停止する。[このplaybookの焦点](references/focus.md)を読み、支援・汎用を反証対象へ広げない。
 
+[実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は工程順・依存・入出力を決定し、実行指示書は背景・前提・目的と各skillで意識することを補う。grill工程には実行指示書のdomain formulation固有の文脈を与え、grill自身にdomainやQAの観点を求めない。
+
 ## 2. 定式化へ進める入力かを最初に評価する
 
 [入力に根拠づける規律](references/input-grounding.md)を読み、`${.playbook.steps}`の最初のgrill工程へ利用者の説明と既存資料を渡す。不明点や深掘りが必要な点を利用者へ1問ずつ確認し、確認済みの回答だけを`grounded_input`にする。次に[定式化へ進める共通理解かを見極める](references/formulation-readiness.md)を読み、`grounded_input`をLLMが意味から評価する。語の有無、点数、項目数、scriptで代用しない。対話後もコアの代表的な業務を説明する基準が無ければ、未決と回答責任者を示し、`domain-bdd-discovery`を案内してここで終了する。残りの`${.playbook.steps}`や資料更新は始めない。

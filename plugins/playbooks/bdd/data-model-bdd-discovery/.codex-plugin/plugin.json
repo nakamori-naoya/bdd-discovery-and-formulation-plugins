@@ -1,6 +1,6 @@
 {
   "name": "data-model-bdd-discovery",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "skills": "./skills",
   "description": "業務イベントから永続化の作成・更新・削除を発見し、BDDを含むRDB論理データモデル資料にする",
   "author": {

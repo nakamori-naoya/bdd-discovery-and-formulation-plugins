@@ -8,6 +8,12 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 passed=0 failed=0
 pass() { printf 'PASS: %s\n' "$1"; passed=$((passed + 1)); }
 fail() { printf 'FAIL: %s\n' "$1"; failed=$((failed + 1)); }
+has_execution_guidance() {
+  pb=$1
+  [ -s "$pb/references/execution-guidance.md" ] \
+    && rg -F '[実行指示書](references/execution-guidance.md)を必ず読む' "$pb/SKILL.md" >/dev/null \
+    && rg -n '^### grill$' "$pb/references/execution-guidance.md" >/dev/null
+}
 
 for cmd in jq yq python3 bash cmp find sort diff rg; do
   command -v "$cmd" >/dev/null 2>&1 && pass "command $cmd" || fail "command $cmd が無い"
@@ -54,7 +60,23 @@ for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-disc
   fi
   cmp -s "$ROOT/shared/playbook/resolve.sh" "$pb/scripts/resolve.sh" && pass "$directory resolver同期" || fail "$directory resolver同期"
   cmp -s "$ROOT/shared/playbook/resolve-dependency.py" "$pb/scripts/resolve-dependency.py" && pass "$directory dependency resolver同期" || fail "$directory dependency resolver同期"
+  if has_execution_guidance "$pb"; then
+    pass "$directory は順序契約と実行指示書を分離"
+  else
+    fail "$directory の実行指示書契約"
+  fi
 done
+
+# 実行指示書が無い、または入口から必読になっていない構成を拒否する負の試験。
+broken="$TMP_ROOT/broken-guidance"
+mkdir -p "$broken/references"
+printf '%s\n' '# fixture' > "$broken/SKILL.md"
+printf '%s\n' '# fixture' '### grill' > "$broken/references/execution-guidance.md"
+if has_execution_guidance "$broken"; then
+  fail "入口から未参照の実行指示書を許可"
+else
+  pass "入口から未参照の実行指示書を拒否"
+fi
 
 if rg -n -i 'prototype|プロトタイプ' "$ROOT" -g '*.md' -g '*.json' >/dev/null; then
   fail "prototype表現が残存"

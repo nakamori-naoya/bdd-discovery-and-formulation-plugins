@@ -1,6 +1,6 @@
 {
   "name": "domain-bdd-discovery",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "コアドメインの共通理解を作り、代表BDDとともにdomain-rule資料へまとめる",
   "skills": "./skills",
   "author": {

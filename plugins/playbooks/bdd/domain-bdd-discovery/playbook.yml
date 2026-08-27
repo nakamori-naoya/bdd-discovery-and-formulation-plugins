@@ -21,7 +21,7 @@ map_dir: bdd/discovery/domain
 requires:
   - {plugin: domain-events, marketplace: bdd-discovery-and-formulation, version: 0.2.11}
   - {plugin: core-domain, marketplace: bdd-discovery-and-formulation, version: 0.2.11}
-  - {plugin: grill, marketplace: grill, version: 0.2.12}
+  - {plugin: grill, marketplace: grill, version: 0.2.13}
   - {plugin: write-doc, marketplace: write-doc, version: 0.6.0}
   - {plugin: intermediate-cleanup, marketplace: bdd-discovery-and-formulation, version: 0.1.0}
 

@@ -27,7 +27,7 @@ fixture_plugin() {
   fi
 }
 
-fixture_plugin grill grill 0.2.12 skill grill
+fixture_plugin grill grill 0.2.13 skill grill
 fixture_plugin write-doc write-doc 0.6.0 playbook write-doc
 fixture_plugin write-doc writing-rules 0.4.15 skill write-with-rules
 
@@ -48,14 +48,14 @@ done
 entry="$ROOT/plugins/playbooks/bdd/domain-bdd-discovery"
 if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$TMP_ROOT/missing" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/missing.err"; then
   fail "missing dependencyを許可"
-elif rg -n '\[error:dependency-missing\].*marketplace=grill.*version=0.2.12' "$TMP_ROOT/missing.err" >/dev/null; then
+elif rg -n '\[error:dependency-missing\].*marketplace=grill.*version=0.2.13' "$TMP_ROOT/missing.err" >/dev/null; then
   pass "missing dependencyはidentity付きで停止"
 else
   fail "missing dependency error contract"
 fi
 
-mv "$CACHE/grill/grill/0.2.12/.codex-plugin/plugin.json" "$TMP_ROOT/grill-manifest"
-printf '{"name":"grill","version":"9.9.9"}\n' > "$CACHE/grill/grill/0.2.12/.codex-plugin/plugin.json"
+mv "$CACHE/grill/grill/0.2.13/.codex-plugin/plugin.json" "$TMP_ROOT/grill-manifest"
+printf '{"name":"grill","version":"9.9.9"}\n' > "$CACHE/grill/grill/0.2.13/.codex-plugin/plugin.json"
 if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$CACHE" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/version.err"; then
   fail "manifest版違いを許可"
 elif rg -n '\[error:dependency-invalid\].*manifest-identity-mismatch' "$TMP_ROOT/version.err" >/dev/null; then
@@ -63,7 +63,7 @@ elif rg -n '\[error:dependency-invalid\].*manifest-identity-mismatch' "$TMP_ROOT
 else
   fail "manifest版違いerror contract"
 fi
-mv "$TMP_ROOT/grill-manifest" "$CACHE/grill/grill/0.2.12/.codex-plugin/plugin.json"
+mv "$TMP_ROOT/grill-manifest" "$CACHE/grill/grill/0.2.13/.codex-plugin/plugin.json"
 
 if HARNESS_PLUGIN_CACHE_ROOT="$CACHE" CODEX_HOME= CLAUDE_PLUGIN_ROOT= bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/runtime.err"; then
   fail "runtime不明を許可"

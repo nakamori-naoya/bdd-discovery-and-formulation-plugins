@@ -7,6 +7,8 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 - 入口: `domain-bdd-discovery`、`domain-bdd-formulation`、`data-model-bdd-discovery`、`data-model-bdd-formulation`
 - 下段: `domain-events`、`core-domain`、`persistence-scenarios`、`data-model`、`rdb-design`、`intermediate-cleanup`
 
+各入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`references/execution-guidance.md`が背景・前提・目的と各skill実行時の付加的な指示を持つ。grillへdomainやdata model固有の文脈を与えるのは後者であり、grill pluginへ観点を持ち込まない。
+
 ## インストール済みである必要があるplugin
 
 このrepository外の依存だけを記載する。利用する工程に応じて、次がインストール済みである必要がある。
