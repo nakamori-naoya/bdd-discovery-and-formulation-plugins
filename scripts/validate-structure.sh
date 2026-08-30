@@ -19,6 +19,22 @@ for cmd in jq yq python3 bash cmp find sort diff rg; do
   command -v "$cmd" >/dev/null 2>&1 && pass "command $cmd" || fail "command $cmd が無い"
 done
 
+# 条件マトリクスの代表的な正常系・境界系・不正系を固定する。
+matrix_validator="$ROOT/shared/quality-engineering/scenario_matrix.py"
+matrix_good="$TMP_ROOT/matrix-good.json"
+cat > "$matrix_good" <<'EOF'
+{"scenarios":[
+  {"name":"成功","kind":"success","expected":"success","rule":"R","trigger":{"kind":"event","text":"受付が起きる"},"premises":[{"name":"A","text":"Aが成立","state":"satisfied","target":false,"source":"業務規則"}]},
+  {"name":"単一失敗","kind":"single_failure","expected":"failure","rule":"R","trigger":{"kind":"action","text":"確認する"},"premises":[{"name":"A","text":"Aが成立","state":"satisfied","target":false,"source":"業務規則"},{"name":"B","text":"Bが不成立","state":"unsatisfied","target":true,"source":"業務規則"}],"note":{"rule":"R","reason":"Bに抵触"}},
+  {"name":"境界","kind":"boundary","expected":"success","rule":"R","trigger":{"kind":"action","text":"判定する"},"premises":[{"name":"A","text":"Aが境界","state":"boundary","target":true,"source":"業務規則"}]},
+  {"name":"組合せ","kind":"interaction","expected":"success","rule":"R","trigger":{"kind":"event","text":"同時に起きる"},"premises":[{"name":"A","text":"A","state":"satisfied","target":true,"source":"業務規則"},{"name":"B","text":"B","state":"satisfied","target":true,"source":"業務規則"}]}
+]}
+EOF
+if python3 "$matrix_validator" check --file "$matrix_good" >/dev/null; then pass "条件マトリクス代表ケース"; else fail "条件マトリクス代表ケース"; fi
+matrix_bad="$TMP_ROOT/matrix-bad.json"
+sed 's/"state":"satisfied","target":false/"state":"unsatisfied","target":false/' "$matrix_good" > "$matrix_bad"
+if python3 "$matrix_validator" check --file "$matrix_bad" >/dev/null 2>&1; then fail "条件マトリクスの暗黙前提を許可"; else pass "条件マトリクスの暗黙前提を拒否"; fi
+
 if jq -e '.name=="bdd-discovery-and-formulation" and (.plugins|length==11)' "$ROOT/.agents/plugins/marketplace.json" >/dev/null; then
   pass "Codex marketplaceの配布境界"
 else
@@ -65,6 +81,8 @@ for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-disc
   else
     fail "$directory の実行指示書契約"
   fi
+  cmp -s "$ROOT/shared/quality-engineering/scenario-premises.md" "$pb/references/scenario-premises.md" && pass "$directory 前提規律同期" || fail "$directory 前提規律同期"
+  cmp -s "$ROOT/shared/quality-engineering/scenario_matrix.py" "$pb/scripts/scenario_matrix.py" && pass "$directory 条件マトリクスvalidator同期" || fail "$directory 条件マトリクスvalidator同期"
 done
 
 # 実行指示書が無い、または入口から必読になっていない構成を拒否する負の試験。
@@ -124,7 +142,14 @@ Given 予約者が候補を選べる
 When 予約者が候補を選ぶ
 Then 予約が成立し予約者が確認できる
 EOF
-if python3 "$e2e/scripts/scenario.py" check --config "$e2e/playbook.yml" --file "$good_story" >/dev/null; then
+good_matrix="$TMP_ROOT/good-e2e-matrix.json"
+cat > "$good_matrix" <<'EOF'
+{"scenarios":[
+  {"name":"希望を伝える","kind":"success","expected":"success","rule":"予約成立規則","trigger":{"kind":"action","text":"予約者が希望を伝える"},"premises":[{"name":"開始地点","text":"予約者が希望条件を決めている","state":"satisfied","target":false,"source":"予約資料"}]},
+  {"name":"予約を成立させる","kind":"success","expected":"success","rule":"予約成立規則","trigger":{"kind":"action","text":"予約者が候補を選ぶ"},"premises":[{"name":"候補を選べる","text":"予約者が候補を選べる","state":"satisfied","target":false,"source":"予約資料"}]}
+]}
+EOF
+if python3 "$e2e/scripts/scenario.py" check --config "$e2e/playbook.yml" --file "$good_story" --matrix "$good_matrix" >/dev/null; then
   pass "E2Eの長いストーリーを複数場面として受理"
 else
   fail "E2Eストーリー正常系"
@@ -132,7 +157,7 @@ fi
 
 bad_story="$TMP_ROOT/bad-e2e.md"
 sed 's/予約者が希望を伝える/予約者がAPIを呼び出す/' "$good_story" > "$bad_story"
-if python3 "$e2e/scripts/scenario.py" check --config "$e2e/playbook.yml" --file "$bad_story" >/dev/null 2>&1; then
+if python3 "$e2e/scripts/scenario.py" check --config "$e2e/playbook.yml" --file "$bad_story" --matrix "$good_matrix" >/dev/null 2>&1; then
   fail "E2E資料にAPI操作を許可"
 else
   pass "E2E資料からAPI操作を拒否"

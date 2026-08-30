@@ -24,7 +24,7 @@ contract:
   logical_schema_markers: [table, column, business_constraint]
   confidence: [confirmed, assumed, unknown]
   cleanup:
-    delete_after_document: [revised_persistence_scenarios, persistence_coverage, revised_logical_data_model, revised_logical_body]
+    delete_after_document: [revised_persistence_scenarios, persistence_coverage, condition_matrix, revised_logical_data_model, revised_logical_body]
     preserve: [grounded_input, existing_logical_document_path, updated_logical_document_path, read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]
 
 requirements:
@@ -58,12 +58,12 @@ steps:
     skill: write-persistence-scenarios
     purpose: 作成・更新・削除、履歴、保持、失敗時保証の不足を独立したBDDシナリオへ深化させる
     needs: [existing_logical_document_path, probe_findings, unresolved_questions, grounded_input]
-    provides: [revised_persistence_scenarios, persistence_coverage]
+    provides: [revised_persistence_scenarios, persistence_coverage, condition_matrix]
 
   - id: revise-logical-model
     skill: design-data-model
     purpose: 確認済みの発見を論理テーブルとBDDへ戻し、既存論理資料の更新本文を作る
-    needs: [existing_logical_document_path, revised_persistence_scenarios, persistence_coverage, grounded_input]
+    needs: [existing_logical_document_path, revised_persistence_scenarios, persistence_coverage, condition_matrix, grounded_input]
     provides: [revised_logical_data_model, revised_logical_body, requested_logical_output_path]
 
   - id: guard-logical-update
@@ -75,17 +75,17 @@ steps:
   - id: update-logical-document
     playbook: write-doc
     purpose: logical_update_targetをwrite-docのreplace-existing-targetとして渡し、深化したBDDと論理モデルを既存rdb-logical-data-modeling資料の同じパスへ差し替える
-    needs: [revised_logical_body, logical_update_target, grounded_input]
+    needs: [revised_logical_body, condition_matrix, logical_update_target, grounded_input]
     provides: [updated_logical_document_path]
 
   - id: physical-design
     skill: design-rdb-persistence
     purpose: 典型的なReadシナリオを特定し、論理構造を変えずに指定RDB・版の型、制約、index、分離レベル、配置へ写す
-    needs: [updated_logical_document_path, revised_logical_data_model, grounded_input]
+    needs: [updated_logical_document_path, revised_logical_data_model, condition_matrix, grounded_input]
     provides: [read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]
 
   - id: cleanup
     skill: remove-intermediate-artifacts
     purpose: 論理資料の更新と物理設計の完了を確認した後、contract.cleanupで削除候補にした改訂案と検査用ファイルだけを削除し、入力資料、更新済み論理資料、物理設計成果を保持する
-    needs: [revised_persistence_scenarios, persistence_coverage, revised_logical_data_model, revised_logical_body, grounded_input, existing_logical_document_path, updated_logical_document_path, read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]
+    needs: [revised_persistence_scenarios, persistence_coverage, condition_matrix, revised_logical_data_model, revised_logical_body, grounded_input, existing_logical_document_path, updated_logical_document_path, read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]
     provides: [cleanup_report]

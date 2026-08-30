@@ -22,7 +22,7 @@ contract:
   interaction_scene: [sequence, prior_state, acting_role, action, observable_response, next_state]
   excluded_concerns: [domain_rule_discovery, data_model_design, interface_operation_details, test_execution]
   cleanup:
-    delete_after_document: [story_draft, validated_story]
+    delete_after_document: [story_draft, condition_matrix, validated_story]
     preserve: [grounded_input, e2e_document_path]
 
 requirements:
@@ -43,12 +43,12 @@ steps:
     skill: write-with-rules
     purpose: 1つの目的達成を、前の結果が次の状態へつながる必要な数のインタラクション場面と、各場面のBDDとして一続きのストーリーへ組み立てる
     needs: [decisions, story_frame, grounded_input]
-    provides: [story_draft, requested_output_path]
+    provides: [story_draft, condition_matrix, requested_output_path]
 
   - id: validate
     script: scripts/scenario.py
     purpose: 目的と両端、1つ以上の場面、場面間の接続、各場面のBDD、対象外の実装・テスト実行関心を検査する
-    needs: [story_draft, grounded_input]
+    needs: [story_draft, condition_matrix, grounded_input]
     provides: [validated_story]
 
   - id: document
@@ -60,5 +60,5 @@ steps:
   - id: cleanup
     skill: remove-intermediate-artifacts
     purpose: 資料の保存を確認した後、contract.cleanupで削除候補にしたストーリー草案と検査済み中間ファイルだけを削除し、入力資料とE2E BDD資料を保持する
-    needs: [story_draft, validated_story, grounded_input, e2e_document_path]
+    needs: [story_draft, condition_matrix, validated_story, grounded_input, e2e_document_path]
     provides: [cleanup_report]

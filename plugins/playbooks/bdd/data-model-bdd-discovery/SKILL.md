@@ -34,6 +34,8 @@ trap 'rm -f "$CFG_FILE"' EXIT
 
 [実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は工程順・依存・入出力を決定し、実行指示書は背景・前提・目的と各skillで意識することを補う。grill工程には実行指示書のdata model固有の文脈を与え、grill自身に永続化の観点を求めない。
 
+[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。永続化シナリオを資料へ写す前に条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。
+
 ## 2. 永続化の振る舞いを先に発見する
 
 [入力に根拠づける規律](references/input-grounding.md)を読み、利用者の発言、明示された資料、grillで確認した決定にない業務用語・イベント・概念を作らない。`${.playbook.steps}`を順に実行し、各工程へ`--scope=${.resolution.scope_root}`を渡す。`design-data-model`工程には加えて`--override=method=${.playbook.modeling.method}`を渡す。アクター、事前状態、業務イベント、条件、判断、結果、次状態から、初めて成立する事実、追加する履歴、保持理由、物理削除を許す条件を確かめる。

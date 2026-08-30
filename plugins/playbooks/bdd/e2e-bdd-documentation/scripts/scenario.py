@@ -7,11 +7,15 @@ import re
 import subprocess
 from pathlib import Path
 
+from scenario_matrix import validate as validate_matrix
+
 REQUIRED_LABELS = ("ユーザー", "目的", "開始地点", "最終地点", "完了条件")
 LABEL = re.compile(r"^-\s+\*{0,2}(ユーザー|目的|開始地点|最終地点|完了条件)\*{0,2}\s*:\s*(.*?)\s*$")
 SCENE = re.compile(r"^#{2,3}\s+場面\s+(\d+)\s*:\s*(.+?)\s*$")
 CONNECTION = re.compile(r"^\*{0,2}接続\*{0,2}\s*:\s*(.*?)\s*$")
 STEP = re.compile(r"^\s*(Given|When|Then|And|But|前提|もし|ならば|かつ|しかし)\s+(.+?)\s*$")
+NOTE = re.compile(r"^\s*NOTE\s*:\s*$")
+NOTE_FIELD = re.compile(r"^\s+(Rule|Source|Reason)\s*:\s*(.+?)\s*$")
 KIND = {"Given": "given", "前提": "given", "When": "when", "もし": "when", "Then": "then", "ならば": "then"}
 IMPLEMENTATION_WORDS = (
     "画面", "ボタン", "クリック", "押下", "入力欄", "url", "api", "endpoint", "エンドポイント",
@@ -53,6 +57,7 @@ def parse(text):
     scenes = []
     current = None
     previous_kind = None
+    in_note = False
     for line_number, line in enumerate(text.splitlines(), 1):
         stripped = line.strip()
         label_match = LABEL.match(stripped)
@@ -67,11 +72,20 @@ def parse(text):
                 "name": match.group(2).strip(),
                 "steps": [],
                 "connections": [],
+                "notes": [],
             }
             scenes.append(current)
-            previous_kind = None
+            previous_kind, in_note = None, False
             continue
         if current is None:
+            continue
+        if NOTE.match(line):
+            current["notes"].append({"line": line_number, "fields": {}})
+            in_note = True
+            continue
+        note_field = NOTE_FIELD.match(line)
+        if note_field and in_note and current["notes"]:
+            current["notes"][-1]["fields"][note_field.group(1).lower()] = note_field.group(2).strip()
             continue
         connection_match = CONNECTION.match(stripped)
         if connection_match:
@@ -79,6 +93,7 @@ def parse(text):
             continue
         step = STEP.match(line)
         if step:
+            in_note = False
             keyword, body = step.groups()
             kind = KIND.get(keyword, previous_kind or "given")
             current["steps"].append({"line": line_number, "kind": kind, "body": body})
@@ -86,7 +101,7 @@ def parse(text):
     return labels, scenes
 
 
-def check(text):
+def check(text, matrix):
     labels, scenes = parse(text)
     problems = []
 
@@ -103,6 +118,13 @@ def check(text):
     if not scenes:
         add(0, "場面数", "場面が0件", "開始地点から最終地点へ進むインタラクション場面を1件以上書く")
 
+    matrix_by_name = {item["name"]: item for item in matrix.get("scenarios", []) if isinstance(item, dict) and isinstance(item.get("name"), str)}
+    scene_names = {scene["name"] for scene in scenes if scene["name"]}
+    for missing in sorted(scene_names - set(matrix_by_name)):
+        add(0, "条件マトリクス", f"場面に対応する条件マトリクスが無い: {missing}", "同じ場面名で条件マトリクスを書く")
+    for extra in sorted(set(matrix_by_name) - scene_names):
+        add(0, "条件マトリクス", f"場面に無いシナリオがある: {extra}", "場面と条件マトリクスを一対一にする")
+
     expected = list(range(1, len(scenes) + 1))
     actual = [scene["number"] for scene in scenes]
     if actual != expected:
@@ -113,7 +135,7 @@ def check(text):
         if not scene["name"]:
             add(scene["line"], "場面名", "場面名が空", "その場面で生じる意味のある変化を名前にする")
         if kinds.count("given") < 1:
-            add(scene["line"], "Given", "前提が無い", "開始地点または前の場面から受け取った状態を書く")
+            add(scene["line"], "Given", "前提が無い", "結果に必要な開始状態と業務条件をすべて書く")
         if kinds.count("when") != 1:
             add(scene["line"], "When", f"主要な働きかけが{kinds.count('when')}件", "1場面の主要な働きかけを1件にする。増える場合は場面を分ける")
         if kinds.count("then") < 1:
@@ -126,6 +148,32 @@ def check(text):
                 add(scene["line"], "場面の接続", "次の場面への接続が1件明示されていない", "接続: に次の場面へ渡す状態を書く")
         elif len(scene["connections"]) > 1:
             add(scene["line"], "場面の接続", "最後の場面に接続が複数ある", "最終地点との対応だけを書く")
+
+        matrix_item = matrix_by_name.get(scene["name"])
+        if matrix_item:
+            givens = {step["body"] for step in scene["steps"] if step["kind"] == "given"}
+            premises = {item.get("text") for item in matrix_item.get("premises", []) if isinstance(item, dict)}
+            if givens != premises:
+                add(scene["line"], "Givenと条件マトリクス", "必要条件とGivenが一致しない", "全premisesをGivenへ一件ずつ写す")
+            whens = [step for step in scene["steps"] if step["kind"] == "when"]
+            trigger = (matrix_item.get("trigger") or {}).get("text")
+            if len(whens) == 1 and whens[0]["body"] != trigger:
+                add(whens[0]["line"], "Whenと条件マトリクス", "トリガー本文が一致しない", "actionまたはeventとして確定したトリガーを書く")
+            failure = matrix_item.get("expected") == "failure"
+            notes = scene["notes"]
+            if failure and len(notes) != 1:
+                add(scene["line"], "NOTE", f"失敗場面のNOTEが{len(notes)}件", "全Thenの直後にNOTEを一つ置く")
+            elif not failure and notes:
+                add(notes[0]["line"], "NOTE", "成功場面にNOTEがある", "成功場面からNOTEを削る")
+            elif failure and notes:
+                fields = notes[0]["fields"]
+                expected_note = matrix_item.get("note") or {}
+                for field in ("rule", "source", "reason"):
+                    if fields.get(field) != expected_note.get(field):
+                        add(notes[0]["line"], "NOTE", f"{field}が条件マトリクスと一致しない", "外部正本を含む確定済みの失敗理由を写す")
+                last_step = max(step["line"] for step in scene["steps"]) if scene["steps"] else scene["line"]
+                if notes[0]["line"] <= last_step:
+                    add(notes[0]["line"], "NOTE", "Thenの途中にある", "すべてのThenとAndの直後へ移す")
 
         for step in scene["steps"]:
             lowered = step["body"].lower()
@@ -142,6 +190,7 @@ def main():
     check_parser = sub.add_parser("check")
     check_parser.add_argument("--config", required=True)
     check_parser.add_argument("--file", required=True)
+    check_parser.add_argument("--matrix", required=True)
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -153,7 +202,16 @@ def main():
     except OSError as exc:
         fail(f"story draftを読めない: {exc}")
 
-    problems, scene_count = check(text)
+    try:
+        matrix = json.loads(Path(args.matrix).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        fail(f"--matrixを読めない: {exc}")
+    matrix_problems = validate_matrix(matrix)
+    if matrix_problems:
+        for problem in matrix_problems:
+            print(json.dumps(problem, ensure_ascii=False))
+        fail(f"条件マトリクスに{len(matrix_problems)}件の違反", 1)
+    problems, scene_count = check(text, matrix)
     for problem in problems:
         print(json.dumps(problem, ensure_ascii=False))
     if problems:

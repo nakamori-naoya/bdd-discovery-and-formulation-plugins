@@ -4,11 +4,11 @@
 **読みやすさは自動化のしやすさより優先する。** ここで見るのは、
 その読みやすさを機械で守れる部分だけである。意図が伝わるかは人の判断に残る。
 
-  scenario.py check --config <解決済みplaybook YAML> --file <path>
+  scenario.py check --config <解決済みplaybook YAML> --file <path> --matrix <condition-matrix.json>
                     [--allow <語>]...
       -> 違反を1件ずつ出し、1つでもあれば異常終了する
 
-  scenario.py save --config <json|path> --topic <題材> --file <path> [--force]
+  scenario.py save --config <json|path> --topic <題材> --file <path> --matrix <condition-matrix.json> [--force]
       -> 検査を通ったものだけを scenario_dir へ保存する
 
   scenario.py vocabulary --config <解決済みplaybook YAML>
@@ -21,6 +21,8 @@ import os
 import re
 import subprocess
 import sys
+
+from scenario_matrix import validate as validate_matrix
 
 STORAGE = ["テーブル", "カラム", "SQL", "スキーマ", "インデックス", "主キー"]
 WIRE = ["エンドポイント", "リクエスト", "レスポンス", "HTTP", "gRPC", "JSON", "ペイロード"]
@@ -42,8 +44,9 @@ VAGUE_NAME = re.compile(r"^(テスト|test|scenario\s*\d*|シナリオ\s*\d*|確
 # または／or は、そのシナリオが何を主張しているのかを決められなくする。
 DISJUNCTION = re.compile(r"(または|もしくは|\bor\b)", re.I)
 FIRST_PERSON = re.compile(r"(^|[^ぁ-んァ-ン一-龥])私([^ぁ-んァ-ン一-龥]|$)")
-CLOSURE = re.compile(r"^\s*#\s*クロージャ\s*:\s*(.*)$")
-CLOSURE_BODY = "このシナリオの Given に書かれていない業務条件は、成立・結果に影響しない。"
+OLD_CLOSURE = re.compile(r"^\s*#\s*クロージャ\s*:")
+NOTE = re.compile(r"^\s*NOTE\s*:\s*$")
+NOTE_FIELD = re.compile(r"^\s+(Rule|Source|Reason)\s*:\s*(.+?)\s*$")
 
 
 def fail(msg, code=2):
@@ -73,43 +76,54 @@ def read_text(path):
 
 def parse(text):
     """必要な構造だけを取る。網羅的なパーサではない。"""
-    doc = {"features": [], "backgrounds": [], "scenarios": []}
+    doc = {"features": [], "backgrounds": [], "scenarios": [], "old_closures": []}
     cur = None
     in_examples = False
+    in_note = False
     for i, line in enumerate(text.splitlines(), 1):
         s = line.strip()
         if not s:
             continue
-        m = CLOSURE.match(line)
-        if m:
+        if OLD_CLOSURE.match(line):
+            doc["old_closures"].append({"line": i})
+            continue
+        if NOTE.match(line):
             if cur is not None:
-                cur["closures"].append({"line": i, "text": m.group(1).strip()})
+                cur["notes"].append({"line": i, "fields": {}})
+                in_note = True
+            continue
+        note_field = NOTE_FIELD.match(line)
+        if note_field and cur is not None and in_note and cur["notes"]:
+            cur["notes"][-1]["fields"][note_field.group(1).lower()] = {
+                "line": i, "text": note_field.group(2).strip()
+            }
             continue
         if s.startswith("#"):
             continue
         m = FEATURE.match(line)
         if m:
             doc["features"].append({"line": i, "name": m.group(2).strip()})
-            cur, in_examples = None, False
+            cur, in_examples, in_note = None, False, False
             continue
         if BACKGROUND.match(line):
             doc["backgrounds"].append({"line": i})
-            cur, in_examples = None, False
+            cur, in_examples, in_note = None, False, False
             continue
         if RULE.match(line):
-            cur, in_examples = None, False
+            cur, in_examples, in_note = None, False, False
             continue
         m = SCENARIO.match(line)
         if m:
             cur = {"line": i, "keyword": m.group(1), "name": m.group(2).strip(),
                    "outline": "Outline" in m.group(1) or "Template" in m.group(1)
                               or "テンプレート" in m.group(1) or "アウトライン" in m.group(1),
-                   "steps": [], "examples": [], "closures": []}
+                   "steps": [], "examples": [], "notes": []}
             doc["scenarios"].append(cur)
-            in_examples = False
+            in_examples, in_note = False, False
             continue
         if EXAMPLES.match(line):
             in_examples = bool(cur)
+            in_note = False
             continue
         if s.startswith("|") and in_examples and cur is not None:
             cells = [c.strip() for c in s.strip("|").split("|")]
@@ -117,6 +131,7 @@ def parse(text):
             continue
         m = STEP.match(line)
         if m and cur is not None:
+            in_note = False
             kw, body = m.group(1), m.group(2).strip()
             kind = KEYWORD_KIND.get(kw)
             if kind is None:  # And / But / かつ / しかし は直前を継ぐ
@@ -125,7 +140,7 @@ def parse(text):
     return doc
 
 
-def check(doc, focus, max_steps, allow_background, limits, allow):
+def check(doc, focus, max_steps, allow_background, limits, allow, matrix):
     problems = []
 
     def bad(line, kind, detail, howto):
@@ -141,6 +156,16 @@ def check(doc, focus, max_steps, allow_background, limits, allow):
             "共通の前提が重複しても、各シナリオへ書くほうが読みやすい")
     if not doc["scenarios"]:
         bad(0, "シナリオ", "シナリオが1つも無い", "具体例を1つずつシナリオにする")
+    for closure in doc["old_closures"]:
+        bad(closure["line"], "クロージャ宣言", "廃止されたクロージャ宣言がある",
+            "必要条件をGivenへ明示し、条件マトリクスで検査する")
+
+    matrix_by_name = {item["name"]: item for item in matrix.get("scenarios", []) if isinstance(item, dict) and isinstance(item.get("name"), str)}
+    document_names = {item["name"] for item in doc["scenarios"] if item["name"]}
+    for missing in sorted(document_names - set(matrix_by_name)):
+        bad(0, "条件マトリクス", "BDDに対応する条件マトリクスが無い: {}".format(missing), "同じシナリオ名で条件マトリクスを書く")
+    for extra in sorted(set(matrix_by_name) - document_names):
+        bad(0, "条件マトリクス", "BDD本文に無いシナリオがある: {}".format(extra), "BDD本文と条件マトリクスを一対一にする")
 
     forbidden = [w for w in FORBIDDEN[focus] if w not in set(allow)]
     seen_names = {}
@@ -160,33 +185,55 @@ def check(doc, focus, max_steps, allow_background, limits, allow):
         givens = [s for s in sc["steps"] if s["kind"] == "given"]
         whens = [s for s in sc["steps"] if s["kind"] == "when"]
         thens = [s for s in sc["steps"] if s["kind"] == "then"]
+        if not givens:
+            bad(ln, "Given", "前提が無い", "結果に必要な業務条件をすべてGivenへ書く")
         if len(whens) != 1:
             bad(ln, "行いの数", "1つのシナリオに行いが {} 個".format(len(whens)),
                 "行いは1つ。増えるなら片方は前提か、まとめ方が足りない")
         if not thens:
-            bad(ln, "結果", "結果が無い", "何が起きるべきかを書く")
+            bad(ln, "Then", "結果が無い", "業務上の結果をThenへ書く")
         kinds = [s["kind"] for s in sc["steps"]]
         order = {"given": 0, "when": 1, "then": 2}
         if kinds != sorted(kinds, key=order.get):
             bad(ln, "ステップの順序", "Given / When / Then の順になっていない",
                 "すでにある前提、検証する唯一の入力、観測可能な結果の順に並べる")
-        if len(sc["steps"]) > max_steps:
-            bad(ln, "長さ", "ステップが {} 個（上限 {}）".format(len(sc["steps"]), max_steps),
-                "説明に要らないステップを削る")
+        non_given_steps = [step for step in sc["steps"] if step["kind"] != "given"]
+        if len(non_given_steps) > max_steps:
+            bad(ln, "長さ", "WhenとThenが {} 個（上限 {}）".format(len(non_given_steps), max_steps),
+                "必要なGivenは削らず、複数の振る舞いを分ける")
 
-        closures = sc["closures"]
-        if len(closures) != 1:
-            bad(ln, "クロージャ宣言", "宣言が {} 個".format(len(closures)),
-                "シナリオの最後に規定のクロージャ宣言を1行だけ置く")
-        else:
-            closure = closures[0]
-            if closure["text"] != CLOSURE_BODY:
-                bad(closure["line"], "クロージャ宣言", "規定の文言と一致しない",
-                    "書かれていない業務条件の扱いを規定の文言で宣言する")
-            content_lines = [s["line"] for s in sc["steps"]] + [e["line"] for e in sc["examples"]]
-            if content_lines and closure["line"] <= max(content_lines):
-                bad(closure["line"], "クロージャ宣言", "シナリオの途中にある",
-                    "全stepとExamplesの後へ移す")
+        matrix_item = matrix_by_name.get(name)
+        if matrix_item:
+            premise_texts = {item.get("text") for item in matrix_item.get("premises", []) if isinstance(item, dict)}
+            given_texts = {item["text"] for item in givens}
+            if premise_texts != given_texts:
+                bad(ln, "Givenと条件マトリクス", "必要条件とGivenが一致しない",
+                    "条件マトリクスの全premisesをGivenへ一件ずつ写し、余分なGivenも無くす")
+            trigger_text = (matrix_item.get("trigger") or {}).get("text")
+            if len(whens) == 1 and whens[0]["text"] != trigger_text:
+                bad(whens[0]["line"], "Whenと条件マトリクス", "トリガー本文が一致しない",
+                    "actionまたはeventとして確定した一つのトリガーをWhenへ写す")
+            expected_failure = matrix_item.get("expected") == "failure"
+            notes = sc["notes"]
+            if expected_failure and len(notes) != 1:
+                bad(ln, "NOTE", "失敗シナリオのNOTEが {} 個".format(len(notes)),
+                    "全Thenの直後にRule、必要ならSource、Reasonを持つNOTEを一つ置く")
+            elif not expected_failure and notes:
+                bad(notes[0]["line"], "NOTE", "成功シナリオにNOTEがある", "成功シナリオからNOTEを削る")
+            elif expected_failure and notes:
+                note = notes[0]
+                fields = {key: value["text"] for key, value in note["fields"].items()}
+                expected_note = matrix_item.get("note") or {}
+                for field in ("rule", "reason"):
+                    if fields.get(field) != expected_note.get(field):
+                        bad(note["line"], "NOTE", "{}が条件マトリクスと一致しない".format(field),
+                            "条件マトリクスで確定した失敗理由を写す")
+                if fields.get("source") != expected_note.get("source"):
+                    bad(note["line"], "NOTE", "sourceが条件マトリクスと一致しない",
+                        "外部正本なら相対Markdownリンクを写し、同じ資料ならSourceを省略する")
+                content_lines = [s["line"] for s in sc["steps"]] + [e["line"] for e in sc["examples"]]
+                if content_lines and note["line"] <= max(content_lines):
+                    bad(note["line"], "NOTE", "Thenの途中にある", "すべてのThenとAndの直後へ移す")
 
         norm = {}
         for st in sc["steps"]:
@@ -267,21 +314,35 @@ def limits_of(cfg):
         fail("examples_limits が数値でない")
 
 
-def run_check(cfg, path, focus, allow):
+def load_matrix(path):
+    try:
+        data = json.loads(read_text(path))
+    except json.JSONDecodeError as e:
+        fail("--matrix がJSONではない: {}".format(e))
+    matrix_problems = validate_matrix(data)
+    if matrix_problems:
+        for item in matrix_problems:
+            print(json.dumps(item, ensure_ascii=False))
+        fail("条件マトリクスに {} 件の違反".format(len(matrix_problems)), 1)
+    return data
+
+
+def run_check(cfg, path, matrix_path, focus, allow):
     pb = playbook_config(cfg)
     doc = parse(read_text(path))
+    matrix = load_matrix(matrix_path)
     try:
         max_steps = int(pb.get("max_steps", 5))
     except (TypeError, ValueError):
         fail("max_steps が数値でない")
     problems = check(doc, focus, max_steps, bool(pb.get("allow_background")),
-                     limits_of(cfg), allow)
+                     limits_of(cfg), allow, matrix)
     return doc, problems
 
 
 def cmd_check(args, cfg):
     focus = resolve_focus(cfg)
-    doc, problems = run_check(cfg, args.file, focus, args.allow)
+    doc, problems = run_check(cfg, args.file, args.matrix, focus, args.allow)
     for p in problems:
         print(json.dumps(p, ensure_ascii=False))
     if problems:
@@ -303,7 +364,7 @@ def cmd_save(args, cfg):
         fail("playbookに scenario_dir が無い")
     if not os.path.isabs(d) and cfg.get("repo_root"):
         d = os.path.join(cfg["repo_root"], d)
-    doc, problems = run_check(cfg, args.file, focus, args.allow)
+    doc, problems = run_check(cfg, args.file, args.matrix, focus, args.allow)
     if problems:
         for p in problems:
             print(json.dumps(p, ensure_ascii=False))
@@ -338,12 +399,14 @@ def main():
     sp = sub.add_parser("check")
     sp.add_argument("--config", required=True)
     sp.add_argument("--file", required=True)
+    sp.add_argument("--matrix", required=True)
     sp.add_argument("--allow", action="append", default=[])
 
     sp = sub.add_parser("save")
     sp.add_argument("--config", required=True)
     sp.add_argument("--topic", required=True)
     sp.add_argument("--file", required=True)
+    sp.add_argument("--matrix", required=True)
     sp.add_argument("--allow", action="append", default=[])
     sp.add_argument("--force", action="store_true")
 

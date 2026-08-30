@@ -34,6 +34,8 @@ trap 'rm -f "$CFG_FILE"' EXIT
 
 [実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は工程順・依存・入出力を決定し、実行指示書は背景・前提・目的と各skillで意識することを補う。grill工程には実行指示書のdata model formulation固有の文脈を与え、grill自身に永続化やQAの観点を求めない。
 
+[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。変更するBDDごとに条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。
+
 ## 2. 定式化へ進める入力かを最初に評価する
 
 [入力に根拠づける規律](references/input-grounding.md)を読み、`${.playbook.steps}`の最初のgrill工程へ利用者の説明と既存論理資料を渡す。不明点や深掘りが必要な点を利用者へ1問ずつ確認し、確認済みの回答だけを`grounded_input`にする。次に[定式化へ進める共通理解かを見極める](references/formulation-readiness.md)を読み、`grounded_input`をLLMが意味から評価する。語の有無、点数、項目数、scriptで代用しない。対話後も代表的な永続化の振る舞いを説明する基準が無ければ、未決と回答責任者を示し、`data-model-bdd-discovery`を案内してここで終了する。残りのQA反証、資料更新、物理設計は始めない。

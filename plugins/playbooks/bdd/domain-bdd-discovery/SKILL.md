@@ -36,6 +36,8 @@ trap 'rm -f "$CFG_FILE"' EXIT
 
 [実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は工程順・依存・入出力を決定し、実行指示書は背景・前提・目的と各skillで意識することを補う。grill工程には実行指示書のdomain固有の文脈を与え、grill自身にdomainの観点を求めない。
 
+[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。代表BDDを書く前に条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。必要条件が不明ならgrillへ戻し、暗黙に成立させない。
+
 **各工程を呼ぶときは `--scope=${.resolution.scope_root}` を必ず渡す。**この段取りを通るときだけ効く設定がそこにある。渡さなければ効かない。入れ子の段取りへは、受け取ったものをそのまま渡す（自分の名前で作り直さない）。
 
 **exit 2 で止まったら先へ進まない。** 何が起きたかは `scripts/resolve.sh` の冒頭に書いてある。

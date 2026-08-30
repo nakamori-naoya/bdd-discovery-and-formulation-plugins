@@ -28,6 +28,8 @@ trap 'rm -f "$CFG_FILE"' EXIT
 
 `${.instructions.execution.directive}`に従い、`${.playbook.steps}`を上から順に実行する。[実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は順序・依存・入出力を決め、実行指示書は背景、前提、目的と各skillで意識することを補う。grillへE2E固有の観点を渡し、grill自身にその観点を持たせない。
 
+[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。場面ごとに条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。失敗場面の業務ルールが別資料にある場合は、`NOTE:`の`Source:`から外部正本の見出しを参照し、本文を複製しない。
+
 各工程へ`--scope=${.resolution.scope_root}`を渡す。`exit 2`で止まったら後続へ進まない。
 
 ## 2. 目的と両端を先に決める
@@ -60,7 +62,7 @@ E2Eシナリオ全体にstep数の上限を置かない。目的達成までに�
 ## 5. 検査して資料化する
 
 ```bash
-python3 "${PLUGIN_ROOT}/scripts/scenario.py" check --config "$CFG_FILE" --file <story-draft.md>
+python3 "${PLUGIN_ROOT}/scripts/scenario.py" check --config "$CFG_FILE" --file <story-draft.md> --matrix <condition-matrix.json>
 ```
 
 違反があれば資料化しない。通った`validated_story`だけを`document_type=${.playbook.document_type}`、`output_format=${.playbook.output_format}`としてwrite-docへ渡し、`${.playbook.out_dir}`へ1本保存する。

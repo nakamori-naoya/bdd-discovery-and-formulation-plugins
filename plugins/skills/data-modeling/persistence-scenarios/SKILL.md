@@ -32,6 +32,8 @@ trap 'rm -f "$CFG_FILE"' EXIT
 
 `${.actors_stakeholders}`、`${.domain_events}`、`${.ubiquitous_language}`を必ず読む。成果は`${.scenario_dir}`へ置く。ここでは既存の業務シナリオから永続化に必要な断面だけを選び、目的や経路を再設計せず、エンティティ、テーブル、正本方式、投影を決めない。
 
+[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。永続化シナリオごとに条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。単一失敗では検証対象以外の必要条件をすべて成立させる。
+
 ## 2. 作成・更新・削除を検討した証拠を残す
 
 利用者の業務シナリオ、業務イベント台帳、業務資料を先に読む。資料に無い判断を補わず、未確認として止める。各操作が必要なら`covered`、業務上存在しないなら理由つきの`not-applicable`を記録する。
