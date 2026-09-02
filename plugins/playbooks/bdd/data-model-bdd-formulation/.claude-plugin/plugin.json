@@ -1,6 +1,6 @@
 {
   "name": "data-model-bdd-formulation",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "既存のBDD付き論理設計をQA観点で深化させ、同じ資料へ戻してからRDB物理設計を作る",
   "author": {
     "name": "NaoyaNakamori"

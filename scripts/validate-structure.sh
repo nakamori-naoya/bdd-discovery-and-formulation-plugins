@@ -5,6 +5,7 @@ set -uo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/bdd-discovery-and-formulation-structure.XXXXXX") || exit 2
 trap 'rm -rf "$TMP_ROOT"' EXIT
+legacy_plugin="intermediate""-cleanup"
 passed=0 failed=0
 pass() { printf 'PASS: %s\n' "$1"; passed=$((passed + 1)); }
 fail() { printf 'FAIL: %s\n' "$1"; failed=$((failed + 1)); }
@@ -35,15 +36,22 @@ matrix_bad="$TMP_ROOT/matrix-bad.json"
 sed 's/"state":"satisfied","target":false/"state":"unsatisfied","target":false/' "$matrix_good" > "$matrix_bad"
 if python3 "$matrix_validator" check --file "$matrix_bad" >/dev/null 2>&1; then fail "条件マトリクスの暗黙前提を許可"; else pass "条件マトリクスの暗黙前提を拒否"; fi
 
-if jq -e '.name=="bdd-discovery-and-formulation" and (.plugins|length==11)' "$ROOT/.agents/plugins/marketplace.json" >/dev/null; then
+if jq -e '.name=="bdd-discovery-and-formulation" and (.plugins|length==10)' "$ROOT/.agents/plugins/marketplace.json" >/dev/null; then
   pass "Codex marketplaceの配布境界"
 else
   fail "Codex marketplaceの配布境界"
 fi
 
+if ! rg -n -i -- "$legacy_plugin" "$ROOT/.agents/plugins/marketplace.json" "$ROOT/.claude-plugin/marketplace.json" "$ROOT/plugins" "$ROOT/AGENTS.md" "$ROOT/README.md" >/dev/null \
+  && [ ! -e "$ROOT/plugins/skills/authoring/$legacy_plugin" ]; then
+  pass "旧cleanup配布物を同時に配らない"
+else
+  fail "旧cleanup配布物が残存"
+fi
+
 jq -r '.plugins[].name' "$ROOT/.agents/plugins/marketplace.json" | sort > "$TMP_ROOT/expected"
 find "$ROOT/plugins" -path '*/.codex-plugin/plugin.json' -type f -exec jq -r '.name' {} \; | sort > "$TMP_ROOT/actual"
-diff -u "$TMP_ROOT/expected" "$TMP_ROOT/actual" >/dev/null && pass "配布pluginは11件だけ" || fail "配布plugin集合"
+diff -u "$TMP_ROOT/expected" "$TMP_ROOT/actual" >/dev/null && pass "配布pluginは10件だけ" || fail "配布plugin集合"
 
 for market in .agents/plugins/marketplace.json .claude-plugin/marketplace.json; do
   jq -r '.plugins[].name' "$ROOT/$market" | sort > "$TMP_ROOT/market"
@@ -73,6 +81,11 @@ for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-disc
     pass "$directory name-qualified requirements"
   else
     fail "$directory name-qualified requirements"
+  fi
+  if yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -e --arg legacy "$legacy_plugin" 'any(.requires[]; .plugin=="write-doc-cleanup" and .marketplace=="write-doc") and (all(.requires[]; .plugin!=$legacy))' >/dev/null; then
+    pass "$directory cleanup依存はwrite-docを完全修飾"
+  else
+    fail "$directory cleanup依存の移行"
   fi
   cmp -s "$ROOT/shared/playbook/resolve.sh" "$pb/scripts/resolve.sh" && pass "$directory resolver同期" || fail "$directory resolver同期"
   cmp -s "$ROOT/shared/playbook/resolve-dependency.py" "$pb/scripts/resolve-dependency.py" && pass "$directory dependency resolver同期" || fail "$directory dependency resolver同期"

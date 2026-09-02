@@ -23,7 +23,7 @@ requires:
   - {plugin: core-domain, marketplace: bdd-discovery-and-formulation}
   - {plugin: grill, marketplace: grill}
   - {plugin: write-doc, marketplace: write-doc}
-  - {plugin: intermediate-cleanup, marketplace: bdd-discovery-and-formulation}
+  - {plugin: write-doc-cleanup, marketplace: write-doc}
 
 # 下段どうしをつなぐ契約。playbook が持つ。
 # 素材の役の名前だけを共有し、各工程は互いを見ずに自分の領分を決める。

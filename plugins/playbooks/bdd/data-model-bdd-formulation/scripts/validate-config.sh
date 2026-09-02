@@ -4,7 +4,7 @@ set -euo pipefail
 file="$1"
 jq -e '
   . as $root |
-  (any(.requires[]; .plugin=="intermediate-cleanup")) and
+  (any(.requires[]; .plugin=="write-doc-cleanup" and .marketplace=="write-doc")) and
   (.contract.cleanup.delete_after_document | type=="array" and length>0) and
   (.contract.cleanup.preserve | type=="array" and length>0) and
   ((.contract.cleanup.delete_after_document + .contract.cleanup.preserve) - .steps[-1].needs | length==0) and

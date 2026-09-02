@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Scenario: 配布manifestを現在のCodex plugin-creator契約でも検査する
-# Given: BDD marketplaceの11個の.codex-plugin/plugin.jsonがある
+# Given: BDD marketplaceに登録された各pluginの.codex-plugin/plugin.jsonがある
 # When: plugin-creatorのvalidatorを各plugin rootへ実行する
 # Then: 現行validatorとの互換差分をpluginごとに報告する
 set -uo pipefail
