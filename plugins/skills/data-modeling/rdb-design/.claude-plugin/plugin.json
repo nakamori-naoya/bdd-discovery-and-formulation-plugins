@@ -1,6 +1,6 @@
 {
   "name": "rdb-design",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "論理構造を重複掲載せず、指定RDB・版のRead・index・分離レベル・配置を物理設計する",
   "author": {
     "name": "NaoyaNakamori"

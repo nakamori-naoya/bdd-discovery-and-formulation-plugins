@@ -1,6 +1,6 @@
 {
   "name": "persistence-scenarios",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "業務シナリオと業務イベントから、作成・更新・削除に関係する永続化シナリオを先に記録する",
   "skills": "./skills",
   "author": {

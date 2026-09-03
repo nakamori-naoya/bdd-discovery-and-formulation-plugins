@@ -1,6 +1,6 @@
 {
   "name": "domain-events",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "description": "業務で起きる事実を時系列に洗い出し、引き金・担い手・結果・確からしさを1件ずつ台帳へ残す",
   "skills": "./skills",
   "author": {

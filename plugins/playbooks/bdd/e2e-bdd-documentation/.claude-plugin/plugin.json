@@ -1,6 +1,6 @@
 {
   "name": "e2e-bdd-documentation",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "ユーザーが目的を持って開始地点から最終地点へ到達するまでを、インタラクティブなBDDストーリーとして資料にする",
   "author": {
     "name": "NaoyaNakamori"

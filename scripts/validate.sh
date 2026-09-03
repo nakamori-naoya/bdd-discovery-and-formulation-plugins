@@ -8,9 +8,13 @@ set -uo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 status=0
 
-for script in validate-structure.sh validate-runtime.sh; do
+for script in validate-distribution.py validate-structure.sh validate-runtime.sh; do
   printf '\n=== %s ===\n' "$script"
-  if ! bash "$ROOT/scripts/$script"; then status=1; fi
+  if [[ "$script" == *.py ]]; then
+    if ! python3 "$ROOT/scripts/$script" "$ROOT"; then status=1; fi
+  elif ! bash "$ROOT/scripts/$script"; then
+    status=1
+  fi
 done
 
 exit "$status"
