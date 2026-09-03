@@ -17,4 +17,6 @@ for script in validate-distribution.py validate-structure.sh validate-runtime.sh
   fi
 done
 
+python3 "$ROOT/scripts/validate-distribution.py" --self-test "$ROOT" || status=1
+
 exit "$status"
