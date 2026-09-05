@@ -12,7 +12,12 @@ description: 1人の主たるユーザーが1つの目的を達成するまで�
 ## 0. 配布rootを検証する
 
 ```bash
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-/absolute/path/to/this/plugin}"
+BUNDLE_ROOT="${CLAUDE_PLUGIN_ROOT:-/absolute/path/to/this/plugin}"
+if [ -d "${BUNDLE_ROOT}/skills/journey/user-journey" ]; then
+  PLUGIN_ROOT="${BUNDLE_ROOT}/skills/journey/user-journey"
+else
+  PLUGIN_ROOT="${BUNDLE_ROOT}"
+fi
 bash "${PLUGIN_ROOT}/scripts/prepare.sh" --root-only >/dev/null || exit 2
 ```
 

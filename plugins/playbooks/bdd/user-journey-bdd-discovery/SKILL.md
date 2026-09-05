@@ -12,7 +12,12 @@ description: 1人の主たるユーザーが1つの目的を達成するまで�
 ## 0. プラグインrootを決める
 
 ```bash
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-/absolute/path/to/this/plugin}"
+BUNDLE_ROOT="${CLAUDE_PLUGIN_ROOT:-/absolute/path/to/this/plugin}"
+if [ -d "${BUNDLE_ROOT}/playbooks/bdd/user-journey-bdd-discovery" ]; then
+  PLUGIN_ROOT="${BUNDLE_ROOT}/playbooks/bdd/user-journey-bdd-discovery"
+else
+  PLUGIN_ROOT="${BUNDLE_ROOT}"
+fi
 ```
 
 `PLUGIN_ROOT`は配布物rootの絶対パスである。

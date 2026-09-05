@@ -14,9 +14,9 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 既存資料も業務シナリオもない状態で、いきなりFormulationから始めない。最初の正本を作る場合はDiscoveryを使い、既存の正本を反証して更新する場合にFormulationを使う。
 
-## どのpluginを使うか
+## どの機能を使うか
 
-| 今の状況 | 選ぶplugin | 得られるもの |
+| 今の状況 | 選ぶ機能 | 得られるもの |
 |---|---|---|
 | 業務で何が起きるかをまだ洗い出せていない | `domain-events` | 業務イベント、担い手、前提、結果、確からしさの台帳 |
 | コア・支援・汎用の境界が曖昧 | `core-domain` | コアと実装上の関心を分けた境界 |
@@ -75,18 +75,7 @@ Codexのpluginコマンドには`--scope`がない。通常の手順はuser単�
 
 ```bash
 codex plugin marketplace add nakamori-naoya/bdd-discovery-and-formulation-plugins
-codex plugin add domain-bdd-discovery@bdd-discovery-and-formulation
-codex plugin add domain-bdd-formulation@bdd-discovery-and-formulation
-codex plugin add data-model-bdd-discovery@bdd-discovery-and-formulation
-codex plugin add data-model-bdd-formulation@bdd-discovery-and-formulation
-codex plugin add user-journey-bdd-discovery@bdd-discovery-and-formulation
-codex plugin add user-journey-bdd-formulation@bdd-discovery-and-formulation
-codex plugin add domain-events@bdd-discovery-and-formulation
-codex plugin add core-domain@bdd-discovery-and-formulation
-codex plugin add user-journey@bdd-discovery-and-formulation
-codex plugin add persistence-scenarios@bdd-discovery-and-formulation
-codex plugin add data-model@bdd-discovery-and-formulation
-codex plugin add rdb-design@bdd-discovery-and-formulation
+codex plugin add bdd-discovery-and-formulation@bdd-discovery-and-formulation
 ```
 
 このrepositoryだけに分離したい場合は、repository専用の`CODEX_HOME`を作り、インストール時と利用時に同じ値を指定する。
@@ -96,18 +85,7 @@ mkdir -p .codex-home
 export CODEX_HOME="$PWD/.codex-home"
 
 codex plugin marketplace add nakamori-naoya/bdd-discovery-and-formulation-plugins
-codex plugin add domain-bdd-discovery@bdd-discovery-and-formulation
-codex plugin add domain-bdd-formulation@bdd-discovery-and-formulation
-codex plugin add data-model-bdd-discovery@bdd-discovery-and-formulation
-codex plugin add data-model-bdd-formulation@bdd-discovery-and-formulation
-codex plugin add user-journey-bdd-discovery@bdd-discovery-and-formulation
-codex plugin add user-journey-bdd-formulation@bdd-discovery-and-formulation
-codex plugin add domain-events@bdd-discovery-and-formulation
-codex plugin add core-domain@bdd-discovery-and-formulation
-codex plugin add user-journey@bdd-discovery-and-formulation
-codex plugin add persistence-scenarios@bdd-discovery-and-formulation
-codex plugin add data-model@bdd-discovery-and-formulation
-codex plugin add rdb-design@bdd-discovery-and-formulation
+codex plugin add bdd-discovery-and-formulation@bdd-discovery-and-formulation
 codex
 ```
 
@@ -129,24 +107,12 @@ repository設定としてインストールする場合は`project`を指定す�
 CLAUDE_PLUGIN_SCOPE=project
 
 claude plugin marketplace add nakamori-naoya/bdd-discovery-and-formulation-plugins --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install domain-bdd-discovery@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install domain-bdd-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install data-model-bdd-discovery@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install data-model-bdd-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install user-journey-bdd-discovery@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install user-journey-bdd-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install domain-events@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install core-domain@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install user-journey@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install persistence-scenarios@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install data-model@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install rdb-design@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install bdd-discovery-and-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 ```
 
-## 配布するplugin
+## 公開インストール単位と内包する機能
 
-- 入口: `domain-bdd-discovery`、`domain-bdd-formulation`、`data-model-bdd-discovery`、`data-model-bdd-formulation`、`user-journey-bdd-discovery`、`user-journey-bdd-formulation`
-- 下段: `domain-events`、`core-domain`、`user-journey`、`persistence-scenarios`、`data-model`、`rdb-design`。中間生成物の後片付けは外部の `write-doc-cleanup@write-doc` を使う。
+利用者がインストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`だけである。6つのplaybookと、その実行に使う`domain-events`、`core-domain`、`user-journey`、`persistence-scenarios`、`data-model`、`rdb-design`は同じpackageへ内包する。内部機能をmarketplaceの個別インストール対象にはしない。中間生成物の後片付けは外部の`write-doc@write-doc` packageに内包された機能を使う。
 
 `user-journey`はUser Journeyの該当・非該当を判定する。`user-journey-bdd-discovery`は最初の正本を作り、`user-journey-bdd-formulation`は既存正本を同じパスへ深化する。いずれもユースケース、UX Journey map、domain-rule、data model、画面・API・テスト実行環境を混ぜない。
 
@@ -158,10 +124,8 @@ claude plugin install rdb-design@bdd-discovery-and-formulation --scope "$CLAUDE_
 
 - `grill@grill`
 - `write-doc@write-doc`
-- `writing-rules@write-doc`
-- `write-doc-cleanup@write-doc`
 
-依存は`marketplace / plugin / runtime`の名前で解決し、versionは固定しない。install済みcacheに複数versionがあれば最新のsemantic versionを選び、そのmanifestのplugin名と、工程が要求するskill名の存在を検査する。同名pluginを別marketplaceから推測せず、名前が一致する配布物が無ければ停止する。開発時だけ`HARNESS_PLUGIN_DEV_ROOTS`の明示mapでsource checkoutを指定できる。
+外部依存は公開playbook packageの`marketplace / plugin / runtime`で解決し、versionは固定しない。install済みcacheに複数versionがあれば最新のsemantic versionを選び、そのmanifestのpackage名と、工程が要求するskill名の存在を検査する。外部packageの内部機能名を指定してもcacheからは解決しない。名前が一致する公開packageが無ければ停止する。開発時だけ`HARNESS_PLUGIN_DEV_ROOTS`の明示mapでsource checkoutを指定できる。
 
 ## 設定の上書きと優先順位
 
