@@ -1,0 +1,7 @@
+{
+  "name": "user-journey",
+  "version": "0.1.0",
+  "description": "1人のユーザーの1つの目的について、開始から観測可能な完了までの意味ある場面と状態接続をJourney mapにする",
+  "author": {"name": "NaoyaNakamori"},
+  "skills": "./skills"
+}

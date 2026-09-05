@@ -32,8 +32,9 @@ fixture_plugin grill grill 9.9.9 skill grill
 fixture_plugin write-doc write-doc 0.6.0 playbook write-doc
 fixture_plugin write-doc writing-rules 0.4.15 skill write-with-rules
 fixture_plugin write-doc write-doc-cleanup 0.1.0 skill remove-intermediate-artifacts
+fixture_plugin bdd-discovery-and-formulation user-journey 0.1.0 skill map-user-journey
 
-entries='domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation e2e-bdd-documentation'
+entries='domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation user-journey-bdd-discovery user-journey-bdd-formulation'
 entry="$ROOT/plugins/playbooks/bdd/domain-bdd-discovery"
 for runtime in codex claude; do
   for directory in $entries; do

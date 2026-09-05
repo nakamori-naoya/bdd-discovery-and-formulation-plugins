@@ -1,6 +1,6 @@
 # BDD Discovery and Formulation
 
-BDDを使ってドメイン理解とRDBデータモデリングを探索・反証し、ユーザーの目的達成をE2Eストーリーとして資料化する、Claude Code/Codex両対応のmarketplaceである。
+BDDを使ってドメイン理解とRDBデータモデリングを探索・反証し、User Journeyを線引きしてユーザー目的達成BDDを発見・深化する、Claude Code/Codex両対応のmarketplaceである。
 
 ## BDDを使う場面
 
@@ -20,9 +20,11 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 |---|---|---|
 | 業務で何が起きるかをまだ洗い出せていない | `domain-events` | 業務イベント、担い手、前提、結果、確からしさの台帳 |
 | コア・支援・汎用の境界が曖昧 | `core-domain` | コアと実装上の関心を分けた境界 |
+| 何がUser Journeyで何がJourneyでないかを分けたい | `user-journey` | 目的、両端、意味ある場面、状態の受け渡しを持つJourney map |
 | コアドメインの正本を初めて作る | `domain-bdd-discovery` | 代表BDDを含むdomain-rule資料 |
 | 既存のdomain-ruleへ境界例や拒否条件を足す | `domain-bdd-formulation` | 反証を反映した更新済みdomain-rule資料 |
-| ユーザーの開始地点から目的達成までを通して説明する | `e2e-bdd-documentation` | 複数場面を接続したE2E BDDストーリー |
+| ユーザー目的達成BDDの正本を初めて作る | `user-journey-bdd-discovery` | 複数場面を接続した最初のユーザー目的達成BDD正本 |
+| 既存のユーザー目的達成BDDを反証する | `user-journey-bdd-formulation` | 分岐・中断再開・役割移譲を戻した同一パスの正本 |
 | 作成・更新・削除に関係する業務断面を先に整理する | `persistence-scenarios` | 永続化対象を判断できる業務シナリオ |
 | 業務シナリオから論理データモデルを設計する | `data-model` | BDDと対応したRDB論理データモデル |
 | 永続化の発見から論理設計まで初めて通す | `data-model-bdd-discovery` | 検査済みBDD付きRDB論理設計 |
@@ -55,12 +57,14 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 注文確定・取消・返金の業務シナリオから、BDD付きRDB論理データモデルを作って。
 ```
 
-### 長いユーザー体験を一続きにする
+### ユーザーの目的達成を一続きにする
 
-**複数機能をまたぐ目的達成を確認するなら`e2e-bdd-documentation`を使う。** 個別の業務ルールや画面仕様を混ぜず、開始地点、利用者の選択、最終的な目的達成を場面として接続する。
+**最初に`user-journey`で何がJourneyで何がJourneyでないかを分ける。** 複数の意味ある場面が状態を受け渡し、観測可能な完了へ進む場合だけJourneyとして扱う。対象システム一つの責任ならユースケース、感情と接点ならUX Journey map、業務判断ならdomain、残す事実ならdata modelへ分ける。
+
+最初の正本には`user-journey-bdd-discovery`、既存正本の反証には`user-journey-bdd-formulation`を使う。
 
 ```text
-初回訪問者が商品を比較し、購入し、受取を確認するまでをE2E BDDとして資料化して。
+初回訪問者が商品を比較し、購入し、受取を確認するまでを、最初のユーザー目的達成BDD正本として発見して。
 ```
 
 ## インストール
@@ -75,9 +79,11 @@ codex plugin add domain-bdd-discovery@bdd-discovery-and-formulation
 codex plugin add domain-bdd-formulation@bdd-discovery-and-formulation
 codex plugin add data-model-bdd-discovery@bdd-discovery-and-formulation
 codex plugin add data-model-bdd-formulation@bdd-discovery-and-formulation
-codex plugin add e2e-bdd-documentation@bdd-discovery-and-formulation
+codex plugin add user-journey-bdd-discovery@bdd-discovery-and-formulation
+codex plugin add user-journey-bdd-formulation@bdd-discovery-and-formulation
 codex plugin add domain-events@bdd-discovery-and-formulation
 codex plugin add core-domain@bdd-discovery-and-formulation
+codex plugin add user-journey@bdd-discovery-and-formulation
 codex plugin add persistence-scenarios@bdd-discovery-and-formulation
 codex plugin add data-model@bdd-discovery-and-formulation
 codex plugin add rdb-design@bdd-discovery-and-formulation
@@ -94,9 +100,11 @@ codex plugin add domain-bdd-discovery@bdd-discovery-and-formulation
 codex plugin add domain-bdd-formulation@bdd-discovery-and-formulation
 codex plugin add data-model-bdd-discovery@bdd-discovery-and-formulation
 codex plugin add data-model-bdd-formulation@bdd-discovery-and-formulation
-codex plugin add e2e-bdd-documentation@bdd-discovery-and-formulation
+codex plugin add user-journey-bdd-discovery@bdd-discovery-and-formulation
+codex plugin add user-journey-bdd-formulation@bdd-discovery-and-formulation
 codex plugin add domain-events@bdd-discovery-and-formulation
 codex plugin add core-domain@bdd-discovery-and-formulation
+codex plugin add user-journey@bdd-discovery-and-formulation
 codex plugin add persistence-scenarios@bdd-discovery-and-formulation
 codex plugin add data-model@bdd-discovery-and-formulation
 codex plugin add rdb-design@bdd-discovery-and-formulation
@@ -125,9 +133,11 @@ claude plugin install domain-bdd-discovery@bdd-discovery-and-formulation --scope
 claude plugin install domain-bdd-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install data-model-bdd-discovery@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install data-model-bdd-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
-claude plugin install e2e-bdd-documentation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install user-journey-bdd-discovery@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install user-journey-bdd-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install domain-events@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install core-domain@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install user-journey@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install persistence-scenarios@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install data-model@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install rdb-design@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
@@ -135,10 +145,10 @@ claude plugin install rdb-design@bdd-discovery-and-formulation --scope "$CLAUDE_
 
 ## 配布するplugin
 
-- 入口: `domain-bdd-discovery`、`domain-bdd-formulation`、`data-model-bdd-discovery`、`data-model-bdd-formulation`、`e2e-bdd-documentation`
-- 下段: `domain-events`、`core-domain`、`persistence-scenarios`、`data-model`、`rdb-design`。中間生成物の後片付けは外部の `write-doc-cleanup@write-doc` を使う。
+- 入口: `domain-bdd-discovery`、`domain-bdd-formulation`、`data-model-bdd-discovery`、`data-model-bdd-formulation`、`user-journey-bdd-discovery`、`user-journey-bdd-formulation`
+- 下段: `domain-events`、`core-domain`、`user-journey`、`persistence-scenarios`、`data-model`、`rdb-design`。中間生成物の後片付けは外部の `write-doc-cleanup@write-doc` を使う。
 
-`e2e-bdd-documentation`は、目的を持つユーザーが開始地点から最終地点へ到達するまでを、複数のインタラクション場面が連なる長いBDDストーリーとして資料にする。domain-ruleやdata modelを変更せず、画面・API・テスト実行環境も扱わない。
+`user-journey`はUser Journeyの該当・非該当を判定する。`user-journey-bdd-discovery`は最初の正本を作り、`user-journey-bdd-formulation`は既存正本を同じパスへ深化する。いずれもユースケース、UX Journey map、domain-rule、data model、画面・API・テスト実行環境を混ぜない。
 
 各入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`references/execution-guidance.md`が背景・前提・目的と各skill実行時の付加的な指示を持つ。grillへdomainやdata model固有の文脈を与えるのは後者であり、grill pluginへ観点を持ち込まない。
 

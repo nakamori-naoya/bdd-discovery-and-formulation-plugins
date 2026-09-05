@@ -1,0 +1,16 @@
+{
+  "name": "user-journey",
+  "version": "0.1.0",
+  "skills": "./skills",
+  "description": "1人のユーザーの1つの目的について、開始から観測可能な完了までの意味ある場面と状態接続をJourney mapにする",
+  "author": {"name": "NaoyaNakamori"},
+  "interface": {
+    "displayName": "User Journey",
+    "shortDescription": "何がJourneyで何がJourneyでないかを判定してmapにする",
+    "longDescription": "目的、開始、観測可能な完了、複数の意味ある場面、状態の受け渡しからUser Journeyを判定し、検査済みmapとして保存する",
+    "developerName": "NaoyaNakamori",
+    "category": "Productivity",
+    "capabilities": ["Skills"],
+    "defaultPrompt": "user-journeyを使って、何がJourneyで何がJourneyでないかを判定し、目的達成までをmapにしてください。"
+  }
+}

@@ -1,15 +1,17 @@
 {
   "name": "bdd-discovery-and-formulation",
   "owner": {"name": "NaoyaNakamori"},
-  "description": "BDDによるドメイン理解、データモデリング、E2Eストーリー資料化のmarketplace",
+  "description": "BDDによるドメイン理解、データモデリング、User Journeyの発見と深化を扱うmarketplace",
   "plugins": [
     {"name":"domain-bdd-discovery","source":"./plugins/playbooks/bdd/domain-bdd-discovery","description":"コアドメインの共通理解を代表BDDとともに正本へまとめる","version":"0.4.4"},
     {"name":"domain-bdd-formulation","source":"./plugins/playbooks/bdd/domain-bdd-formulation","description":"既存のコアドメイン資料をQA観点で反証し深化させる","version":"0.3.4"},
     {"name":"data-model-bdd-discovery","source":"./plugins/playbooks/bdd/data-model-bdd-discovery","description":"業務イベントからBDD付きRDB論理データモデルを作る","version":"0.3.3"},
     {"name":"data-model-bdd-formulation","source":"./plugins/playbooks/bdd/data-model-bdd-formulation","description":"BDD付き論理設計を深化させRDB物理設計を作る","version":"0.2.4"},
-    {"name":"e2e-bdd-documentation","source":"./plugins/playbooks/bdd/e2e-bdd-documentation","description":"ユーザーの目的達成を開始地点から最終地点までのBDDストーリーとして資料にする","version":"0.1.2"},
+    {"name":"user-journey-bdd-discovery","source":"./plugins/playbooks/bdd/user-journey-bdd-discovery","description":"User Journeyを発見し、最初のユーザー目的達成BDD正本を作る","version":"0.1.0"},
+    {"name":"user-journey-bdd-formulation","source":"./plugins/playbooks/bdd/user-journey-bdd-formulation","description":"既存のユーザー目的達成BDDを反証し、同じ正本へ戻す","version":"0.1.0"},
     {"name":"domain-events","source":"./plugins/skills/domain/domain-events","description":"業務で起きる事実を時系列に台帳へ残す","version":"0.2.12"},
     {"name":"core-domain","source":"./plugins/skills/domain/core-domain","description":"題材をコア・支援・汎用へ分類する","version":"0.2.12"},
+    {"name":"user-journey","source":"./plugins/skills/journey/user-journey","description":"何がJourneyで何がJourneyでないかを判定し、目的達成までをmapにする","version":"0.1.0"},
     {"name":"persistence-scenarios","source":"./plugins/skills/data-modeling/persistence-scenarios","description":"永続化の作成・更新・削除シナリオを記録する","version":"0.1.3"},
     {"name":"data-model","source":"./plugins/skills/data-modeling/data-model","description":"BDDシナリオを含む論理データモデルを作る","version":"0.2.15"},
     {"name":"rdb-design","source":"./plugins/skills/data-modeling/rdb-design","description":"論理構造を保ったままRDB物理設計を作る","version":"0.3.1"}

@@ -1,0 +1,16 @@
+{
+  "name": "user-journey-bdd-formulation",
+  "version": "0.1.0",
+  "skills": "./skills",
+  "description": "既存のユーザー目的達成BDDを反証し、分岐・中断・役割移譲を同じ正本へ戻して深化させる",
+  "author": {"name": "NaoyaNakamori"},
+  "interface": {
+    "displayName": "User Journey BDD Formulation",
+    "shortDescription": "既存の目的達成BDDを同じ正本へ深化する",
+    "longDescription": "既存のユーザー目的達成BDDをQA観点で反証し、接続、分岐、中断再開、役割移譲、完了条件を検査して同じパスへ更新する",
+    "developerName": "NaoyaNakamori",
+    "category": "Productivity",
+    "capabilities": ["Skills"],
+    "defaultPrompt": "user-journey-bdd-formulationを使って、既存のユーザー目的達成BDDを反証し、同じ正本へ戻してください。"
+  }
+}

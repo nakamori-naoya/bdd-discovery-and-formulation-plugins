@@ -1,0 +1,75 @@
+version: 2
+name: user-journey-bdd-discovery
+description: 1人の主たるユーザーが1つの目的を達成するまでを発見し、接続した場面のBDD正本として初めて作る
+instructions:
+  execution:
+    directive: stepsを上から順に実行し、目的と両端を確定してから、場面の連なりと資料化へ渡す
+
+focus: user-journey
+document_type: user-journey-bdd
+output_format: markdown
+out_dir: bdd/user-journey
+
+requires:
+  - {plugin: user-journey, marketplace: bdd-discovery-and-formulation}
+  - {plugin: grill, marketplace: grill}
+  - {plugin: writing-rules, marketplace: write-doc}
+  - {plugin: write-doc, marketplace: write-doc}
+  - {plugin: write-doc-cleanup, marketplace: write-doc}
+
+contract:
+  grounding_sources: [user_input, referenced_artifacts, grill_decisions]
+  journey_frame: [user, purpose, starting_point, final_point, completion_condition]
+  journey_boundary: [central_question, inclusion_reason, excluded_questions]
+  journey_scene: [sequence, prior_state, acting_role, action, observable_response, next_state, handoff]
+  excluded_concerns: [use_case_responsibility, ux_experience_map, domain_rule_discovery, data_model_design, interface_operation_details, test_execution]
+  cleanup:
+    delete_after_document: [journey_map, scenario_draft, condition_matrix, validated_journey_bdd]
+    preserve: [grounded_input, user_journey_bdd_path]
+
+requirements:
+  input_grounded: true
+  clarify_with_grill: true
+  one_user_purpose_per_document: true
+  multiple_meaningful_scenes: true
+  observable_completion: true
+  allow_multiple_interactions: true
+  exclude_test_execution: true
+  create_first_canonical_document: true
+  existing_document_must_not_be_overwritten: true
+
+steps:
+  - id: settle
+    skill: grill
+    purpose: ユーザー、目的、開始地点、最終地点、到達と判断する条件、途中で関わる役割について、入力から分からない点だけを1問ずつ確かめる
+    provides: [decisions, grounded_input]
+
+  - id: map-journey
+    skill: map-user-journey
+    purpose: 入力がJourneyに該当するかを何であるかと何でないかの両面で判定し、目的、両端、意味のある場面、状態の受け渡しを検査済みmapへ残す
+    needs: [decisions, grounded_input]
+    provides: [journey_map, journey_frame, journey_boundary]
+
+  - id: compose
+    skill: write-with-rules
+    purpose: 1つの目的達成を、前の結果が次の状態へつながる必要な数のインタラクション場面と、各場面のBDDとして一続きのストーリーへ組み立てる
+    needs: [journey_map, journey_frame, journey_boundary, grounded_input]
+    provides: [scenario_draft, condition_matrix, requested_output_path]
+
+  - id: validate
+    script: scripts/scenario.py
+    purpose: 目的と両端、1つ以上の場面、場面間の接続、各場面のBDD、対象外の実装・テスト実行関心を検査する
+    needs: [scenario_draft, condition_matrix, grounded_input]
+    provides: [validated_journey_bdd]
+
+  - id: document
+    playbook: write-doc
+    purpose: 検査済みの目的達成ストーリーをuser-journey-bddの型でMarkdown正本として初めて1本保存する
+    needs: [validated_journey_bdd, requested_output_path, grounded_input]
+    provides: [user_journey_bdd_path]
+
+  - id: cleanup
+    skill: remove-intermediate-artifacts
+    purpose: 正本の保存を確認した後、contract.cleanupで削除候補にしたJourney map、BDD草案、検査用ファイルだけを削除し、入力資料とユーザー目的達成BDD正本を保持する
+    needs: [journey_map, scenario_draft, condition_matrix, validated_journey_bdd, grounded_input, user_journey_bdd_path]
+    provides: [cleanup_report]

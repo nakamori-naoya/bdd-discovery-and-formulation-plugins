@@ -36,7 +36,7 @@ matrix_bad="$TMP_ROOT/matrix-bad.json"
 sed 's/"state":"satisfied","target":false/"state":"unsatisfied","target":false/' "$matrix_good" > "$matrix_bad"
 if python3 "$matrix_validator" check --file "$matrix_bad" >/dev/null 2>&1; then fail "条件マトリクスの暗黙前提を許可"; else pass "条件マトリクスの暗黙前提を拒否"; fi
 
-if jq -e '.name=="bdd-discovery-and-formulation" and (.plugins|length==10)' "$ROOT/.agents/plugins/marketplace.json" >/dev/null; then
+if jq -e '.name=="bdd-discovery-and-formulation" and (.plugins|length==12)' "$ROOT/.agents/plugins/marketplace.json" >/dev/null; then
   pass "Codex marketplaceの配布境界"
 else
   fail "Codex marketplaceの配布境界"
@@ -51,7 +51,7 @@ fi
 
 jq -r '.plugins[].name' "$ROOT/.agents/plugins/marketplace.json" | sort > "$TMP_ROOT/expected"
 find "$ROOT/plugins" -path '*/.codex-plugin/plugin.json' -type f -exec jq -r '.name' {} \; | sort > "$TMP_ROOT/actual"
-diff -u "$TMP_ROOT/expected" "$TMP_ROOT/actual" >/dev/null && pass "配布pluginは10件だけ" || fail "配布plugin集合"
+diff -u "$TMP_ROOT/expected" "$TMP_ROOT/actual" >/dev/null && pass "配布pluginは12件だけ" || fail "配布plugin集合"
 
 for market in .agents/plugins/marketplace.json .claude-plugin/marketplace.json; do
   jq -r '.plugins[].name' "$ROOT/$market" | sort > "$TMP_ROOT/market"
@@ -75,7 +75,7 @@ while IFS='|' read -r name version rel; do
   fi
 done < <(jq -r '.plugins[] | [.name,.version,(.source.path | ltrimstr("./"))] | join("|")' "$ROOT/.agents/plugins/marketplace.json")
 
-for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation e2e-bdd-documentation; do
+for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation user-journey-bdd-discovery user-journey-bdd-formulation; do
   pb="$ROOT/plugins/playbooks/bdd/$directory"
   if yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -e '.version==2 and (.requires|length>0) and all(.requires[]; (keys|sort)==["marketplace","plugin"])' >/dev/null; then
     pass "$directory name-qualified requirements"
@@ -129,15 +129,88 @@ else
   fail "domain-eventsに後続設計の関心が混入"
 fi
 
-legacy_bdd_pattern='use''[- ]?case|jour''ney|ユース''ケース|ジャー''ニー'
-if rg -n -i "$legacy_bdd_pattern" "$ROOT/plugins" "$ROOT/shared" >/dev/null; then
-  fail "旧BDD焦点の資産または記述が残存"
+legacy_journey_plugin_pattern='e2e-bdd-documentation|e2e-bdd-scenarios|document-e2e-scenarios|bdd/e2e'
+if rg -n -i "$legacy_journey_plugin_pattern" "$ROOT/plugins" "$ROOT/shared" "$ROOT/README.md" "$ROOT/AGENTS.md" >/dev/null; then
+  fail "テスト実行と誤読される旧Journey plugin名が残存"
 else
-  pass "旧BDD焦点の資産と記述なし"
+  pass "旧Journey plugin名なし"
 fi
 
-e2e="$ROOT/plugins/playbooks/bdd/e2e-bdd-documentation"
-good_story="$TMP_ROOT/good-e2e.md"
+journey="$ROOT/plugins/skills/journey/user-journey"
+good_map="$TMP_ROOT/good-journey-map.md"
+cat > "$good_map" <<'EOF'
+# 出張手配を完了する
+- ユーザー: 出張者
+- 目的: 出張に必要な手配を完了する
+- 開始地点: 出張条件が決まっている
+- 最終地点: 承認済みの予約情報を受け取っている
+- 完了条件: 出張者が移動と宿泊の成立を確認できる
+- 中心の問い: 複数の役割をまたいでも出張者の目的達成がつながるか
+- Journeyとして扱う理由: 二つの意味ある場面が状態を受け渡し観測可能な完了へ進む
+- Journeyに含めない問い: 個別の承認規則と保存構造
+## 場面
+### 場面 1: 希望を決める
+- 直前の状態: 出張条件が決まっている
+- 行う役割: 出張者
+- 働きかけ: 希望条件を伝える
+- 観測できる応答: 条件に合う候補が示される
+- 次の状態: 候補を選べる
+- 接続: 選んだ候補を承認へ渡せる
+### 場面 2: 手配を成立させる
+- 直前の状態: 候補を選べる
+- 行う役割: 出張者
+- 働きかけ: 希望する候補を選ぶ
+- 観測できる応答: 承認済みの予約情報が示される
+- 次の状態: 移動と宿泊が成立している
+- 接続: 完了条件を満たす
+## 分岐
+なし
+## 未決
+なし
+EOF
+if python3 "$journey/scripts/journey.py" check --file "$good_map" >/dev/null; then
+  pass "User Journey典型例を受理"
+else
+  fail "User Journey典型例"
+fi
+journey_repo="$TMP_ROOT/journey-repo"
+mkdir -p "$journey_repo"
+if bash "$journey/scripts/prepare.sh" --root-only >/dev/null \
+  && python3 "$journey/scripts/journey.py" write --repo "$journey_repo" --slug business-trip --file "$good_map" >/dev/null \
+  && [ -s "$journey_repo/bdd/discovery/user-journey/business-trip.md" ]; then
+  pass "User Journey mapを配布単位だけで初回保存"
+else
+  fail "User Journey map初回保存"
+fi
+if python3 "$journey/scripts/journey.py" write --repo "$journey_repo" --slug business-trip --file "$good_map" >/dev/null 2>&1; then
+  fail "既存Journey mapの黙示上書きを許可"
+else
+  pass "既存Journey mapの黙示上書きを拒否"
+fi
+bad_map="$TMP_ROOT/bad-ui-map.md"
+sed 's/希望条件を伝える/APIを呼び出す/' "$good_map" > "$bad_map"
+if python3 "$journey/scripts/journey.py" check --file "$bad_map" >/dev/null 2>&1; then
+  fail "User JourneyへAPI操作を許可"
+else
+  pass "User Journeyから実装操作を拒否"
+fi
+boundary_map="$TMP_ROOT/one-scene-map.md"
+awk '/^### 場面 2:/{exit} {print}' "$good_map" > "$boundary_map"
+printf '%s\n' '## 分岐' 'なし' '## 未決' 'なし' >> "$boundary_map"
+if python3 "$journey/scripts/journey.py" check --file "$boundary_map" >/dev/null 2>&1; then
+  fail "意味ある場面が一つだけの対象をJourneyへ拡大"
+else
+  pass "単一場面はJourney境界で拒否"
+fi
+if rg -n '^## (ユースケースではない|UX Journey mapではない|ドメインではない|データモデルではない|UIフローとテスト仕様ではない)$' "$journey/references/boundary.md" | wc -l | tr -d ' ' | rg '^5$' >/dev/null \
+  && rg -n '^## (典型例|条件を一つ変えた境界例)$' "$journey/references/user-journey.md" | wc -l | tr -d ' ' | rg '^2$' >/dev/null; then
+  pass "Journeyの何か・何ではないか・境界例を隣接referenceに固定"
+else
+  fail "Journey意味境界reference"
+fi
+
+journey_discovery="$ROOT/plugins/playbooks/bdd/user-journey-bdd-discovery"
+good_story="$TMP_ROOT/good-user-journey-bdd.md"
 cat > "$good_story" <<'EOF'
 # 予約を完了する
 - ユーザー: 予約者
@@ -155,25 +228,41 @@ Given 予約者が候補を選べる
 When 予約者が候補を選ぶ
 Then 予約が成立し予約者が確認できる
 EOF
-good_matrix="$TMP_ROOT/good-e2e-matrix.json"
+good_matrix="$TMP_ROOT/good-user-journey-matrix.json"
 cat > "$good_matrix" <<'EOF'
 {"scenarios":[
   {"name":"希望を伝える","kind":"success","expected":"success","rule":"予約成立規則","trigger":{"kind":"action","text":"予約者が希望を伝える"},"premises":[{"name":"開始地点","text":"予約者が希望条件を決めている","state":"satisfied","target":false,"source":"予約資料"}]},
   {"name":"予約を成立させる","kind":"success","expected":"success","rule":"予約成立規則","trigger":{"kind":"action","text":"予約者が候補を選ぶ"},"premises":[{"name":"候補を選べる","text":"予約者が候補を選べる","state":"satisfied","target":false,"source":"予約資料"}]}
 ]}
 EOF
-if python3 "$e2e/scripts/scenario.py" check --config "$e2e/playbook.yml" --file "$good_story" --matrix "$good_matrix" >/dev/null; then
-  pass "E2Eの長いストーリーを複数場面として受理"
+if python3 "$journey_discovery/scripts/scenario.py" check --config "$journey_discovery/playbook.yml" --file "$good_story" --matrix "$good_matrix" >/dev/null; then
+  pass "ユーザー目的達成BDDを複数場面として受理"
 else
-  fail "E2Eストーリー正常系"
+  fail "ユーザー目的達成BDD正常系"
 fi
 
-bad_story="$TMP_ROOT/bad-e2e.md"
+bad_story="$TMP_ROOT/bad-user-journey-bdd.md"
 sed 's/予約者が希望を伝える/予約者がAPIを呼び出す/' "$good_story" > "$bad_story"
-if python3 "$e2e/scripts/scenario.py" check --config "$e2e/playbook.yml" --file "$bad_story" --matrix "$good_matrix" >/dev/null 2>&1; then
-  fail "E2E資料にAPI操作を許可"
+if python3 "$journey_discovery/scripts/scenario.py" check --config "$journey_discovery/playbook.yml" --file "$bad_story" --matrix "$good_matrix" >/dev/null 2>&1; then
+  fail "ユーザー目的達成BDDにAPI操作を許可"
 else
-  pass "E2E資料からAPI操作を拒否"
+  pass "ユーザー目的達成BDDからAPI操作を拒否"
+fi
+
+journey_formulation="$ROOT/plugins/playbooks/bdd/user-journey-bdd-formulation"
+existing="$TMP_ROOT/existing-user-journey.md"
+same="$TMP_ROOT/existing-user-journey.md"
+different="$TMP_ROOT/new-user-journey.md"
+cp "$good_story" "$existing"
+if python3 "$journey_formulation/scripts/update-guard.py" --existing "$existing" --output "$same" >/dev/null; then
+  pass "Journey Formulationは同一パス更新を受理"
+else
+  fail "Journey Formulation同一パス更新"
+fi
+if python3 "$journey_formulation/scripts/update-guard.py" --existing "$existing" --output "$different" >/dev/null 2>&1; then
+  fail "Journey Formulationが新規資料を許可"
+else
+  pass "Journey Formulationは新規資料を拒否"
 fi
 
 syntax_failed=0

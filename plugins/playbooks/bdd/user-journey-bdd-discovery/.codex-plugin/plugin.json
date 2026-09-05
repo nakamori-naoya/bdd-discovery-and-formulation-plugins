@@ -1,0 +1,20 @@
+{
+  "name": "user-journey-bdd-discovery",
+  "version": "0.1.0",
+  "skills": "./skills",
+  "description": "ユーザーの目的達成をJourney mapから発見し、場面を接続したBDD正本として初めて作る",
+  "author": {
+    "name": "NaoyaNakamori"
+  },
+  "interface": {
+    "displayName": "User Journey BDD Discovery",
+    "shortDescription": "目的達成までの最初のBDD正本を作る",
+    "longDescription": "1人の主たるユーザーの目的、開始地点、場面の接続、完了条件を発見し、ユーザー目的達成BDDの正本として初めて作る",
+    "developerName": "NaoyaNakamori",
+    "category": "Productivity",
+    "capabilities": [
+      "Skills"
+    ],
+    "defaultPrompt": "user-journey-bdd-discoveryを使って、目的達成までのユーザーJourneyをBDD正本として発見してください。"
+  }
+}
