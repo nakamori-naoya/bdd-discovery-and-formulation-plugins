@@ -1,7 +1,7 @@
 {
   "name": "user-journey-bdd-discovery",
   "version": "0.1.0",
-  "skills": "./skills",
+  "skills": "./",
   "description": "ユーザーの目的達成をJourney mapから発見し、場面を接続したBDD正本として初めて作る",
   "author": {
     "name": "NaoyaNakamori"
@@ -16,5 +16,10 @@
       "Skills"
     ],
     "defaultPrompt": "user-journey-bdd-discoveryを使って、目的達成までのユーザーJourneyをBDD正本として発見してください。"
+  },
+  "metadata": {
+    "harness": {
+      "contractVersion": 1
+    }
   }
 }

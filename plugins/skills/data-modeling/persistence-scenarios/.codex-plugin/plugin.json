@@ -2,7 +2,7 @@
   "name": "persistence-scenarios",
   "version": "0.1.3",
   "description": "業務シナリオと業務イベントから、作成・更新・削除に関係する永続化シナリオを先に記録する",
-  "skills": "./skills",
+  "skills": "./",
   "author": {
     "name": "NaoyaNakamori"
   },
@@ -16,5 +16,10 @@
       "Skills"
     ],
     "defaultPrompt": "persistence-scenariosを使ってこの作業を進めてください。"
+  },
+  "metadata": {
+    "harness": {
+      "contractVersion": 1
+    }
   }
 }

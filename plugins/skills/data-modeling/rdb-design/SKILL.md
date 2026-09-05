@@ -27,7 +27,7 @@ fi
 <!-- BEGIN shared:skill-entry/config-load -->
 ```bash
 CFG_FILE=$(bash "${PLUGIN_ROOT}/scripts/prepare.sh" "$(pwd)") || exit 2
-trap 'rm -f "$CFG_FILE"' EXIT
+printf '%s\n' "$CFG_FILE"
 ```
 
 **このコマンドは説明例ではない。必ず実行する。** 解決済みYAMLが空なら先へ進まない。設定ファイルを直接読んで代用しない。
@@ -39,7 +39,7 @@ trap 'rm -f "$CFG_FILE"' EXIT
 
 ```bash
 CFG_FILE=$(bash "${PLUGIN_ROOT}/scripts/prepare.sh" "$(pwd)" --override=database.product='<製品>' --override=database.version='<版>') || exit 2
-trap 'rm -f "$CFG_FILE"' EXIT
+printf '%s\n' "$CFG_FILE"
 ```
 
 `${.database.product}`、`${.database.version}`、`${.design_dir}`を確認する。`${.relational_data_modeling}`、`${.null_avoidance}`、`${.relational_data_lifecycle}`、`${.transaction_isolation}`、`${.physical_rdb_template}`を必ず読む。
@@ -82,3 +82,7 @@ python3 "${PLUGIN_ROOT}/scripts/rdb.py" check --config "$CFG_FILE" --topic <題�
 ```
 
 物理設計に論理構造の複製または追加、BDDシナリオが混ざった場合、設計で使う全機能の対象版根拠が無い場合は止まる。NULLは論理設計で許した箇所だけに使い、対象RDB上の扱いを残す。最後に対象RDBと版、入力論理資料、物理資料、機能根拠、典型Read、indexと列順の理由、分離レベル、NULLを許した箇所、未決を報告し、アプリケーション実装や移行実行へは進まない。
+
+## 実行設定の寿命
+
+prepareが返した絶対pathを実行記録へ保持する。別shellではそのpathを`CFG_FILE`へ明示して読み、shell変数の継承を前提にしない。完了時と失敗停止時のどちらも、最後の設定利用後に`python3 "${PLUGIN_ROOT}/scripts/run-config.py" cleanup --config "$CFG_FILE"`を実行する。他runの設定やdirectoryを削除しない。

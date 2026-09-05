@@ -2,6 +2,13 @@
   "name": "user-journey-bdd-formulation",
   "version": "0.1.0",
   "description": "既存のユーザー目的達成BDDを反証し、分岐・中断・役割移譲を同じ正本へ戻して深化させる",
-  "author": {"name": "NaoyaNakamori"},
-  "skills": "./skills"
+  "author": {
+    "name": "NaoyaNakamori"
+  },
+  "skills": "./",
+  "metadata": {
+    "harness": {
+      "contractVersion": 1
+    }
+  }
 }
