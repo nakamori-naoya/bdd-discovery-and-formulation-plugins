@@ -2,7 +2,7 @@
   "name": "core-domain",
   "version": "0.2.12",
   "description": "題材をコア・支援・汎用へ分け、コアの境界を引き、実装の関心を業務の話から追い出す",
-  "skills": "./skills",
+  "skills": "./",
   "author": {
     "name": "NaoyaNakamori"
   },
@@ -16,5 +16,10 @@
       "Skills"
     ],
     "defaultPrompt": "core-domainを使ってこの作業を進めてください。"
+  },
+  "metadata": {
+    "harness": {
+      "contractVersion": 1
+    }
   }
 }

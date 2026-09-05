@@ -2,7 +2,7 @@
   "name": "domain-bdd-discovery",
   "version": "0.4.4",
   "description": "コアドメインの共通理解を作り、代表BDDとともにdomain-rule資料へまとめる",
-  "skills": "./skills",
+  "skills": "./",
   "author": {
     "name": "NaoyaNakamori"
   },
@@ -16,5 +16,10 @@
       "Skills"
     ],
     "defaultPrompt": "domain-bdd-discoveryを使ってこの作業を進めてください。"
+  },
+  "metadata": {
+    "harness": {
+      "contractVersion": 1
+    }
   }
 }
