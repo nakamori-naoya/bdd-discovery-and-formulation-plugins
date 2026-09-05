@@ -43,12 +43,20 @@ done
 fixture_plugin bdd-discovery-and-formulation user-journey 0.1.0 skill map-user-journey
 
 entries='domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation user-journey-bdd-discovery user-journey-bdd-formulation'
-entry="$ROOT/plugins/playbooks/bdd/domain-bdd-discovery"
+PACKAGE="$TMP_ROOT/package"
+cp -R "$ROOT/plugins" "$PACKAGE"
+CALLERS="$PACKAGE/playbooks/bdd"
+for directory in $entries; do
+  mkdir -p "$CALLERS/$directory/.harness-plugin-test-cache"
+  cp -R "$CACHE/." "$CALLERS/$directory/.harness-plugin-test-cache/"
+done
+entry="$CALLERS/domain-bdd-discovery"
+ENTRY_CACHE="$entry/.harness-plugin-test-cache"
 for runtime in codex claude; do
   for directory in $entries; do
-    pb="$ROOT/plugins/playbooks/bdd/$directory"
+    pb="$CALLERS/$directory"
     out="$TMP_ROOT/$runtime-$directory.yml"
-    if HARNESS_PLUGIN_RUNTIME="$runtime" HARNESS_PLUGIN_CACHE_ROOT="$CACHE" bash "$pb/scripts/resolve.sh" "$REPO" > "$out" 2> "$out.err" \
+    if HARNESS_PLUGIN_RUNTIME="$runtime" HARNESS_PLUGIN_CACHE_ROOT="$pb/.harness-plugin-test-cache" bash "$pb/scripts/resolve.sh" "$REPO" > "$out" 2> "$out.err" \
       && yq -o=json -I=0 '.' "$out" | jq -e --arg runtime "$runtime" \
         'all(.deps[]; .runtime==$runtime) and .deps.grill.version=="9.9.9" and .deps["write-doc"].source_kind=="installed-cache"' >/dev/null; then
       pass "$runtime/$directory name dependency resolution"
@@ -65,7 +73,7 @@ jq -n --arg root "$write_doc_package" \
 write_doc_root=$(cd "$write_doc_package" && pwd -P)
 write_doc_entry=$(cd "$write_doc_package/entry" && pwd -P)
 for runtime in codex claude; do
-  if HARNESS_PLUGIN_RUNTIME="$runtime" HARNESS_PLUGIN_CACHE_ROOT="$CACHE" HARNESS_PLUGIN_DEV_ROOTS="$dev_map" \
+  if HARNESS_PLUGIN_RUNTIME="$runtime" HARNESS_PLUGIN_CACHE_ROOT="$ENTRY_CACHE" HARNESS_PLUGIN_DEV_ROOTS="$dev_map" \
       bash "$entry/scripts/resolve.sh" "$REPO" 2> "$TMP_ROOT/dev-$runtime.err" \
       | yq -o=json -I=0 '.' | jq -e --arg root "$write_doc_entry" \
         '.deps["write-doc"].source_kind=="dev-map" and .deps["write-doc"].root==$root' >/dev/null; then
@@ -76,7 +84,7 @@ for runtime in codex claude; do
 done
 
 mv "$write_doc_package/skills/write-doc-cleanup/SKILL.md" "$TMP_ROOT/cleanup-skill"
-if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$CACHE" HARNESS_PLUGIN_DEV_ROOTS="$dev_map" \
+if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$ENTRY_CACHE" HARNESS_PLUGIN_DEV_ROOTS="$dev_map" \
     bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/dev-no-skill.err"; then
   fail "dev-map rootに必要skillが無い状態を許可"
 else
@@ -86,7 +94,7 @@ mv "$TMP_ROOT/cleanup-skill" "$write_doc_package/skills/write-doc-cleanup/SKILL.
 
 # package内部のskillがcacheに存在しても、外部repositoryから内部plugin名では解決できない。
 for runtime in codex claude; do
-  if HARNESS_PLUGIN_RUNTIME="$runtime" HARNESS_PLUGIN_CACHE_ROOT="$CACHE" \
+  if HARNESS_PLUGIN_RUNTIME="$runtime" HARNESS_PLUGIN_CACHE_ROOT="$ENTRY_CACHE" \
       python3 "$entry/scripts/resolve-dependency.py" \
       --plugin-root "$entry" --plugin write-doc-cleanup --marketplace write-doc \
       >/dev/null 2> "$TMP_ROOT/internal-$runtime.err"; then
@@ -96,26 +104,28 @@ for runtime in codex claude; do
   fi
 done
 
-if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$TMP_ROOT/missing" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/missing.err"; then
+mv "$ENTRY_CACHE/grill" "$TMP_ROOT/grill-cache"
+if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$ENTRY_CACHE" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/missing.err"; then
   fail "missing dependencyを許可"
 elif rg -n '\[error:dependency-missing\].*plugin=grill.*marketplace=grill.*runtime=codex' "$TMP_ROOT/missing.err" >/dev/null; then
   pass "missing dependencyはidentity付きで停止"
 else
   fail "missing dependency error contract"
 fi
+mv "$TMP_ROOT/grill-cache" "$ENTRY_CACHE/grill"
 
-mv "$CACHE/grill/grill/9.9.9/.codex-plugin/plugin.json" "$TMP_ROOT/grill-manifest"
-printf '{"name":"not-grill","version":"9.9.9"}\n' > "$CACHE/grill/grill/9.9.9/.codex-plugin/plugin.json"
-if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$CACHE" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/name.err"; then
+mv "$ENTRY_CACHE/grill/grill/9.9.9/.codex-plugin/plugin.json" "$TMP_ROOT/grill-manifest"
+printf '{"name":"not-grill","version":"9.9.9"}\n' > "$ENTRY_CACHE/grill/grill/9.9.9/.codex-plugin/plugin.json"
+if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$ENTRY_CACHE" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/name.err"; then
   fail "manifest名違いを許可"
 elif rg -n '\[error:dependency-invalid\].*manifest-identity-mismatch' "$TMP_ROOT/name.err" >/dev/null; then
   pass "manifest名違いを停止"
 else
   fail "manifest名違いerror contract"
 fi
-mv "$TMP_ROOT/grill-manifest" "$CACHE/grill/grill/9.9.9/.codex-plugin/plugin.json"
+mv "$TMP_ROOT/grill-manifest" "$ENTRY_CACHE/grill/grill/9.9.9/.codex-plugin/plugin.json"
 
-if HARNESS_PLUGIN_CACHE_ROOT="$CACHE" CODEX_HOME= CLAUDE_PLUGIN_ROOT= bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/runtime.err"; then
+if HARNESS_PLUGIN_CACHE_ROOT="$ENTRY_CACHE" CODEX_HOME= CLAUDE_PLUGIN_ROOT= bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/runtime.err"; then
   fail "runtime不明を許可"
 elif rg -n '\[error:dependency-runtime-unresolved\]' "$TMP_ROOT/runtime.err" >/dev/null; then
   pass "runtime不明を停止"
@@ -125,14 +135,14 @@ fi
 
 mkdir -p "$REPO/.harness-plugins"
 yq -o=json -I=0 '.' "$entry/playbook.yml" | jq '.requires[0]=.requires[0].plugin' | yq -P > "$REPO/.harness-plugins/domain-bdd-discovery.config.yml"
-if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$CACHE" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/bare.err"; then
+if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$ENTRY_CACHE" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/bare.err"; then
   fail "bare dependency nameを許可"
 else
   pass "schema v2はbare dependency nameを拒否"
 fi
 
 yq -o=json -I=0 '.' "$entry/playbook.yml" | jq '.requires[0].version="0.2.13"' | yq -P > "$REPO/.harness-plugins/domain-bdd-discovery.config.yml"
-if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$CACHE" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/pin.err"; then
+if HARNESS_PLUGIN_RUNTIME=codex HARNESS_PLUGIN_CACHE_ROOT="$ENTRY_CACHE" bash "$entry/scripts/resolve.sh" "$REPO" >/dev/null 2> "$TMP_ROOT/pin.err"; then
   fail "dependency version pinを許可"
 else
   pass "schema v2はdependency version pinを拒否"
