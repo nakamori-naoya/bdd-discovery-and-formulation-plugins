@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Scenario: BDD marketplaceの全受入検査を一度に実行する
-# Given: BDD責務の10 pluginと完全修飾した外部依存契約がある
+# Given: BDD責務の12 pluginと完全修飾した外部依存契約がある
 # When: 構造、runtime、Codex manifest互換を順に検査する
 # Then: 一つでも不具合があれば最終終了codeを非0にする
 set -uo pipefail
