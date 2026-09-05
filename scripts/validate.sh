@@ -6,6 +6,7 @@
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+python3 "$ROOT/scripts/test-hardening.py" || exit 1
 status=0
 
 for script in validate-distribution.py validate-structure.sh validate-runtime.sh; do

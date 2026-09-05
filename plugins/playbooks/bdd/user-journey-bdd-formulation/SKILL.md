@@ -24,7 +24,7 @@ fi
 
 ```bash
 CFG_FILE=$(bash "${PLUGIN_ROOT}/scripts/prepare.sh" "$(pwd)") || exit 2
-trap 'rm -f "$CFG_FILE"' EXIT
+printf '%s\n' "$CFG_FILE"
 ```
 
 解決済みYAMLが空、依存が欠けている、設定が更新契約を外している場合は先へ進まない。[実行指示書](references/execution-guidance.md)を必ず読む。[入力根拠](references/input-grounding.md)も全工程へ適用する。
@@ -59,3 +59,7 @@ python3 "${PLUGIN_ROOT}/scripts/update-guard.py" \
 - 未決と、確定に必要な情報
 
 新規資料を作った場合、または既存正本以外を変更した場合は完了と報告しない。
+
+## 実行設定の寿命
+
+prepareが返した絶対pathを実行記録へ保持する。別shellではそのpathを`CFG_FILE`へ明示して読み、shell変数の継承を前提にしない。完了時と失敗停止時のどちらも、最後の設定利用後に`python3 "${PLUGIN_ROOT}/scripts/run-config.py" cleanup --config "$CFG_FILE"`を実行する。他runの設定やdirectoryを削除しない。

@@ -1,8 +1,10 @@
 {
   "name": "bdd-discovery-and-formulation",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "ドメイン、データモデル、User JourneyのBDD発見・深化Playbookを一括提供する",
-  "author": {"name": "NaoyaNakamori"},
+  "author": {
+    "name": "NaoyaNakamori"
+  },
   "skills": [
     "./playbooks/bdd/domain-bdd-discovery",
     "./playbooks/bdd/domain-bdd-formulation",
@@ -35,7 +37,8 @@
         "persistence-scenarios": "./skills/data-modeling/persistence-scenarios",
         "data-model": "./skills/data-modeling/data-model",
         "rdb-design": "./skills/data-modeling/rdb-design"
-      }
+      },
+      "contractVersion": 1
     }
   }
 }

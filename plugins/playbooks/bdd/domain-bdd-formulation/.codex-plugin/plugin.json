@@ -1,7 +1,7 @@
 {
   "name": "domain-bdd-formulation",
   "version": "0.3.4",
-  "skills": "./skills",
+  "skills": "./",
   "description": "既存のコアドメイン資料をQA観点で反証し、同じ資料へ戻して深化させる",
   "author": {
     "name": "NaoyaNakamori"
@@ -16,5 +16,10 @@
       "Skills"
     ],
     "defaultPrompt": "domain-bdd-formulationを使ってこの作業を進めてください。"
+  },
+  "metadata": {
+    "harness": {
+      "contractVersion": 1
+    }
   }
 }

@@ -1,13 +1,15 @@
 {
   "name": "bdd-discovery-and-formulation",
-  "owner": {"name": "NaoyaNakamori"},
+  "owner": {
+    "name": "NaoyaNakamori"
+  },
   "description": "BDDによるドメイン理解、データモデリング、User Journeyの発見と深化を一つのPlaybookパッケージとして配布するmarketplace",
   "plugins": [
     {
       "name": "bdd-discovery-and-formulation",
       "source": "./plugins",
       "description": "ドメイン、データモデル、User JourneyのBDD発見・深化Playbookを一括提供する",
-      "version": "1.0.0"
+      "version": "2.0.0"
     }
   ]
 }

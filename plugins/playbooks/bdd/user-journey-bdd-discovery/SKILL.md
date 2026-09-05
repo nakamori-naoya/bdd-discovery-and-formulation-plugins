@@ -26,7 +26,7 @@ fi
 
 ```bash
 CFG_FILE=$(bash "${PLUGIN_ROOT}/scripts/prepare.sh" "$(pwd)") || exit 2
-trap 'rm -f "$CFG_FILE"' EXIT
+printf '%s\n' "$CFG_FILE"
 ```
 
 このコマンドは必ず実行する。解決済みYAMLが空、依存が欠けている、設定が契約を外している場合は先へ進まない。
@@ -79,3 +79,9 @@ python3 "${PLUGIN_ROOT}/scripts/scenario.py" check --config "$CFG_FILE" --file <
 - 目的達成までの場面数と主要な接続
 - 未決の接続と、確認すべき人
 - ユースケース、UX Journey map、domain、data model、実装、テスト実行へ送り返した事項
+
+## 実行設定の寿命
+
+prepareが返した絶対pathを実行記録へ保持する。別shellではそのpathを`CFG_FILE`へ明示して読み、shell変数の継承を前提にしない。完了時と失敗停止時のどちらも、最後の設定利用後に`python3 "${PLUGIN_ROOT}/scripts/run-config.py" cleanup --config "$CFG_FILE"`を実行する。他runの設定やdirectoryを削除しない。
+
+条件付き工程を含め、各工程を呼ぶ直前に`yq -o=json '.' "$CFG_FILE" | python3 "${PLUGIN_ROOT}/scripts/resolve-dependency.py" --check-steps <工程id>`を実行する。失敗時は工程を実行せず停止する。

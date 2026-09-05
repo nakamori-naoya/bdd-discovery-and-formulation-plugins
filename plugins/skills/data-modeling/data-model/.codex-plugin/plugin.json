@@ -2,7 +2,7 @@
   "name": "data-model",
   "version": "0.2.15",
   "description": "業務シナリオから永続化すべき事実を見出し、BDDシナリオを含む論理データモデルを作る",
-  "skills": "./skills",
+  "skills": "./",
   "author": {
     "name": "NaoyaNakamori"
   },
@@ -16,5 +16,10 @@
       "Skills"
     ],
     "defaultPrompt": "data-modelを使ってこの作業を進めてください。"
+  },
+  "metadata": {
+    "harness": {
+      "contractVersion": 1
+    }
   }
 }

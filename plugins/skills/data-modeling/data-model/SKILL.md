@@ -27,7 +27,7 @@ fi
 <!-- BEGIN shared:skill-entry/config-load -->
 ```bash
 CFG_FILE=$(bash "${PLUGIN_ROOT}/scripts/prepare.sh" "$(pwd)") || exit 2
-trap 'rm -f "$CFG_FILE"' EXIT
+printf '%s\n' "$CFG_FILE"
 ```
 
 **このコマンドは説明例ではない。必ず実行する。** 解決済みYAMLが空なら先へ進まない。設定ファイルを直接読んで代用しない。
@@ -41,7 +41,7 @@ trap 'rm -f "$CFG_FILE"' EXIT
 
 ```bash
 CFG_FILE=$(bash "${PLUGIN_ROOT}/scripts/prepare.sh" "$(pwd)" --override=method=<決めた手法>) || exit 2
-trap 'rm -f "$CFG_FILE"' EXIT
+printf '%s\n' "$CFG_FILE"
 ```
 
 `${.model_dir}`・`${.method.id}`・`${.method.path}`が揃う。`${.instructions.design.directive}`に従い、成果は`${.model_dir}`へ置く。**決め方（依頼指定／文脈推定／確認済み）を必ず報告する。黙って手法を変えない。**
@@ -85,3 +85,7 @@ python3 "${PLUGIN_ROOT}/scripts/fact.py" check --config "$CFG_FILE" --topic <題
 使った手法と理由、論理モデルのパス、BDDシナリオ数、記録シナリオ数、未確認の記録と確認相手、手法の「見直しの問い」で引っかかった点を報告する。
 
 設定形式は[README](README.md)を参照する。物理設計・移行手順・性能の話へは進まない。物理設計でテーブルや列を変える必要が見つかった場合も、この工程へ戻してBDDシナリオとの対応から見直す。
+
+## 実行設定の寿命
+
+prepareが返した絶対pathを実行記録へ保持する。別shellではそのpathを`CFG_FILE`へ明示して読み、shell変数の継承を前提にしない。完了時と失敗停止時のどちらも、最後の設定利用後に`python3 "${PLUGIN_ROOT}/scripts/run-config.py" cleanup --config "$CFG_FILE"`を実行する。他runの設定やdirectoryを削除しない。
