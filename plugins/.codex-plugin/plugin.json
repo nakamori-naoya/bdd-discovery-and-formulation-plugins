@@ -11,13 +11,7 @@
     "./playbooks/bdd/data-model-bdd-discovery",
     "./playbooks/bdd/data-model-bdd-formulation",
     "./playbooks/bdd/user-journey-bdd-discovery",
-    "./playbooks/bdd/user-journey-bdd-formulation",
-    "./skills/domain/domain-events",
-    "./skills/domain/core-domain",
-    "./skills/journey/user-journey",
-    "./skills/data-modeling/persistence-scenarios",
-    "./skills/data-modeling/data-model",
-    "./skills/data-modeling/rdb-design"
+    "./playbooks/bdd/user-journey-bdd-formulation"
   ],
   "interface": {
     "displayName": "Playbook Package",
