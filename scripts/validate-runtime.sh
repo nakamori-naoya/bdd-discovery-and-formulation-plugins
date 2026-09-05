@@ -87,7 +87,7 @@ mv "$TMP_ROOT/cleanup-skill" "$write_doc_package/skills/write-doc-cleanup/SKILL.
 # package内部のskillがcacheに存在しても、外部repositoryから内部plugin名では解決できない。
 for runtime in codex claude; do
   if HARNESS_PLUGIN_RUNTIME="$runtime" HARNESS_PLUGIN_CACHE_ROOT="$CACHE" \
-      python3 "$ROOT/shared/playbook/resolve-dependency.py" \
+      python3 "$entry/scripts/resolve-dependency.py" \
       --plugin-root "$entry" --plugin write-doc-cleanup --marketplace write-doc \
       >/dev/null 2> "$TMP_ROOT/internal-$runtime.err"; then
     fail "$runtime/外部repositoryから内部plugin名を解決"
