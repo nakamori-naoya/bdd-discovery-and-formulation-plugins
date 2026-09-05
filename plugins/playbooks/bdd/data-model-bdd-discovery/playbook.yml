@@ -18,7 +18,6 @@ requires:
   - {plugin: persistence-scenarios, marketplace: bdd-discovery-and-formulation}
   - {plugin: data-model, marketplace: bdd-discovery-and-formulation}
   - {plugin: write-doc, marketplace: write-doc}
-  - {plugin: write-doc-cleanup, marketplace: write-doc}
 
 contract:
   grounding_sources: [user_input, referenced_artifacts, grill_decisions]

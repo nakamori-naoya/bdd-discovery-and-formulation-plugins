@@ -15,7 +15,7 @@ jq -e '
   .contract.journey_boundary==["central_question","inclusion_reason","excluded_questions"] and
   .contract.journey_scene==["sequence","prior_state","acting_role","action","observable_response","next_state","handoff"] and
   (any(.requires[]; .plugin=="user-journey" and .marketplace=="bdd-discovery-and-formulation")) and
-  (any(.requires[]; .plugin=="write-doc-cleanup" and .marketplace=="write-doc")) and
+  ([.requires[] | select(.marketplace=="write-doc")] == [{"plugin":"write-doc","marketplace":"write-doc"}]) and
   ($grill|length)==1 and $grill[0].key==0 and
   ($root.steps | to_entries | map(select(.key > 0)) | all(.[]; ((.value.needs // []) | index("grounded_input") != null))) and
   .steps[-1].skill=="remove-intermediate-artifacts" and .steps[-1].provides==["cleanup_report"] and

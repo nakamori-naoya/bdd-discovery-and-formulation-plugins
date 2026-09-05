@@ -12,7 +12,12 @@ description: 既存のユーザー目的達成BDDを、目的、両端、場面�
 ## 0. プラグインrootを決める
 
 ```bash
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-/absolute/path/to/this/plugin}"
+BUNDLE_ROOT="${CLAUDE_PLUGIN_ROOT:-/absolute/path/to/this/plugin}"
+if [ -d "${BUNDLE_ROOT}/playbooks/bdd/user-journey-bdd-formulation" ]; then
+  PLUGIN_ROOT="${BUNDLE_ROOT}/playbooks/bdd/user-journey-bdd-formulation"
+else
+  PLUGIN_ROOT="${BUNDLE_ROOT}"
+fi
 ```
 
 ## 1. 工程を解決する

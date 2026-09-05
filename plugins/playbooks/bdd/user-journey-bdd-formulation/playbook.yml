@@ -12,9 +12,7 @@ output_format: markdown
 requires:
   - {plugin: user-journey, marketplace: bdd-discovery-and-formulation}
   - {plugin: grill, marketplace: grill}
-  - {plugin: writing-rules, marketplace: write-doc}
   - {plugin: write-doc, marketplace: write-doc}
-  - {plugin: write-doc-cleanup, marketplace: write-doc}
 
 contract:
   grounding_sources: [user_input, referenced_artifacts, grill_decisions]

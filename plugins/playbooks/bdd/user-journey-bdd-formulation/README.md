@@ -10,12 +10,10 @@
 
 ユースケース、UX Journey map、domain-rule、data model、UIフロー、テスト実行仕様は変更しない。不足が見つかった場合は、正本と確認相手を示した未決として返す。
 
-## 外部依存
+## 依存
 
-- `user-journey@bdd-discovery-and-formulation`
+- 同じpackage内の`user-journey`
 - `grill@grill`
-- `writing-rules@write-doc`
 - `write-doc@write-doc`
-- `write-doc-cleanup@write-doc`
 
-依存はmarketplace名とplugin名で解決し、versionを固定しない。
+別repositoryには公開playbook packageだけで依存し、その内部機能名へは依存しない。versionは固定しない。

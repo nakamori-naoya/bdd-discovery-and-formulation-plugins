@@ -12,14 +12,13 @@
 
 既存正本の深化、domain-ruleの発見、data modelの設計、画面やAPIの操作手順、テストの実行環境は扱わない。
 
-## 外部依存
+## 依存
 
-- `user-journey@bdd-discovery-and-formulation`
+- 同じpackage内の`user-journey`
 - `grill@grill`
-- `writing-rules@write-doc`
 - `write-doc@write-doc`
 
-依存はmarketplace名とplugin名で解決し、versionを固定しない。
+別repositoryには公開playbook packageだけで依存し、その内部機能名へは依存しない。versionは固定しない。
 
 ## 設定
 

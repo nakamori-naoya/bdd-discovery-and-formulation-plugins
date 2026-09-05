@@ -1,0 +1,45 @@
+{
+  "name": "bdd-discovery-and-formulation",
+  "version": "1.0.0",
+  "description": "ドメイン、データモデル、User JourneyのBDD発見・深化Playbookを一括提供する",
+  "author": {"name": "NaoyaNakamori"},
+  "skills": [
+    "./playbooks/bdd/domain-bdd-discovery",
+    "./playbooks/bdd/domain-bdd-formulation",
+    "./playbooks/bdd/data-model-bdd-discovery",
+    "./playbooks/bdd/data-model-bdd-formulation",
+    "./playbooks/bdd/user-journey-bdd-discovery",
+    "./playbooks/bdd/user-journey-bdd-formulation",
+    "./skills/domain/domain-events",
+    "./skills/domain/core-domain",
+    "./skills/journey/user-journey",
+    "./skills/data-modeling/persistence-scenarios",
+    "./skills/data-modeling/data-model",
+    "./skills/data-modeling/rdb-design"
+  ],
+  "interface": {
+    "displayName": "Playbook Package",
+    "capabilities": ["Skills"]
+  },
+  "metadata": {
+    "harness": {
+      "installationSurface": "playbook-package",
+      "playbooks": {
+        "domain-bdd-discovery": "./playbooks/bdd/domain-bdd-discovery",
+        "domain-bdd-formulation": "./playbooks/bdd/domain-bdd-formulation",
+        "data-model-bdd-discovery": "./playbooks/bdd/data-model-bdd-discovery",
+        "data-model-bdd-formulation": "./playbooks/bdd/data-model-bdd-formulation",
+        "user-journey-bdd-discovery": "./playbooks/bdd/user-journey-bdd-discovery",
+        "user-journey-bdd-formulation": "./playbooks/bdd/user-journey-bdd-formulation"
+      },
+      "internalPlugins": {
+        "domain-events": "./skills/domain/domain-events",
+        "core-domain": "./skills/domain/core-domain",
+        "user-journey": "./skills/journey/user-journey",
+        "persistence-scenarios": "./skills/data-modeling/persistence-scenarios",
+        "data-model": "./skills/data-modeling/data-model",
+        "rdb-design": "./skills/data-modeling/rdb-design"
+      }
+    }
+  }
+}

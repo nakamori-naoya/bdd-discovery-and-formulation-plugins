@@ -13,7 +13,12 @@ description: 題材をコア・支援・汎用へ分け、そう判定した理�
 
 <!-- BEGIN shared:skill-entry/root-block -->
 ```bash
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-/absolute/path/to/this/plugin}"
+BUNDLE_ROOT="${CLAUDE_PLUGIN_ROOT:-/absolute/path/to/this/plugin}"
+if [ -d "${BUNDLE_ROOT}/skills/domain/core-domain" ]; then
+  PLUGIN_ROOT="${BUNDLE_ROOT}/skills/domain/core-domain"
+else
+  PLUGIN_ROOT="${BUNDLE_ROOT}"
+fi
 ```
 
 `PLUGIN_ROOT`は配布物rootの絶対パスである。単一skill pluginではこの`SKILL.md`があるdirectory、複数skill pluginでは`skills/<skill>/`の2つ上に当たる。Claude Codeでは`${CLAUDE_PLUGIN_ROOT}`が自動展開される。
