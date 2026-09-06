@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "plugin": "bdd-discovery-and-formulation",
+  "version": "3.0.0",
+  "created_at": "2026-09-06T18:04:02.564117+00:00",
+  "notes": "外部依存grill/grillとwrite-doc/write-docをrequires宣言とplaybook:工程へ統一し、6playbookすべてにgrill工程と自前のground工程を置く。消費側契約lintと実配布物に対する解決検査を追加する。",
+  "breaking": "外部依存をrequires: [{plugin, marketplace}]宣言とsteps[].playbook:へ統一し、外部skill grillのskill:直呼びと、write-docの内部skillを名指しして直接呼ぶ記述を全廃した。6playbookすべてにgrill工程(provides: [decisions, open_questions])と自前のground工程(needs: [decisions, open_questions]でgrounded_inputを作る)を置いた。grounded_inputはgrillの出力ではない。write-docへの保存依頼を契約入力YAMLへ統一し、新規はname(と設定由来のoutput_directory)、差し替えはupdate_targetにした。discovery系は${.playbook.out_dir}を、formulation系はupdate-guard.pyの返り値を使う。metadata.harnessにmarketplaceを追加した。shared/consumer-contract/(nested-playbook.md / ground.py / cleanup.py / compose.sh)を新設し、6playbookへの複製一致をvalidate-structure.shがcmp -sで強制する。scripts/lint-consumer-contract.pyを追加し、消費側の文書・設定・scriptに依存先の内部名が現れたら落とす(除外機構は無い)。scripts/validate-real-distribution.shを追加し、fixtureだけでなく実配布物に対しても解決とlintを通す。外部依存の入口参照は${.deps.<論理名>.entry}に限定した。",
+  "migration": "playbook.ymlの外部依存をrequires宣言へ移し、grillはsteps[].playbook: grillで呼ぶ。grillの出力をそのまま資料化へ渡さず、ground工程でgrounded_inputを組み立てる。write-docの内部skillを名指しする記述は消し、write-docの契約入力YAMLへ寄せる。新規保存はname、差し替えはupdate_targetを渡す。SKILL.mdやREADMEやreferencesやscriptsに依存先の内部名を書かない。lint-consumer-contract.pyに除外機構は無いので、記述そのものを消す。依存参照は${.deps.<論理名>.entry}へ書き換え、旧schemaの束縛lockは使い回さない。",
+  "checks": {
+    "codex": {
+      "status": "manifest-and-contract-tests-passed",
+      "native-client-installation": "not-executed",
+      "evidence": "HARNESS_PLUGIN_RUNTIME=codex を含む bash scripts/validate.sh: 配布構造・公開manifest・解決・負の試験・消費側契約lintを検査"
+    },
+    "claude": {
+      "status": "manifest-and-contract-tests-passed",
+      "native-client-installation": "not-executed",
+      "evidence": "HARNESS_PLUGIN_RUNTIME=claude を含む bash scripts/validate.sh: 配布構造・公開manifest・解決・負の試験・消費側契約lintを検査"
+    },
+    "real-distribution": "fixtureだけで緑にせず、兄弟checkoutの実配布物 plugins/ を installed-cache へ写して解決させた",
+    "consumer-contract-lint": "scripts/lint-consumer-contract.py: codex / claude 両runtimeで 0 finding",
+    "binding": "契約IDと版で束縛し、bindings snapshot を持つ lock を入口が作り直すところまで通した",
+    "post-version-validation": "bash scripts/validate.sh: Structure 113 passed 0 failed / Runtime 33 passed 0 failed / Real distribution 26 passed 0 failed"
+  },
+  "files": [
+    ".agents/plugins/marketplace.json",
+    "plugins/.codex-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
+    "plugins/.claude-plugin/plugin.json"
+  ]
+}

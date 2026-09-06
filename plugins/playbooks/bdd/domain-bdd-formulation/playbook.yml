@@ -22,7 +22,7 @@ contract:
   grounding_sources: [user_input, referenced_artifacts, grill_decisions]
   probe_dimensions: [同値分割, 境界値, 精度と単位, 条件組合せ, 状態遷移, イベント順序, 重複と再実行, 同時実行, アクターと権限, 悪用と不正, 時間, 規則変更と遡及, 失敗時保証, 不変条件]
   cleanup:
-    delete_after_document: [scenario_draft, condition_matrix, revised_body, validated_scenarios]
+    delete_after_document: [scenario_draft, condition_matrix, material, validated_scenarios]
     preserve: [grounded_input, existing_domain_rule_path, updated_domain_rule_path]
 
 requirements:
@@ -35,15 +35,21 @@ requirements:
 
 steps:
   - id: challenge
-    skill: grill
+    playbook: grill
     purpose: 既存資料を根拠にコアドメインをQA観点で問い、不明点と深掘りが必要な点を利用者へ1問ずつ確認して修正と未決を分ける
-    provides: [existing_domain_rule_path, core_scope, probe_findings, unresolved_questions, grounded_input]
+    provides: [decisions, open_questions]
+
+  - id: ground
+    script: scripts/ground.py
+    purpose: 依頼、反証の対象にした既存資料、線引き、確かめた決定と未決を、根拠づけられた入力として1つに束ねる
+    needs: [decisions, open_questions]
+    provides: [grounded_input, existing_domain_rule_path, core_scope]
 
   - id: draft
-    skill: write-with-rules
-    purpose: 確認済みの発見を業務ルール・状態・BDDへ戻し、未決を未決のまま既存本文へ反映する
-    needs: [existing_domain_rule_path, core_scope, probe_findings, unresolved_questions, grounded_input]
-    provides: [scenario_draft, condition_matrix, revised_body, requested_output_path]
+    script: scripts/compose.sh
+    purpose: 確認済みの発見を業務ルール・状態・BDDへ戻し、未決を未決のまま反映した改訂本文と条件マトリクスが揃っていることを確かめて1つの素材へ束ねる
+    needs: [existing_domain_rule_path, core_scope, decisions, open_questions, grounded_input]
+    provides: [material, scenario_draft, condition_matrix, requested_output_path]
 
   - id: validate
     script: scripts/scenario.py
@@ -59,12 +65,14 @@ steps:
 
   - id: document
     playbook: write-doc
-    purpose: update_targetをwrite-docのreplace-existing-targetとして渡し、検査済みBDDと確認済みの理解を既存domain-ruleと同じパスへ差し替える
-    needs: [revised_body, validated_scenarios, update_target, grounded_input]
+    purpose: 検査済みBDDと確認済みの理解を、update_targetが指す既存domain-ruleと同じパスへ差し替える
+    input:
+      document_type: ${.document_type}
+    needs: [material, validated_scenarios, update_target, grounded_input]
     provides: [updated_domain_rule_path]
 
   - id: cleanup
-    skill: remove-intermediate-artifacts
-    purpose: 既存資料の差し替えを確認した後、contract.cleanupで削除候補にしたBDD草案、改訂本文、検査用ファイルだけを削除し、入力資料と更新済みdomain-ruleを保持する
-    needs: [scenario_draft, condition_matrix, revised_body, validated_scenarios, grounded_input, existing_domain_rule_path, updated_domain_rule_path]
+    script: scripts/cleanup.py
+    purpose: 既存資料の差し替えを確認した後、contract.cleanupで削除候補にしたBDD草案、束ねた素材、検査用ファイルだけを削除し、入力資料と更新済みdomain-ruleを保持する
+    needs: [scenario_draft, condition_matrix, material, validated_scenarios, grounded_input, existing_domain_rule_path, updated_domain_rule_path]
     provides: [cleanup_report]

@@ -33,9 +33,15 @@ requirements:
 
 steps:
   - id: settle
-    skill: grill
+    playbook: grill
     purpose: 入力だけでは不明または深掘りが必要な、業務イベント、残す事実、履歴、保持、物理削除の条件を利用者へ1問ずつ確かめる
-    provides: [decisions, grounded_input]
+    provides: [decisions, open_questions]
+
+  - id: ground
+    script: scripts/ground.py
+    purpose: 依頼、参照資料、確かめた決定と未決を、根拠づけられた入力として1つに束ねる
+    needs: [decisions, open_questions]
+    provides: [grounded_input]
 
   - id: explore
     skill: explore-events
@@ -57,12 +63,14 @@ steps:
 
   - id: document
     playbook: write-doc
-    purpose: 論理モデルと全BDDをrdb-logical-data-modelingテンプレートで保存する
+    purpose: 論理モデルと全BDDをrdb-logical-data-modelingの型で1本保存する
+    input:
+      document_type: ${.document_type}
     needs: [logical_bdd_scenarios, logical_data_model, condition_matrix, grounded_input]
     provides: [logical_document_path]
 
   - id: cleanup
-    skill: remove-intermediate-artifacts
+    script: scripts/cleanup.py
     purpose: 最終資料の保存を確認した後、contract.cleanupで削除候補にしたイベント、永続化シナリオ、論理設計の作業用ファイルだけを削除し、入力資料と論理設計資料を保持する
     needs: [events, actors, persistence_scenarios, persistence_coverage, condition_matrix, logical_bdd_scenarios, logical_data_model, grounded_input, logical_document_path]
     provides: [cleanup_report]

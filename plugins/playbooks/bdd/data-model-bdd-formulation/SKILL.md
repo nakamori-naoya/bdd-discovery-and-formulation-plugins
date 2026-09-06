@@ -37,25 +37,31 @@ printf '%s\n' "$CFG_FILE"
 
 `${.instructions.execution.directive}`と[工程間の契約](references/contract.md)を読み、対象RDBと成果の境界を確定する。まだ`${.playbook.steps}`は実行しない。
 
-[実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は工程順・依存・入出力を決定し、実行指示書は背景・前提・目的と各skillで意識することを補う。grill工程には実行指示書のdata model formulation固有の文脈を与え、grill自身に永続化やQAの観点を求めない。
+[実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は工程順・依存・入出力を決定し、実行指示書は背景・前提・目的と各工程で意識することを補う。`grill`工程には実行指示書のdata model formulation固有の文脈を`context`と`questions`として渡し、相手に永続化やQAの観点を求めない。
+
+[入れ子の段取りを呼ぶ](references/nested-playbook.md)を必ず読む。`playbook:`の工程（`grill`、`write-doc`）は、そこに書いた入口・入力・出力だけで呼ぶ。相手の中の部品名、工程の呼び名、保存の呼び名、script、参考資料、設定へは触れない。
+
+**根拠づけられた入力は`ground`工程が作る。** `grill`が返すのは`decisions`と`open_questions`だけである。
+
+**後片付けは自分でする。** 最終資料の保存を確認してから`python3 "${PLUGIN_ROOT}/scripts/cleanup.py" --config "$CFG_FILE" --artifact <名前>=<path> ...`を実行する。消えるのは`${.playbook.contract.cleanup.delete_after_document}`に宣言し、かつgitが追跡していないファイルだけである。
 
 [BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。変更するBDDごとに条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。
 
 ## 2. 定式化へ進める入力かを最初に評価する
 
-[入力に根拠づける規律](references/input-grounding.md)を読み、`${.playbook.steps}`の最初のgrill工程へ利用者の説明と既存論理資料を渡す。不明点や深掘りが必要な点を利用者へ1問ずつ確認し、確認済みの回答だけを`grounded_input`にする。次に[定式化へ進める共通理解かを見極める](references/formulation-readiness.md)を読み、`grounded_input`をLLMが意味から評価する。語の有無、点数、項目数、scriptで代用しない。対話後も代表的な永続化の振る舞いを説明する基準が無ければ、未決と回答責任者を示し、`data-model-bdd-discovery`を案内してここで終了する。残りのQA反証、資料更新、物理設計は始めない。
+[入力に根拠づける規律](references/input-grounding.md)を読み、`${.playbook.steps}`の最初の`grill`工程へ利用者の説明と既存論理資料を`context`・`questions`・`grounding`として渡す。不明点や深掘りが必要な点を利用者へ1問ずつ確認し、返った`decisions`と`open_questions`を`ground`工程が`grounded_input`へ束ねる。次に[定式化へ進める共通理解かを見極める](references/formulation-readiness.md)を読み、`grounded_input`をLLMが意味から評価する。語の有無、点数、項目数、scriptで代用しない。対話後も代表的な永続化の振る舞いを説明する基準が無ければ、未決と回答責任者を示し、`data-model-bdd-discovery`を案内してここで終了する。残りのQA反証、資料更新、物理設計は始めない。
 
 進める場合は、代表的な共通理解をどの入力から読み取れたかと、残る疑問が発見不足ではなく反証で扱う深さである理由を短く明示する。
 
 ## 3. 既存の論理資料を永続化の観点で反証する
 
-`${.instructions.execution.directive}`に従って最初のgrill工程より後の`${.playbook.steps}`を順に実行し、各工程へ`--scope=${.resolution.scope_root}`を渡す。[重要なシナリオを見つけるQA観点](references/important-scenarios.md)を読む。`grounded_input`にならない業務用語・イベント・概念を後続へ渡さない。論理モデル工程には`--override=method=${.playbook.modeling.method}`、RDB設計工程には`--override=database.product=${.playbook.database.product}`と`--override=database.version=${.playbook.database.version}`を渡す。
+`${.instructions.execution.directive}`に従って最初の`grill`工程より後の`${.playbook.steps}`を順に実行し、各工程へ`--scope=${.resolution.scope_root}`を渡す。[重要なシナリオを見つけるQA観点](references/important-scenarios.md)を読む。`grounded_input`にならない業務用語・イベント・概念を後続へ渡さない。論理モデル工程には`--override=method=${.playbook.modeling.method}`、RDB設計工程には`--override=database.product=${.playbook.database.product}`と`--override=database.version=${.playbook.database.version}`を渡す。
 
 `rdb-logical-data-modeling`型の既存論理資料の絶対パスを最初の工程へ渡す。資料が無い、出力先が別パス、BDDと論理テーブルの対応が読めない場合は止まる。
 
 作成・更新・削除に関係するBDDだけを、`${.playbook.contract.probe_dimensions}`で反証する。境界、精度と単位、状態遷移、順序、重複、同時実行、権限内の悪用、時間、規則変更の遡及、失敗時保証によって残す事実や履歴が変わるかを見る。Readやindexを論理設計へ混ぜない。
 
-確認済みの発見は既存資料のBDD、事実、論理テーブル、列、業務制約へ戻す。未決は推測で埋めない。既存資料の同じ絶対パスであることを次で検査し、返された`logical_update_target`と`output_format=${.playbook.output_format}`を`write-doc`へ渡して差し替える。`output.dir`から別の保存先を作らない。
+確認済みの発見は既存資料のBDD、事実、論理テーブル、列、業務制約へ戻す。未決は推測で埋めない。既存資料の同じ絶対パスであることを次で検査し、返された`update_target`を`update_target`、改訂本文を束ねたファイルの絶対pathを1要素の配列にして`material`、`rdb-logical-data-modeling`を`document_type`、`${.playbook.output_format}`を`output_format`として`write-doc`工程へ渡して差し替える。**新規作成の指定（`output_directory`と`name`）は渡さない。** 保存先を相手に作り直させない。
 
 ```bash
 python3 "${PLUGIN_ROOT}/scripts/update-guard.py" --existing <入力論理資料> --output <更新先>

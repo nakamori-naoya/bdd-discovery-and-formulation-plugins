@@ -21,7 +21,7 @@ contract:
   journey_scene: [sequence, prior_state, acting_role, action, observable_response, next_state, handoff]
   probe_dimensions: [purpose_completion_alignment, alternate_entry, unreachable_handoff, branch_rejoin, interruption_resumption, role_handoff, early_termination, loop, observable_completion, use_case_boundary, ux_boundary]
   cleanup:
-    delete_after_document: [journey_map, scenario_draft, condition_matrix, revised_body, validated_journey_bdd]
+    delete_after_document: [journey_map, scenario_draft, condition_matrix, material, validated_journey_bdd]
     preserve: [grounded_input, existing_user_journey_bdd_path, updated_user_journey_bdd_path]
 
 requirements:
@@ -37,21 +37,27 @@ requirements:
 
 steps:
   - id: challenge
-    skill: grill
+    playbook: grill
     purpose: 既存正本を根拠に目的、両端、接続、分岐、中断再開、役割移譲、完了条件を問い、不明点だけを1問ずつ確認する
-    provides: [existing_user_journey_bdd_path, probe_findings, unresolved_questions, grounded_input]
+    provides: [decisions, open_questions]
+
+  - id: ground
+    script: scripts/ground.py
+    purpose: 依頼、反証の対象にした既存正本、確かめた決定と未決を、根拠づけられた入力として1つに束ねる
+    needs: [decisions, open_questions]
+    provides: [grounded_input, existing_user_journey_bdd_path]
 
   - id: remap-journey
     skill: map-user-journey
     purpose: 既存正本と確認済み発見がJourneyであるかを再判定し、目的、両端、意味のある場面、状態の受け渡しを検査済みmapへ戻す
-    needs: [existing_user_journey_bdd_path, probe_findings, unresolved_questions, grounded_input]
+    needs: [existing_user_journey_bdd_path, decisions, open_questions, grounded_input]
     provides: [journey_map, journey_frame, journey_boundary]
 
   - id: draft
-    skill: write-with-rules
-    purpose: 確認済み発見と未決を既存本文へ戻し、場面ごとのBDDと条件マトリクスを改訂する
-    needs: [existing_user_journey_bdd_path, journey_map, journey_frame, journey_boundary, probe_findings, unresolved_questions, grounded_input]
-    provides: [scenario_draft, condition_matrix, revised_body, requested_output_path]
+    script: scripts/compose.sh
+    purpose: 確認済み発見と未決を既存本文へ戻した改訂本文、場面ごとのBDD草案、条件マトリクスが揃っていることを確かめて1つの素材へ束ねる
+    needs: [existing_user_journey_bdd_path, journey_map, journey_frame, journey_boundary, decisions, open_questions, grounded_input]
+    provides: [material, scenario_draft, condition_matrix, requested_output_path]
 
   - id: validate
     script: scripts/scenario.py
@@ -67,12 +73,14 @@ steps:
 
   - id: document
     playbook: write-doc
-    purpose: update_targetをreplace-existing-targetとして渡し、検査済み本文を既存のuser-journey-bdd正本と同じパスへ差し替える
-    needs: [revised_body, validated_journey_bdd, update_target, grounded_input]
+    purpose: 検査済み本文を、update_targetが指す既存のuser-journey-bdd正本と同じパスへ差し替える
+    input:
+      document_type: ${.document_type}
+    needs: [material, validated_journey_bdd, update_target, grounded_input]
     provides: [updated_user_journey_bdd_path]
 
   - id: cleanup
-    skill: remove-intermediate-artifacts
-    purpose: 既存正本の差し替え後、Journey map、BDD草案、改訂本文、検査用ファイルだけを削除し、入力資料と更新済み正本を保持する
-    needs: [journey_map, scenario_draft, condition_matrix, revised_body, validated_journey_bdd, grounded_input, existing_user_journey_bdd_path, updated_user_journey_bdd_path]
+    script: scripts/cleanup.py
+    purpose: 既存正本の差し替え後、Journey map、BDD草案、束ねた素材、検査用ファイルだけを削除し、入力資料と更新済み正本を保持する
+    needs: [journey_map, scenario_draft, condition_matrix, material, validated_journey_bdd, grounded_input, existing_user_journey_bdd_path, updated_user_journey_bdd_path]
     provides: [cleanup_report]
