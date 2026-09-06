@@ -16,7 +16,7 @@ def main():
         raise SystemExit("[error] 入力はsymlinkではない既存のRDB論理設計資料でなければならない")
     if existing.resolve() != output.resolve():
         raise SystemExit("[error] data-model-formulationは新規の論理資料を作らず、入力資料と同じパスを更新する")
-    print(json.dumps({"logical_update_target": str(existing.resolve())}, ensure_ascii=False))
+    print(json.dumps({"update_target": str(existing.resolve())}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

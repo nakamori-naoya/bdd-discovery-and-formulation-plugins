@@ -8,20 +8,27 @@ jq -e '
   (.contract.cleanup.delete_after_document | type=="array" and length>0) and
   (.contract.cleanup.preserve | type=="array" and length>0) and
   ((.contract.cleanup.delete_after_document + .contract.cleanup.preserve) - .steps[-1].needs | length==0) and
-  (.steps[-1].id=="cleanup" and .steps[-1].skill=="remove-intermediate-artifacts" and .steps[-1].provides==["cleanup_report"]) and
+  (.steps[-1].id=="cleanup" and .steps[-1].script=="scripts/cleanup.py" and .steps[-1].provides==["cleanup_report"]) and
+  ([.steps[] | select(.playbook=="write-doc")] | length==1 and all(.[]; (.input.document_type|type=="string" and length>0))) and
   ([.steps | to_entries[] | select(.value.playbook=="write-doc") | .key] | length>0 and max < (($root.steps|length)-1))
 ' "$file" >/dev/null || { echo "[error] write-doc後の中間生成物の後片付け契約は外せない" >&2; exit 2; }
 jq -e '
   . as $root |
-  ($root.steps | to_entries | map(select(.value.skill=="grill"))) as $grill |
+  ($root.steps | to_entries | map(select(.value.playbook=="grill"))) as $grill |
+  ($root.steps | to_entries | map(select(.value.script=="scripts/ground.py"))) as $ground |
   $root.requirements.input_grounded==true and
   $root.requirements.clarify_with_grill==true and
   $root.contract.grounding_sources==["user_input","referenced_artifacts","grill_decisions"] and
   (any($root.requires[]; .plugin=="grill")) and
+  (all($root.steps[]; .skill!="grill")) and
   ($grill|length)==1 and
   $grill[0].key==0 and
-  ($grill[0].value.provides | index("grounded_input") != null) and
-  ($root.steps | to_entries | map(select(.key > $grill[0].key)) | all(.[]; ((.value.needs // []) | index("grounded_input") != null)))
+  ($grill[0].value.provides == ["decisions","open_questions"]) and
+  ($ground|length)==1 and
+  $ground[0].key==1 and
+  ($ground[0].value.needs == ["decisions","open_questions"]) and
+  ($ground[0].value.provides | index("grounded_input") != null) and
+  ($root.steps | to_entries | map(select(.key > $ground[0].key)) | all(.[]; ((.value.needs // []) | index("grounded_input") != null)))
 ' "$file" >/dev/null || {
   echo "[error] BDD工程は入力根拠を固定し、grillで確認したgrounded_inputを全後続工程へ渡すこと" >&2
   exit 2
@@ -52,11 +59,11 @@ jq -e '
   def providers($name): [.steps | to_entries[] | select(.value.provides | index($name)!=null) | .key];
   def consumers($name): [.steps | to_entries[] | select((.value.needs // []) | index($name)!=null) | .key];
   (providers("existing_logical_document_path")|length)==1 and
-  (providers("probe_findings")|length)==1 and
+  (providers("decisions")|length)==1 and
   (providers("revised_persistence_scenarios")|length)==1 and
   (providers("persistence_coverage")|length)==1 and
   (providers("revised_logical_data_model")|length)==1 and
-  (providers("logical_update_target")|length)==1 and
+  (providers("update_target")|length)==1 and
   (providers("updated_logical_document_path")|length)==1 and
   (providers("read_scenarios")|length)==1 and
   (providers("physical_rdb_design")|length)==1 and
@@ -65,7 +72,7 @@ jq -e '
   (providers("existing_logical_document_path")[0] < providers("revised_logical_data_model")[0]) and
   (providers("revised_logical_data_model")[0] < providers("updated_logical_document_path")[0]) and
   (providers("updated_logical_document_path")[0] < providers("physical_rdb_design")[0]) and
-  (consumers("logical_update_target")|length)==1 and
+  (consumers("update_target")|length)==1 and
   (consumers("updated_logical_document_path")|length)==2
 ' "$file" >/dev/null || {
   echo "[error] 既存論理資料の反証 → 同一パス更新 → Readを含む物理設計という入出力契約が不正" >&2

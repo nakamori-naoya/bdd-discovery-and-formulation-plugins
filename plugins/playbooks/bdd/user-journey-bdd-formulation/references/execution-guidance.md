@@ -12,7 +12,7 @@
 - domain-ruleとdata modelは参照できるが、このplaybookから変更しない。
 - テスト実行、環境、証拠収集は対象にしない。
 
-## skillを実行するときの指示
+## 各工程を実行するときの指示
 
 ### grill
 
@@ -22,10 +22,10 @@
 
 既存本文を既成事実として追認しない。何がJourneyで何がJourneyでないかを再判定し、別の正本が答える問いをJourneyから分離する。
 
-### writing-rules
+### draft（本文の組み立て）
 
-確認済み発見は該当する既存節へ戻し、未決は確認相手と影響場面を持たせる。別資料を新規作成しない。
+確認済み発見は該当する既存節へ戻し、未決は確認相手と影響場面を持たせる。別資料を新規作成しない。文章の規律は[BDDシナリオの書き方](scenario-writing.md)が持つ。
 
 ### write-doc
 
-`user-journey-bdd`の型を使い、入力正本と同じパスだけを`replace-existing-target`として更新する。
+`document_type` に `user-journey-bdd`、`update_target` に入力正本と同じ絶対pathを渡し、そのpathだけを差し替える。新規作成の指定は渡さない。呼び方は[入れ子の段取りを呼ぶ](nested-playbook.md)に従う。

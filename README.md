@@ -134,11 +134,13 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 
 ## 公開インストール単位と内包する機能
 
-利用者がインストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`だけである。6つのplaybookと、その実行に使う`domain-events`、`core-domain`、`user-journey`、`persistence-scenarios`、`data-model`、`rdb-design`は同じpackageへ内包する。内部機能をmarketplaceの個別インストール対象にはしない。中間生成物の後片付けは外部の`write-doc@write-doc` packageに内包された機能を使う。
+利用者がインストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`だけである。6つのplaybookと、その実行に使う`domain-events`、`core-domain`、`user-journey`、`persistence-scenarios`、`data-model`、`rdb-design`は同じpackageへ内包する。内部機能をmarketplaceの個別インストール対象にはしない。中間生成物の後片付けは、各playbookが自分の`scripts/cleanup.py`で行う。外部packageの後片付け機能へ委譲しない。
 
 `user-journey`はUser Journeyの該当・非該当を判定する。`discover-user-journey`は最初の正本を作り、`formulate-user-journey`は既存正本を同じパスへ深化する。いずれもユースケース、UX Journey map、domain-rule、data model、画面・API・テスト実行環境を混ぜない。
 
-各入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`references/execution-guidance.md`が背景・前提・目的と各skill実行時の付加的な指示を持つ。grillへdomainやdata model固有の文脈を与えるのは後者であり、grill pluginへ観点を持ち込まない。
+各入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`references/execution-guidance.md`が背景・前提・目的と各工程実行時の付加的な指示を持つ。`grill`へdomainやdata model固有の文脈を与えるのは後者であり、相手へ観点を持ち込まない。
+
+外部の段取り（`grill`、`write-doc`）は、`references/nested-playbook.md`に書いた入口・入力・出力だけで呼ぶ。相手の中の部品名、工程の呼び名、保存の呼び名、script、参考資料、設定へは触れない。差し替えは利用者が`dependencies.yml`で契約IDへ実体を束縛して行う。
 
 ## インストール済みである必要があるplugin
 
@@ -147,7 +149,9 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 - `grill@grill`
 - `write-doc@write-doc`
 
-外部依存は公開playbook packageの`marketplace / plugin / runtime`で解決し、versionは固定しない。install済みcacheに複数versionがあれば最新のsemantic versionを選び、そのmanifestのpackage名と、工程が要求するskill名の存在を検査する。外部packageの内部機能名を指定してもcacheからは解決しない。名前が一致する公開packageが無ければ停止する。開発時だけ`HARNESS_PLUGIN_DEV_ROOTS`の明示mapでsource checkoutを指定できる。
+外部依存は公開playbook packageの`marketplace / plugin / runtime`で解決し、versionは固定しない。install済みcacheに複数versionがあれば最新のsemantic versionを選び、そのmanifestのpackage名と、`metadata.harness.implements`が宣言する契約IDを検査する。契約を宣言していない実体、外部packageの内部機能名は解決しない。名前が一致する公開packageが無ければ停止する。開発時だけ`HARNESS_PLUGIN_DEV_ROOTS`の明示mapでsource checkoutを指定できる。
+
+利用者は`~/.config/harness-plugins/dependencies.yml`、`<repo>/.harness-plugins/dependencies.yml`、`<repo>/.harness-plugins/scopes/<入口playbook>/dependencies.yml`で、契約ID（`grill/grill`、`write-doc/write-doc`）へ別の実体を束縛できる。playbook側の`requires`は変えない。
 
 ## 設定の上書きと優先順位
 
@@ -173,7 +177,9 @@ skillでは、同梱設定の `prompt_parameters` に宣言されたpathだけ�
 bash scripts/validate.sh
 ```
 
-構造、旧cleanup配布物がないこと、両runtimeのcache・repository・明示dev-mapによる依存解決、必要skillの欠落、依存欠落、manifest版違い、runtime不明、bare依存名の拒否を検査する。
+構造、旧cleanup配布物がないこと、両runtimeのcache・repository・明示dev-mapによる依存解決、契約の未宣言、依存欠落、manifest版違い、runtime不明、bare依存名の拒否を検査する。
+
+さらに、fixtureだけで緑になる状態を許さないために、**実際に配布されている依存先package**（兄弟checkoutの`../grill-plugins/plugins`と`../write-doc-plugins/plugins`）に対する解決と、消費側lintを両runtimeで実行する。実配布物が見つからなければこの検査は落ちる。契約ID→package rootのJSONを`HARNESS_PLUGIN_REAL_ROOTS`で渡すこともできる。
 
 install cacheは編集せず、このrepositoryを正本として変更する。
 

@@ -37,15 +37,21 @@ printf '%s\n' "$CFG_FILE"
 
 `${.playbook.focus}`は`data-model`、`${.playbook.document_type}`は`rdb-logical-data-modeling`に固定される。[このplaybookの焦点](references/focus.md)を読み、Readと物理設計を混ぜない。
 
-[実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は工程順・依存・入出力を決定し、実行指示書は背景・前提・目的と各skillで意識することを補う。grill工程には実行指示書のdata model固有の文脈を与え、grill自身に永続化の観点を求めない。
+[実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は工程順・依存・入出力を決定し、実行指示書は背景・前提・目的と各工程で意識することを補う。`grill`工程には実行指示書のdata model固有の文脈を`context`と`questions`として渡し、相手に永続化の観点を求めない。
+
+[入れ子の段取りを呼ぶ](references/nested-playbook.md)を必ず読む。`playbook:`の工程（`grill`、`write-doc`）は、そこに書いた入口・入力・出力だけで呼ぶ。相手の中の部品名、工程の呼び名、保存の呼び名、script、参考資料、設定へは触れない。
+
+**根拠づけられた入力は`ground`工程が作る。** `grill`が返すのは`decisions`と`open_questions`だけである。
+
+**後片付けは自分でする。** 最終資料の保存を確認してから`python3 "${PLUGIN_ROOT}/scripts/cleanup.py" --config "$CFG_FILE" --artifact <名前>=<path> ...`を実行する。消えるのは`${.playbook.contract.cleanup.delete_after_document}`に宣言し、かつgitが追跡していないファイルだけである。
 
 [BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。永続化シナリオを資料へ写す前に条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。
 
 ## 2. 永続化の振る舞いを先に発見する
 
-[入力に根拠づける規律](references/input-grounding.md)を読み、利用者の発言、明示された資料、grillで確認した決定にない業務用語・イベント・概念を作らない。`${.playbook.steps}`を順に実行し、各工程へ`--scope=${.resolution.scope_root}`を渡す。`design-data-model`工程には加えて`--override=method=${.playbook.modeling.method}`を渡す。アクター、事前状態、業務イベント、条件、判断、結果、次状態から、初めて成立する事実、追加する履歴、保持理由、物理削除を許す条件を確かめる。
+[入力に根拠づける規律](references/input-grounding.md)を読み、利用者の発言、明示された資料、`grill`工程で確認した決定にない業務用語・イベント・概念を作らない。`${.playbook.steps}`を順に実行し、各工程へ`--scope=${.resolution.scope_root}`を渡す。`design-data-model`工程には加えて`--override=method=${.playbook.modeling.method}`を渡す。アクター、事前状態、業務イベント、条件、判断、結果、次状態から、初めて成立する事実、追加する履歴、保持理由、物理削除を許す条件を確かめる。
 
-`${.playbook.contract.persistence_operations}`の作成・更新・削除を、シナリオありまたは理由つき対象外として全て検討する。不明点や深掘りが必要な点はgrill工程で利用者へ1問ずつ確認し、`grounded_input`にならない仮説を後続へ渡さない。未確認事項が残る、対象操作のシナリオが無い、業務上の取消と物理削除が混ざる場合は論理モデルへ進まない。
+`${.playbook.contract.persistence_operations}`の作成・更新・削除を、シナリオありまたは理由つき対象外として全て検討する。不明点や深掘りが必要な点は`grill`工程で利用者へ1問ずつ確認し、`ground`工程が束ねた`grounded_input`にならない仮説を後続へ渡さない。未確認事項が残る、対象操作のシナリオが無い、業務上の取消と物理削除が混ざる場合は論理モデルへ進まない。
 
 ここでは業務担当者が認識している代表的な永続化の共通理解を作る。境界値、同値分割、順序逆転、重複、同時実行、読み取り特性を体系的に反証しない。それらによる深化は、完成した論理資料を入力にするdata-model-formulationが担う。
 
@@ -57,7 +63,7 @@ printf '%s\n' "$CFG_FILE"
 
 ## 4. RDB論理設計資料として保存する
 
-論理モデルとBDDを資料化工程へ渡し、型は`${.playbook.document_type}`、媒体は`output_format=${.playbook.output_format}`に固定する。対応するテンプレートと記載例を使い、BDDを資料の末尾に置く。成果は`${.playbook.out_dir}`へ集める。
+論理モデルとBDDを1つのファイルへ束ね、その絶対pathを1要素の配列にして`material`、`${.playbook.document_type}`を`document_type`、`${.playbook.output_format}`を`output_format`、`${.playbook.out_dir}`の絶対pathを`output_directory`、資料のファイル名を`name`として`write-doc`工程へ渡す。BDDは素材の末尾に置く。
 
 ## 5. 報告する
 

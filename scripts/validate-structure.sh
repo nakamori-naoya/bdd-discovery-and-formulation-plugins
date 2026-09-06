@@ -94,6 +94,7 @@ for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-disc
   fi
   cmp -s "$ROOT/shared/playbook/resolve.sh" "$pb/scripts/resolve.sh" && pass "$directory resolver同期" || fail "$directory resolver同期"
   cmp -s "$ROOT/shared/playbook/resolve-dependency.py" "$pb/scripts/resolve-dependency.py" && pass "$directory dependency resolver同期" || fail "$directory dependency resolver同期"
+  cmp -s "$ROOT/shared/playbook/state.py" "$pb/scripts/state.py" && pass "$directory 実行状態同期" || fail "$directory 実行状態同期"
   if has_execution_guidance "$pb"; then
     pass "$directory は順序契約と実行指示書を分離"
   else
@@ -101,6 +102,25 @@ for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-disc
   fi
   cmp -s "$ROOT/shared/quality-engineering/scenario-premises.md" "$pb/references/scenario-premises.md" && pass "$directory 前提規律同期" || fail "$directory 前提規律同期"
   cmp -s "$ROOT/shared/quality-engineering/scenario_matrix.py" "$pb/scripts/scenario_matrix.py" && pass "$directory 条件マトリクスvalidator同期" || fail "$directory 条件マトリクスvalidator同期"
+  cmp -s "$ROOT/shared/consumer-contract/ground.py" "$pb/scripts/ground.py" && pass "$directory ground工程同期" || fail "$directory ground工程同期"
+  cmp -s "$ROOT/shared/consumer-contract/cleanup.py" "$pb/scripts/cleanup.py" && pass "$directory 後片付け工程同期" || fail "$directory 後片付け工程同期"
+  # 外部pluginは playbook: でしか指さない。skill: / script:+plugin: での参照はここでも止める。
+  if yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -e --arg own bdd-discovery-and-formulation '
+      . as $root |
+      ([$root.requires[] | select(.marketplace != $own) | .plugin]) as $external |
+      (all($root.steps[]; (.skill // "") as $s | ($external | index($s)) == null)) and
+      (all($root.steps[]; (.plugin // "") as $p | ($external | index($p)) == null)) and
+      (all($root.steps[]; (.playbook // null) as $b | $b == null or ($external | index($b)) != null)) and
+      ([$root.steps[] | select(.playbook != null)] | length > 0)' >/dev/null; then
+    pass "$directory 外部依存は playbook: 工程だけ"
+  else
+    fail "$directory が外部依存を skill: / script: で指している"
+  fi
+done
+
+for directory in domain-bdd-formulation user-journey-bdd-discovery user-journey-bdd-formulation; do
+  pb="$ROOT/plugins/playbooks/bdd/$directory"
+  cmp -s "$ROOT/shared/consumer-contract/compose.sh" "$pb/scripts/compose.sh" && pass "$directory 素材組み立て工程同期" || fail "$directory 素材組み立て工程同期"
 done
 
 # 実行指示書が無い、または入口から必読になっていない構成を拒否する負の試験。
@@ -120,11 +140,39 @@ else
   pass "prototype表現なし"
 fi
 
-if find "$ROOT/plugins" -type d \( -name write-doc -o -name writing-rules -o -name content-types -o -name visual-guidance -o -name doc-render -o -name grill \) | rg . >/dev/null; then
-  fail "外部pluginを同梱"
+# 外部依存の実体を同梱していないこと。名前は playbook.yml の requires から引く。
+# 相手の内部の作りを列挙して検査すると、その内部名がこちらの検査へ焼き付いてしまう。
+own_marketplace=$(jq -r '.metadata.harness.marketplace' "$ROOT/plugins/.claude-plugin/plugin.json")
+external_plugins=$(for pb in "$ROOT"/plugins/playbooks/**/playbook.yml; do
+    yq -o=json -I=0 '.' "$pb" | jq -r --arg own "$own_marketplace" '.requires[] | select(.marketplace != $own) | .plugin'
+  done | sort -u)
+bundled=""
+for name in $external_plugins; do
+  if find "$ROOT/plugins" -type d -name "$name" | rg . >/dev/null; then bundled="${bundled} ${name}"; fi
+done
+if [ -z "$bundled" ]; then
+  pass "外部依存の実体を同梱しない"
 else
-  pass "write-docとgrillを同梱しない"
+  fail "外部pluginを同梱:${bundled}"
 fi
+
+# 同梱manifestが名乗る所属marketplaceは、自分のものだけであること。
+foreign=$(find "$ROOT/plugins" -name 'plugin.json' -path '*-plugin/*' -exec \
+  jq -r --arg own "$own_marketplace" '.metadata.harness.marketplace // empty | select(. != $own)' {} + | sort -u)
+if [ -z "$foreign" ]; then
+  pass "同梱manifestは自分のmarketplaceだけを名乗る"
+else
+  fail "別marketplaceを名乗るmanifestが同梱されている: $foreign"
+fi
+
+# 消費側が持つ規則の要約（入れ子の段取りの呼び方）が、全入口から必読になっていること。
+nested_failed=0
+for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation user-journey-bdd-discovery user-journey-bdd-formulation; do
+  pb="$ROOT/plugins/playbooks/bdd/$directory"
+  cmp -s "$ROOT/shared/consumer-contract/nested-playbook.md" "$pb/references/nested-playbook.md" || nested_failed=1
+  rg -F '[入れ子の段取りを呼ぶ](references/nested-playbook.md)を必ず読む' "$pb/SKILL.md" >/dev/null || nested_failed=1
+done
+[ "$nested_failed" -eq 0 ] && pass "入れ子の段取りの呼び方を全入口から必読にする" || fail "入れ子の段取りの呼び方の参照契約"
 
 domain_events="$ROOT/plugins/skills/domain/domain-events"
 if [ ! -e "$domain_events/references/event-sourcing.md" ] \
@@ -271,8 +319,29 @@ else
 fi
 
 syntax_failed=0
-while IFS= read -r script; do bash -n "$script" || syntax_failed=1; done < <(find "$ROOT/plugins" "$ROOT/scripts" -type f -name '*.sh' | sort)
+while IFS= read -r script; do bash -n "$script" || syntax_failed=1; done < <(find "$ROOT/plugins" "$ROOT/scripts" "$ROOT/shared" -type f -name '*.sh' | sort)
 [ "$syntax_failed" -eq 0 ] && pass "shell構文" || fail "shell構文"
+
+# $VAR の直後に非ASCII（全角括弧・かな・漢字）が続くと、localeによっては
+# 全角文字まで変数名として読まれ、set -u の下で unbound variable になって途中終了する。
+# 日本語の文中で変数を使うときは必ず ${VAR} と囲む。
+if find "$ROOT/plugins" "$ROOT/scripts" "$ROOT/shared" -type f -name '*.sh' -print0 \
+    | xargs -0 python3 -c '
+import re, sys
+pattern = re.compile(r"\$(?!\{)[A-Za-z_][A-Za-z0-9_]*[^\x00-\x7f]")
+found = 0
+for path in sys.argv[1:]:
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        for number, line in enumerate(handle, 1):
+            for match in pattern.finditer(line):
+                print(f"{path}:{number}: {match.group(0)}")
+                found = 1
+sys.exit(found)
+'; then
+  pass "非ASCIIに接する裸の変数参照なし"
+else
+  fail "非ASCIIに接する裸の変数参照（\${VAR} で囲む）"
+fi
 
 python_failed=0
 while IFS= read -r script; do PYTHONPYCACHEPREFIX="$TMP_ROOT/pycache" python3 -m py_compile "$script" || python_failed=1; done < <(find "$ROOT/plugins" "$ROOT/scripts" "$ROOT/shared" -type f -name '*.py' | sort)
