@@ -20,13 +20,18 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 | 今の状況 | 公開入口 | 得られるもの |
 |---|---|---|
-
+| コアドメインの正本を初めて作る | `discover-domain` | 代表BDDを含むdomain-rule資料 |
+| 既存のdomain-ruleへ境界例や拒否条件を足す | `formulate-domain` | 反証を反映した更新済みdomain-rule資料 |
+| ユーザー目的達成BDDの正本を初めて作る | `discover-user-journey` | 複数場面を接続した最初のユーザー目的達成BDD正本 |
+| 既存のユーザー目的達成BDDを反証する | `formulate-user-journey` | 分岐・中断再開・役割移譲を戻した同一パスの正本 |
+| 永続化の発見から論理設計まで初めて通す | `discover-data-model` | 検査済みBDD付きRDB論理設計 |
+| 既存のBDD付き論理設計を反証し、物理設計まで進める | `formulate-data-model` | 更新済み論理設計と対象RDBの物理設計 |
 
 ## 代表的なユースケース
 
 ### 新しい業務ルールを整理する
 
-**業務イベントも境界も曖昧なら`domain-bdd-discovery`を使う。** たとえば「キャンセルできる」という言葉だけがある場合、誰が、どの状態で、何を起こし、どの条件なら受理または拒否されるかまで具体化する。
+**業務イベントも境界も曖昧なら`discover-domain`を使う。** たとえば「キャンセルできる」という言葉だけがある場合、誰が、どの状態で、何を起こし、どの条件なら受理または拒否されるかまで具体化する。
 
 ```text
 予約取消の業務知識を、代表BDDを含むコアドメイン資料として初めて整理して。
@@ -34,7 +39,7 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 ### 既存BDDの抜けを探す
 
-**正本がすでにあり、境界値や競合時の判断を深めるなら`domain-bdd-formulation`を使う。** 正常系を別資料へ作り直さず、反証結果を同じ正本へ戻す。
+**正本がすでにあり、境界値や競合時の判断を深めるなら`formulate-domain`を使う。** 正常系を別資料へ作り直さず、反証結果を同じ正本へ戻す。
 
 ```text
 既存の予約取消domain-ruleを反証し、締切時刻ちょうどと二重取消のシナリオを検査して。
@@ -42,7 +47,7 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 ### 業務からDB設計へ進む
 
-**何を記録するか未確定なら`data-model-bdd-discovery`を使う。** 既存の論理設計から物理設計へ進める場合は`data-model-bdd-formulation`を使う。
+**何を記録するか未確定なら`discover-data-model`を使う。** 既存の論理設計から物理設計へ進める場合は`formulate-data-model`を使う。
 
 ```text
 注文確定・取消・返金の業務シナリオから、BDD付きRDB論理データモデルを作って。
@@ -52,7 +57,7 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 **ユーザー目的達成の入口では、最初に何がJourneyで何がJourneyでないかを分ける。** 複数の意味ある場面が状態を受け渡し、観測可能な完了へ進む場合だけJourneyとして扱う。対象システム一つの責任ならユースケース、感情と接点ならUX Journey map、業務判断ならdomain、残す事実ならdata modelへ分ける。
 
-最初の正本には`user-journey-bdd-discovery`、既存正本の反証には`user-journey-bdd-formulation`を使う。
+最初の正本には`discover-user-journey`、既存正本の反証には`formulate-user-journey`を使う。
 
 ```text
 初回訪問者が商品を比較し、購入し、受取を確認するまでを、最初のユーザー目的達成BDD正本として発見して。
@@ -131,7 +136,7 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 
 利用者がインストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`だけである。6つのplaybookと、その実行に使う`domain-events`、`core-domain`、`user-journey`、`persistence-scenarios`、`data-model`、`rdb-design`は同じpackageへ内包する。内部機能をmarketplaceの個別インストール対象にはしない。中間生成物の後片付けは外部の`write-doc@write-doc` packageに内包された機能を使う。
 
-`user-journey`はUser Journeyの該当・非該当を判定する。`user-journey-bdd-discovery`は最初の正本を作り、`user-journey-bdd-formulation`は既存正本を同じパスへ深化する。いずれもユースケース、UX Journey map、domain-rule、data model、画面・API・テスト実行環境を混ぜない。
+`user-journey`はUser Journeyの該当・非該当を判定する。`discover-user-journey`は最初の正本を作り、`formulate-user-journey`は既存正本を同じパスへ深化する。いずれもユースケース、UX Journey map、domain-rule、data model、画面・API・テスト実行環境を混ぜない。
 
 各入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`references/execution-guidance.md`が背景・前提・目的と各skill実行時の付加的な指示を持つ。grillへdomainやdata model固有の文脈を与えるのは後者であり、grill pluginへ観点を持ち込まない。
 
