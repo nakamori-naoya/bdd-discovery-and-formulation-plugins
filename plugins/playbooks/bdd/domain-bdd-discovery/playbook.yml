@@ -48,9 +48,15 @@ out_dir: domain
 # skillは自己完結した手順、scriptは決定的処理、playbookは入れ子の段取り。
 steps:
   - id: settle
-    skill: grill
+    playbook: grill
     purpose: 入力だけでは不明または深掘りが必要な業務の事実、役割、決まりを利用者へ1問ずつ確かめ、決定と未決を残す
-    provides: [decisions, grounded_input]
+    provides: [decisions, open_questions]
+
+  - id: ground
+    script: scripts/ground.py
+    purpose: 依頼、参照資料、確かめた決定と未決を、根拠づけられた入力として1つに束ねる
+    needs: [decisions, open_questions]
+    provides: [grounded_input]
 
   - id: explore
     skill: explore-events
@@ -79,11 +85,13 @@ steps:
   - id: document
     playbook: write-doc
     purpose: 素材から代表BDDを含むdomain-ruleの正本を1本書いて保存する
+    input:
+      document_type: ${.document_type}
     needs: [material, behavior_map, representative_bdd, condition_matrix, grounded_input]
     provides: [domain_rule_path]
 
   - id: cleanup
-    skill: remove-intermediate-artifacts
+    script: scripts/cleanup.py
     purpose: 正本の保存を確認した後、contract.cleanupで削除候補にしたイベント台帳、境界図、代表BDD、束ねた素材の作業用ファイルだけを削除し、入力資料とdomain-rule正本を保持する
     needs: [events, actors, core_scope, implementation_excluded, behavior_map, representative_bdd, condition_matrix, material, grounded_input, domain_rule_path]
     provides: [cleanup_report]

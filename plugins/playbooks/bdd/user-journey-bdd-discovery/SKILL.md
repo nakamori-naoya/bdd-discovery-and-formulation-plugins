@@ -31,7 +31,13 @@ printf '%s\n' "$CFG_FILE"
 
 このコマンドは必ず実行する。解決済みYAMLが空、依存が欠けている、設定が契約を外している場合は先へ進まない。
 
-`${.instructions.execution.directive}`に従い、`${.playbook.steps}`を上から順に実行する。[実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は順序・依存・入出力を決め、実行指示書は背景、前提、目的と各skillで意識することを補う。grillへJourney固有の観点を渡し、grill自身にその観点を持たせない。
+`${.instructions.execution.directive}`に従い、`${.playbook.steps}`を上から順に実行する。[実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は順序・依存・入出力を決め、実行指示書は背景、前提、目的と各工程で意識することを補う。`grill`工程へJourney固有の観点を`context`と`questions`として渡し、相手にその観点を持たせない。
+
+[入れ子の段取りを呼ぶ](references/nested-playbook.md)を必ず読む。`playbook:`の工程（`grill`、`write-doc`）は、そこに書いた入口・入力・出力だけで呼ぶ。相手の中の部品名、工程の呼び名、保存の呼び名、script、参考資料、設定へは触れない。
+
+**根拠づけられた入力は`ground`工程が作る。** `grill`が返すのは`decisions`と`open_questions`だけである。
+
+**後片付けは自分でする。** 最終資料の保存を確認してから`python3 "${PLUGIN_ROOT}/scripts/cleanup.py" --config "$CFG_FILE" --artifact <名前>=<path> ...`を実行する。消えるのは`${.playbook.contract.cleanup.delete_after_document}`に宣言し、かつgitが追跡していないファイルだけである。
 
 [BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。場面ごとに条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。失敗場面の業務ルールが別資料にある場合は、`NOTE:`の`Source:`から外部正本の見出しを参照し、本文を複製しない。
 
@@ -39,7 +45,7 @@ printf '%s\n' "$CFG_FILE"
 
 ## 2. Journeyに該当するかを先に決める
 
-[入力に根拠づける規律](references/input-grounding.md)に従い、利用者の発言、明示された資料、grillで確認した決定だけを`grounded_input`にする。
+[入力に根拠づける規律](references/input-grounding.md)に従い、利用者の発言、明示された資料、`grill`工程で確認した`decisions`だけを`ground`工程で`grounded_input`へ束ねる。
 
 `map-user-journey`を実行し、何がJourneyで何がJourneyでないかを判定する。ユーザーの目的、開始地点、最終地点、完了条件のどれかが分からなければ場面を書き始めない。目的ではなく機能利用が中心、意味のある場面が一つだけ、対象システム一つの責任だけを問う依頼ならJourneyへ広げず、非該当理由と適切な成果物を返して停止する。
 
@@ -70,7 +76,7 @@ Journey全体に場面数の上限を置かない。目的達成までに必要�
 python3 "${PLUGIN_ROOT}/scripts/scenario.py" check --config "$CFG_FILE" --file <story-draft.md> --matrix <condition-matrix.json>
 ```
 
-違反があれば資料化しない。通った`validated_journey_bdd`だけを`document_type=${.playbook.document_type}`、`output_format=${.playbook.output_format}`としてwrite-docへ渡し、`${.playbook.out_dir}`へ最初の正本を1本保存する。指定先に正本がすでにあれば上書きせず、formulationへ切り替える。
+違反があれば資料化しない。通ったものだけを`scripts/compose.sh`で束ね、その素材の絶対pathを1要素の配列にして`material`、`${.playbook.document_type}`を`document_type`、`${.playbook.output_format}`を`output_format`、`${.playbook.out_dir}`の絶対pathを`output_directory`、資料のファイル名を`name`として`write-doc`工程へ渡し、最初の正本を1本保存する。指定先に正本がすでにあれば`compose.sh`が止まる。上書きせず、formulationへ切り替える。
 
 ## 6. 報告する
 

@@ -29,6 +29,12 @@ printf '%s\n' "$CFG_FILE"
 
 解決済みYAMLが空、依存が欠けている、設定が更新契約を外している場合は先へ進まない。[実行指示書](references/execution-guidance.md)を必ず読む。[入力根拠](references/input-grounding.md)も全工程へ適用する。
 
+[入れ子の段取りを呼ぶ](references/nested-playbook.md)を必ず読む。`playbook:`の工程（`grill`、`write-doc`）は、そこに書いた入口・入力・出力だけで呼ぶ。相手の中の部品名、工程の呼び名、保存の呼び名、script、参考資料、設定へは触れない。
+
+**根拠づけられた入力は`ground`工程が作る。** `grill`が返すのは`decisions`と`open_questions`だけである。
+
+**後片付けは自分でする。** 最終資料の保存を確認してから`python3 "${PLUGIN_ROOT}/scripts/cleanup.py" --config "$CFG_FILE" --artifact <名前>=<path> ...`を実行する。消えるのは`${.playbook.contract.cleanup.delete_after_document}`に宣言し、かつgitが追跡していないファイルだけである。
+
 ## 2. 既存正本とJourney境界を確かめる
 
 入力されたpathがsymlinkではない既存fileでなければ停止する。`map-user-journey`の「何であるか／何ではないか」を適用し、既存内容が対象システム一つの責任、感情と接点、業務判断、保存設計、テスト実行へ変質していれば、同じ資料へ足さず適切な正本と移動対象を報告する。
@@ -37,7 +43,7 @@ printf '%s\n' "$CFG_FILE"
 
 [Formulationの反証観点](references/formulation-probes.md)、[Journeyの構造](references/journey-structure.md)、[場面のBDD](references/scenario-writing.md)、[BDDの前提](references/scenario-premises.md)を読む。目的と完了の不一致、到達不能な接続、分岐後の未合流、中断後の再開不能、役割移譲の欠落、早期終了を一つずつ反証する。
 
-入力根拠から決まらない点はgrillで一問ずつ確認する。回答前に後続の更新へ進まない。確認済み内容は既存本文へ戻し、回答されない点は確認相手と影響範囲を持つ未決として戻す。
+入力根拠から決まらない点は`grill`工程で一問ずつ確認する。回答前に後続の更新へ進まない。返った`decisions`は既存本文へ戻し、`open_questions`は確認相手と影響範囲を持つ未決として戻す。
 
 ## 4. 検査して同一パスを更新する
 
@@ -48,7 +54,7 @@ python3 "${PLUGIN_ROOT}/scripts/update-guard.py" \
   --existing <existing-user-journey-bdd.md> --output <requested-output.md>
 ```
 
-どちらかが失敗した場合は既存正本を変更しない。通った本文だけをwrite-docの`replace-existing-target`として同じパスへ渡す。
+どちらかが失敗した場合は既存正本を変更しない。通った本文だけを`scripts/compose.sh`で束ね、その素材の絶対pathを1要素の配列にして`material`、`${.playbook.document_type}`を`document_type`、`${.playbook.output_format}`を`output_format`、`update-guard.py`が返した`update_target`を`update_target`として`write-doc`工程へ渡す。**新規作成の指定（`output_directory`と`name`）は渡さない。**
 
 ## 5. 報告する
 

@@ -49,14 +49,20 @@ out_dir: design/data-modeling
 
 steps:
   - id: challenge-persistence
-    skill: grill
+    playbook: grill
     purpose: 既存論理資料を根拠にQA観点で問い、不明点と深掘りが必要な点を利用者へ1問ずつ確認して、確認済みの発見と未決を分ける
-    provides: [existing_logical_document_path, probe_findings, unresolved_questions, grounded_input]
+    provides: [decisions, open_questions]
+
+  - id: ground
+    script: scripts/ground.py
+    purpose: 依頼、反証の対象にした既存論理資料、確かめた決定と未決を、根拠づけられた入力として1つに束ねる
+    needs: [decisions, open_questions]
+    provides: [grounded_input, existing_logical_document_path]
 
   - id: deepen-scenarios
     skill: write-persistence-scenarios
     purpose: 作成・更新・削除、履歴、保持、失敗時保証の不足を独立したBDDシナリオへ深化させる
-    needs: [existing_logical_document_path, probe_findings, unresolved_questions, grounded_input]
+    needs: [existing_logical_document_path, decisions, open_questions, grounded_input]
     provides: [revised_persistence_scenarios, persistence_coverage, condition_matrix]
 
   - id: revise-logical-model
@@ -69,12 +75,14 @@ steps:
     script: scripts/update-guard.py
     purpose: 論理設計の更新先が入力資料と同じパスであり、新規の論理資料を作らないことを検査する
     needs: [existing_logical_document_path, requested_logical_output_path, grounded_input]
-    provides: [logical_update_target]
+    provides: [update_target]
 
   - id: update-logical-document
     playbook: write-doc
-    purpose: logical_update_targetをwrite-docのreplace-existing-targetとして渡し、深化したBDDと論理モデルを既存rdb-logical-data-modeling資料の同じパスへ差し替える
-    needs: [revised_logical_body, condition_matrix, logical_update_target, grounded_input]
+    purpose: 深化したBDDと論理モデルを、update_targetが指す既存のRDB論理データモデル資料と同じパスへ差し替える
+    input:
+      document_type: rdb-logical-data-modeling
+    needs: [revised_logical_body, condition_matrix, update_target, grounded_input]
     provides: [updated_logical_document_path]
 
   - id: physical-design
@@ -84,7 +92,7 @@ steps:
     provides: [read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]
 
   - id: cleanup
-    skill: remove-intermediate-artifacts
+    script: scripts/cleanup.py
     purpose: 論理資料の更新と物理設計の完了を確認した後、contract.cleanupで削除候補にした改訂案と検査用ファイルだけを削除し、入力資料、更新済み論理資料、物理設計成果を保持する
     needs: [revised_persistence_scenarios, persistence_coverage, condition_matrix, revised_logical_data_model, revised_logical_body, grounded_input, existing_logical_document_path, updated_logical_document_path, read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]
     provides: [cleanup_report]

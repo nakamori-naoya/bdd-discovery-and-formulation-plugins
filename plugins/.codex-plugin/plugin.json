@@ -1,6 +1,6 @@
 {
   "name": "bdd-discovery-and-formulation",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "ドメイン、データモデル、User JourneyのBDD発見・深化Playbookを一括提供する",
   "author": {
     "name": "NaoyaNakamori"
@@ -22,6 +22,7 @@
   "metadata": {
     "harness": {
       "installationSurface": "playbook-package",
+      "marketplace": "bdd-discovery-and-formulation",
       "playbooks": {
         "domain-bdd-discovery": "./playbooks/bdd/domain-bdd-discovery",
         "domain-bdd-formulation": "./playbooks/bdd/domain-bdd-formulation",
