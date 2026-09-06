@@ -14,22 +14,13 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 既存資料も業務シナリオもない状態で、いきなりFormulationから始めない。最初の正本を作る場合はDiscoveryを使い、既存の正本を反証して更新する場合にFormulationを使う。
 
-## どの機能を使うか
+## 公開入口を選ぶ
 
-| 今の状況 | 選ぶ機能 | 得られるもの |
+次の入口から依頼します。内部のスキルや処理は、入口が必要に応じて呼び出します。
+
+| 今の状況 | 公開入口 | 得られるもの |
 |---|---|---|
-| 業務で何が起きるかをまだ洗い出せていない | `domain-events` | 業務イベント、担い手、前提、結果、確からしさの台帳 |
-| コア・支援・汎用の境界が曖昧 | `core-domain` | コアと実装上の関心を分けた境界 |
-| 何がUser Journeyで何がJourneyでないかを分けたい | `user-journey` | 目的、両端、意味ある場面、状態の受け渡しを持つJourney map |
-| コアドメインの正本を初めて作る | `domain-bdd-discovery` | 代表BDDを含むdomain-rule資料 |
-| 既存のdomain-ruleへ境界例や拒否条件を足す | `domain-bdd-formulation` | 反証を反映した更新済みdomain-rule資料 |
-| ユーザー目的達成BDDの正本を初めて作る | `user-journey-bdd-discovery` | 複数場面を接続した最初のユーザー目的達成BDD正本 |
-| 既存のユーザー目的達成BDDを反証する | `user-journey-bdd-formulation` | 分岐・中断再開・役割移譲を戻した同一パスの正本 |
-| 作成・更新・削除に関係する業務断面を先に整理する | `persistence-scenarios` | 永続化対象を判断できる業務シナリオ |
-| 業務シナリオから論理データモデルを設計する | `data-model` | BDDと対応したRDB論理データモデル |
-| 永続化の発見から論理設計まで初めて通す | `data-model-bdd-discovery` | 検査済みBDD付きRDB論理設計 |
-| 既存のBDD付き論理設計を反証し、物理設計まで進める | `data-model-bdd-formulation` | 更新済み論理設計と対象RDBの物理設計 |
-| 論理構造は確定済みで、PostgreSQLなどへ写したい | `rdb-design` | 対象製品・版に基づく型、制約、index、分離性の設計 |
+
 
 ## 代表的なユースケース
 
@@ -51,7 +42,7 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 ### 業務からDB設計へ進む
 
-**何を記録するか未確定なら`data-model-bdd-discovery`を使う。** すでに論理テーブルが確定していて、PostgreSQL 18でのindexや分離レベルだけを決めるなら`rdb-design`を使う。
+**何を記録するか未確定なら`data-model-bdd-discovery`を使う。** 既存の論理設計から物理設計へ進める場合は`data-model-bdd-formulation`を使う。
 
 ```text
 注文確定・取消・返金の業務シナリオから、BDD付きRDB論理データモデルを作って。
@@ -59,7 +50,7 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 ### ユーザーの目的達成を一続きにする
 
-**最初に`user-journey`で何がJourneyで何がJourneyでないかを分ける。** 複数の意味ある場面が状態を受け渡し、観測可能な完了へ進む場合だけJourneyとして扱う。対象システム一つの責任ならユースケース、感情と接点ならUX Journey map、業務判断ならdomain、残す事実ならdata modelへ分ける。
+**ユーザー目的達成の入口では、最初に何がJourneyで何がJourneyでないかを分ける。** 複数の意味ある場面が状態を受け渡し、観測可能な完了へ進む場合だけJourneyとして扱う。対象システム一つの責任ならユースケース、感情と接点ならUX Journey map、業務判断ならdomain、残す事実ならdata modelへ分ける。
 
 最初の正本には`user-journey-bdd-discovery`、既存正本の反証には`user-journey-bdd-formulation`を使う。
 
@@ -69,46 +60,72 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 ## インストール
 
+インストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`です。外部の工程を実行するため、`grill@grill`、`write-doc@write-doc`も必要です。下のコマンドには、それらも含めています。
+
+内部のスキルは同梱されています。個別にインストールせず、公開入口から利用してください。
+
 ### Codex
 
-Codexのpluginコマンドには`--scope`がない。通常の手順はuser単位でmarketplaceとpluginを登録する。
+利用するCodexと同じ設定環境で実行してください。
 
 ```bash
+codex plugin marketplace add nakamori-naoya/grill-plugins
+codex plugin add grill@grill
+codex plugin marketplace add nakamori-naoya/write-doc-plugins
+codex plugin add write-doc@write-doc
 codex plugin marketplace add nakamori-naoya/bdd-discovery-and-formulation-plugins
 codex plugin add bdd-discovery-and-formulation@bdd-discovery-and-formulation
+codex plugin list
 ```
 
-このrepositoryだけに分離したい場合は、repository専用の`CODEX_HOME`を作り、インストール時と利用時に同じ値を指定する。
-
-```bash
-mkdir -p .codex-home
-export CODEX_HOME="$PWD/.codex-home"
-
-codex plugin marketplace add nakamori-naoya/bdd-discovery-and-formulation-plugins
-codex plugin add bdd-discovery-and-formulation@bdd-discovery-and-formulation
-codex
-```
-
-`CODEX_HOME`には認証、設定、ログ、session、plugin metadataも保存されるため、このdirectoryはGit管理しない。
+一覧で導入先を確認し、新しい会話で利用してください。
 
 ### Claude Code
 
-Claude Codeは次のscopeを選べる。
-
-| scope | 対象 |
-|---|---|
-| `user` | user全体。省略時の既定値 |
-| `project` | このrepositoryで有効にする設定をGitでチーム共有する |
-| `local` | このrepositoryで有効にするが、Git共有せず自分だけで使う |
-
-repository設定としてインストールする場合は`project`を指定する。`CLAUDE_PLUGIN_SCOPE`を`user`または`local`へ変えれば、同じ手順でscopeを切り替えられる。
+次は自分の全プロジェクトで使う例です。このプロジェクトのチームで共有する場合は`project`、このプロジェクトで自分だけが使う場合は`local`に変更し、利用先のディレクトリで実行してください。
 
 ```bash
-CLAUDE_PLUGIN_SCOPE=project
-
+CLAUDE_PLUGIN_SCOPE=user
+claude plugin marketplace add nakamori-naoya/grill-plugins --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install grill@grill --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin marketplace add nakamori-naoya/write-doc-plugins --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin install write-doc@write-doc --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin marketplace add nakamori-naoya/bdd-discovery-and-formulation-plugins --scope "$CLAUDE_PLUGIN_SCOPE"
 claude plugin install bdd-discovery-and-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin list
 ```
+
+一覧で導入を確認し、Claude Codeを再起動してください。すでに導入しているパッケージは、次の更新手順を使ってください。
+
+## 更新する
+
+GitHubから登録したmarketplaceを更新し、その公開パッケージを更新します。新規インストールと同じCodexの設定環境、Claude Codeの適用範囲を使ってください。
+
+### Codex
+
+```bash
+codex plugin marketplace upgrade bdd-discovery-and-formulation
+codex plugin add bdd-discovery-and-formulation@bdd-discovery-and-formulation
+codex plugin list
+```
+
+更新後は新しい会話で確認してください。ローカルのパスからmarketplaceを登録した場合は、Git版の更新コマンドではなく、その登録先のソースを更新してから追加し直します。
+
+### Claude Code
+
+```bash
+# インストール時に合わせてuser / project / localを選ぶ
+CLAUDE_PLUGIN_SCOPE=user
+claude plugin marketplace update bdd-discovery-and-formulation
+claude plugin update bdd-discovery-and-formulation@bdd-discovery-and-formulation --scope "$CLAUDE_PLUGIN_SCOPE"
+claude plugin list
+```
+
+更新後はClaude Codeを再起動してください。外部の依存パッケージも使っている場合は、それぞれのREADMEの更新手順を実行してください。
+
+marketplaceの取得と、インストール済みパッケージの更新は分けて確認します。同じバージョンとして公開された変更は、更新コマンドだけでは反映されない場合があります。「最新」と表示された場合は公開バージョンを確認し、キャッシュ内のファイルを直接編集しないでください。
+
+コマンドは2026-09-06時点のCLIヘルプと、[Codexのmarketplace管理](https://developers.openai.com/plugins/build/plugins)、[Claude Codeの更新仕様](https://code.claude.com/docs/en/plugins-reference#plugin-update)を確認しています。
 
 ## 公開インストール単位と内包する機能
 
