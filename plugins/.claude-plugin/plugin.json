@@ -1,6 +1,6 @@
 {
   "name": "bdd-discovery-and-formulation",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "ドメイン、データモデル、User JourneyのBDD発見・深化Playbookを一括提供する",
   "author": {
     "name": "NaoyaNakamori"
