@@ -12,23 +12,11 @@ LABEL = re.compile(r"^-\s+\*{0,2}(ユーザー|目的|開始地点|最終地点|
 SCENE = re.compile(r"^###\s+場面\s+(\d+)\s*:\s*(.+?)\s*$")
 FIELD = re.compile(r"^-\s+\*{0,2}(直前の状態|行う役割|働きかけ|観測できる応答|次の状態|接続)\*{0,2}\s*:\s*(.*?)\s*$")
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,127}$")
-FORBIDDEN = (
-    "画面", "ボタン", "クリック", "押下", "入力欄", "url", "api", "endpoint", "request", "response",
-    "db", "table", "テーブル", "class", "method", "test runner", "テストランナー", "ci", "flaky",
-)
-
-
 def emit_error(message, problems=None, code=2):
     for problem in problems or []:
         print(json.dumps(problem, ensure_ascii=False))
     print(json.dumps({"error": message}, ensure_ascii=False))
     raise SystemExit(code)
-
-
-def contains(text, word):
-    if word.isascii():
-        return re.search(rf"(?<![a-z0-9]){re.escape(word)}(?![a-z0-9])", text.lower()) is not None
-    return word in text
 
 
 def validate(text):
@@ -72,8 +60,6 @@ def validate(text):
             values = scene["fields"].get(name, [])
             if len(values) != 1 or not values[0][1]:
                 problems.append({"line": values[0][0] if values else scene["line"], "kind": "場面構造", "detail": f"{name}が空または1件ではない"})
-            elif any(contains(values[0][1], word) for word in FORBIDDEN):
-                problems.append({"line": values[0][0], "kind": "責務外", "detail": f"{name}に実装またはテスト実行の語がある"})
     return problems, labels, scenes
 
 

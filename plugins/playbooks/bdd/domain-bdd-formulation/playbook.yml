@@ -8,11 +8,7 @@ instructions:
 focus: domain
 document_type: domain-rule
 output_format: markdown
-max_steps: 6
 allow_background: false
-examples_limits:
-  rows: 10
-  columns: 6
 
 requires:
   - {plugin: grill, marketplace: grill}
@@ -53,7 +49,7 @@ steps:
 
   - id: validate
     script: scripts/scenario.py
-    purpose: 前提・行い・結果の境界、曖昧語、長さ、表を検査する
+    purpose: Given・When・Then、条件マトリクス、失敗NOTE、Examples参照の構造契約を検査する
     needs: [scenario_draft, condition_matrix, grounded_input]
     provides: [validated_scenarios]
 

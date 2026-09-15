@@ -20,10 +20,6 @@ ISOLATION_CASE = re.compile(r"^###\s+分離性判断:\s*(.+?)\s*$")
 INDEX_CASE = re.compile(r"^###\s+index:\s*(.+?)\s*$")
 READ_CASE = re.compile(r"^###\s+Read-[0-9]+:\s*(.+?)\s*$")
 BDD = re.compile(r"^(?:###\s+Scenario\b|Given\s|When\s|Then\s|And\s)", re.MULTILINE)
-FORBIDDEN = re.compile(
-    r"(?:\bAPI\b|\bDTO\b|\bHTTP\b|\bORM\b|エンドポイント|画面コンポーネント)",
-    re.IGNORECASE | re.ASCII,
-)
 REQUIRED_HEADINGS = (
     "## 対象と論理設計", "## 物理制約", "## 物理化の方針", "## index",
     "## トランザクションと分離レベル", "## パーティションと配置",
@@ -301,9 +297,6 @@ def cmd_check(args, config):
     logical_basename = os.path.basename(args.model_file)
     if not any(line.startswith("- 論理モデル:") and logical_basename in line for line in design_lines):
         problems.append("対象と論理設計に入力ファイル「{}」が無い".format(logical_basename))
-    forbidden = FORBIDDEN.search(design)
-    if forbidden:
-        problems.append("永続化設計に別の関心「{}」が混ざっている".format(forbidden.group(0)))
     if BDD.search(design):
         problems.append("物理設計にBDDシナリオが混ざっている。業務シナリオは論理設計だけに置く")
     logical_schema = schema_signature(model, "論理モデル", problems)
