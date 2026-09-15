@@ -1,80 +1,25 @@
 #!/usr/bin/env bash
-# data-model-bdd-formulation 固有の設定と工程契約を検査する。
 set -euo pipefail
 file="$1"
+# Deterministic validation declaration:
+# source=the public playbook JSON; input=the logical-update and physical-create
+# write-doc steps; normalization=none; predicate=each call has exactly one
+# destination mode and delivery points at the declared existing logical path;
+# diagnostic=the single structural-contract error below; positive=current
+# playbook; negative=missing update_target, wrong output_path_from, or mixed
+# create/update needs; boundary=document meaning remains invoking-agent review.
 jq -e '
-  . as $root |
-  ([.requires[] | select(.marketplace=="write-doc")] == [{"plugin":"write-doc","marketplace":"write-doc"}]) and
-  (.contract.cleanup.delete_after_document | type=="array" and length>0) and
-  (.contract.cleanup.preserve | type=="array" and length>0) and
-  ((.contract.cleanup.delete_after_document + .contract.cleanup.preserve) - .steps[-1].needs | length==0) and
-  (.steps[-1].id=="cleanup" and .steps[-1].script=="scripts/cleanup.py" and .steps[-1].provides==["cleanup_report"]) and
-  ([.steps[] | select(.playbook=="write-doc")] | length==1 and all(.[]; (.input.document_type|type=="string" and length>0))) and
-  ([.steps | to_entries[] | select(.value.playbook=="write-doc") | .key] | length>0 and max < (($root.steps|length)-1))
-' "$file" >/dev/null || { echo "[error] write-doc後の中間生成物の後片付け契約は外せない" >&2; exit 2; }
-jq -e '
-  . as $root |
-  ($root.steps | to_entries | map(select(.value.playbook=="grill"))) as $grill |
-  ($root.steps | to_entries | map(select(.value.script=="scripts/ground.py"))) as $ground |
-  $root.requirements.input_grounded==true and
-  $root.requirements.clarify_with_grill==true and
-  $root.contract.grounding_sources==["user_input","referenced_artifacts","grill_decisions"] and
-  (any($root.requires[]; .plugin=="grill")) and
-  (all($root.steps[]; .skill!="grill")) and
-  ($grill|length)==1 and
-  $grill[0].key==0 and
-  ($grill[0].value.provides == ["decisions","open_questions"]) and
-  ($ground|length)==1 and
-  $ground[0].key==1 and
-  ($ground[0].value.needs == ["decisions","open_questions"]) and
-  ($ground[0].value.provides | index("grounded_input") != null) and
-  ($root.steps | to_entries | map(select(.key > $ground[0].key)) | all(.[]; ((.value.needs // []) | index("grounded_input") != null)))
-' "$file" >/dev/null || {
-  echo "[error] BDD工程は入力根拠を固定し、grillで確認したgrounded_inputを全後続工程へ渡すこと" >&2
-  exit 2
-}
-jq -e '
-  (.output_format=="markdown") and
-  (.contract.persistence_operations==["create","update","delete"]) and
-  (.contract.probe_dimensions == ["同値分割","境界値","精度と単位","条件組合せ","状態遷移","イベント順序","重複と再実行","同時実行","アクターと権限","悪用と不正","時間","規則変更と遡及","失敗時保証","不変条件"]) and
-  (.contract.logical_schema_markers==["table","column","business_constraint"]) and
-  (.contract.confidence|type=="array" and length>0 and all(.[]; type=="string" and length>0)) and
-  (.requirements.existing_logical_document_required==true) and
-  (.requirements.update_logical_in_place==true) and
-  (.requirements.create_new_logical_document==false) and
-  (.requirements.bdd_scenarios_in_logical_only==true) and
-  (.requirements.logical_schema_immutable_in_physical==true) and
-  (.requirements.read_scenarios_in_physical_only==true) and
-  (.requirements.rdb_only==true) and (.requirements.verified_features_only==true) and
-  (.database.product|type=="string" and length>0) and
-  (.database.version|type=="string" and length>0) and
-  (.modeling.method|type=="string" and length>0) and
-  (.out_dir|type=="string" and length>0)
-' "$file" >/dev/null || {
-  echo "[error] Markdown出力、既存論理資料の深化、必須要件、database、modeling.method、out_dirのいずれかが不正" >&2
-  exit 2
-}
-
-jq -e '
-  def providers($name): [.steps | to_entries[] | select(.value.provides | index($name)!=null) | .key];
-  def consumers($name): [.steps | to_entries[] | select((.value.needs // []) | index($name)!=null) | .key];
-  (providers("existing_logical_document_path")|length)==1 and
-  (providers("decisions")|length)==1 and
-  (providers("revised_persistence_scenarios")|length)==1 and
-  (providers("persistence_coverage")|length)==1 and
-  (providers("revised_logical_data_model")|length)==1 and
-  (providers("update_target")|length)==1 and
-  (providers("updated_logical_document_path")|length)==1 and
-  (providers("read_scenarios")|length)==1 and
-  (providers("physical_rdb_design")|length)==1 and
-  (providers("isolation_level_decisions")|length)==1 and
-  (providers("feature_evidence")|length)==1 and
-  (providers("existing_logical_document_path")[0] < providers("revised_logical_data_model")[0]) and
-  (providers("revised_logical_data_model")[0] < providers("updated_logical_document_path")[0]) and
-  (providers("updated_logical_document_path")[0] < providers("physical_rdb_design")[0]) and
-  (consumers("update_target")|length)==1 and
-  (consumers("updated_logical_document_path")|length)==2
-' "$file" >/dev/null || {
-  echo "[error] 既存論理資料の反証 → 同一パス更新 → Readを含む物理設計という入出力契約が不正" >&2
-  exit 2
-}
+  .inputs==["user_input","referenced_artifacts","existing_logical_document_path","physical_output_directory","physical_name"] and
+  (has("out_dir")|not) and
+  .agent_work.owner=="invoking_agent" and
+  .agent_work.delivery.provider=="write-doc" and .agent_work.delivery.input_mapping=={"material_kind":"text","material_content":"final_markdown"} and .agent_work.delivery.output_path_from=="existing_logical_document_path" and
+  .agent_work.temporary_files.location=="system_temporary_directory" and .agent_work.temporary_files.delete_only_after=="document_saved" and
+  [.steps[].id]==["challenge-persistence","ground","deepen-scenarios","validate-scenarios","revise-logical-model","guard-logical-update","update-logical-document","design-physical","document-physical"] and
+  [.steps[] | (.agent_work // .script // .playbook)]==["grill","invoking_agent","invoking_agent","scripts/scenario_matrix.py","invoking_agent","scripts/update-guard.py","write-doc","invoking_agent","write-doc"] and
+  all(.steps[] | select(has("agent_work")); .agent_work=="invoking_agent") and
+  ([.steps[] | select(has("skill") or has("plugin"))]|length)==0 and
+  ([.steps[] | select(has("playbook")) | .playbook]==["grill","write-doc","write-doc"]) and
+  .steps[6].needs==["final_markdown","validation_report","update_target"] and .steps[6].input=={"document_type":"rdb-logical-data-modeling"} and .steps[6].provides==["updated_logical_document_path"] and
+  (.steps[7].needs|index("updated_logical_document_path")!=null) and (.steps[7].needs|index("physical_output_directory")!=null) and (.steps[7].needs|index("physical_name")!=null) and
+  .steps[-1].needs==["updated_logical_document_path","physical_output_directory","physical_name","physical_rdb_design","physical_final_markdown","isolation_level_decisions","feature_evidence"] and .steps[-1].input=={"document_type":"rdb-physical-design"} and .steps[-1].provides==["physical_rdb_design_path"]
+' "$file" >/dev/null || { echo "[error] data-model-bdd-formulationはYAML宣言順、同一agentの認知工程、決定論的検査、text資料化の構造契約を満たすこと" >&2; exit 2; }

@@ -24,4 +24,4 @@
 
 同梱の`playbook.yml`が既定である。repositoryでは`<repo>/.harness-plugins/user-journey-bdd-discovery.config.yml`を置くと、同梱設定を丸ごと差し替える。
 
-出力型は`user-journey-bdd`、媒体はMarkdown、既定の保存先は`bdd/user-journey`である。
+出力型は`user-journey-bdd`、媒体はMarkdownである。新規保存先は公開入力の`output_directory`と`name`で直接指定する。前者は既存の書き込み可能な絶対directory、後者はパス要素を含まない`.md`名である。静的な相対保存先から推測しない。

@@ -9,27 +9,9 @@ description: 1人の主たるユーザーが1つの目的を達成するまで�
 
 **これはユースケース、UX Journey map、ドメインルール、データモデル、テスト仕様ではない。** 対象システム一つの責任、感情と接点、個別の業務判断、保存構造、実行方法はそれぞれの正本へ返す。既存のユーザー目的達成BDDを直す場合は`formulate-user-journey`を使う。
 
-## 0. プラグインrootを決める
+## 1. 実行契約を受け取る
 
-```bash
-BUNDLE_ROOT="${CLAUDE_PLUGIN_ROOT:-/absolute/path/to/this/plugin}"
-if [ -d "${BUNDLE_ROOT}/playbooks/bdd/user-journey-bdd-discovery" ]; then
-  PLUGIN_ROOT="${BUNDLE_ROOT}/playbooks/bdd/user-journey-bdd-discovery"
-else
-  PLUGIN_ROOT="${BUNDLE_ROOT}"
-fi
-```
-
-`PLUGIN_ROOT`は配布物rootの絶対パスである。
-
-## 1. 工程を解決する
-
-```bash
-CFG_FILE=$(bash "${PLUGIN_ROOT}/scripts/prepare.sh" "$(pwd)") || exit 2
-printf '%s\n' "$CFG_FILE"
-```
-
-このコマンドは必ず実行する。解決済みYAMLが空、依存が欠けている、設定が契約を外している場合は先へ進まない。
+このSKILLを実行する同じagentが、同じdirectoryの`playbook.yml`と本文から参照する資料を全文読み、利用者の入力と明示された資料を保持した一つの文脈で最後まで判断する。`playbook.yml`の`steps`、`needs`、`provides`は仕事の順序と前後関係を示す正本であり、宣言順に辿る。`agent_work: invoking_agent`はこのagentが同じ文脈で担う意味ある認知工程、`script:`は明示した実在入力から閉じた結果を得る決定論的tool、`playbook:`は外部公開Skillの直接呼び出しである。外部runtimeによる値注入や、値運搬だけの中間fileを前提にしない。必要な入力、判断、成果、公開Skill結果が無ければ推測せず停止する。
 
 `${.instructions.execution.directive}`に従い、`${.playbook.steps}`を上から順に実行する。[実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は順序・依存・入出力を決め、実行指示書は背景、前提、目的と各工程で意識することを補う。`grill`工程へJourney固有の観点を`context`と`questions`として渡し、相手にその観点を持たせない。
 
@@ -37,23 +19,25 @@ printf '%s\n' "$CFG_FILE"
 
 **資料保存は版2の直接呼び出しである。** `write-doc`には型付き`material`と明示した保存先を直接渡す。返された`status: completed`と保存済みMarkdownの絶対パスを確認し、`path`を`user_journey_bdd_path`へ対応させる。`path`が指定した`output_directory`と`name`による新規保存先に一致することも確認する。失敗や結果欠落なら後続工程と素材削除へ進まない。入力・出力YAMLや相手の設定解決は使わない。
 
-**根拠づけられた入力は`ground`工程が作る。** `grill`が返すのは`decisions`と`open_questions`だけである。
+`grill:grill`が直接返した`decisions`と`open_questions`を利用者入力・明示資料と突き合わせ、同じagentが根拠づけられた入力を確定する。`grounded_input`はこの確認済み集合の論理名であり、別の認知担当から受け取る中間成果ではない。
 
-**後片付けは自分でする。** 最終資料の保存を確認してから`python3 "${PLUGIN_ROOT}/scripts/cleanup.py" --config "$CFG_FILE" --artifact <名前>=<path> ...`を実行する。消えるのは`${.playbook.contract.cleanup.delete_after_document}`に宣言し、かつgitが追跡していないファイルだけである。
+後片付けは、最終資料の保存成功を確認した同じagentが`${.playbook.agent_work.temporary_files}`に従い、system temporary directory内に自分が作った検査用fileだけへ明示pathで適用する。保存失敗時は削除しない。
 
-[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。場面ごとに条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。失敗場面の業務ルールが別資料にある場合は、`NOTE:`の`Source:`から外部正本の見出しを参照し、本文を複製しない。
+[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。場面ごとに条件マトリクスを作り、対応する検査工程の成功結果を確認する。失敗場面の業務ルールが別資料にある場合は、`NOTE:`の`Source:`から外部正本の見出しを参照し、本文を複製しない。
 
-同梱工程へ`--scope=${.resolution.scope_root}`を渡す（直接入力を使う`grill`と`write-doc`には渡さない）。`exit 2`で止まったら後続へ進まない。
+同じagentが利用者の入力と前工程で得た判断を保持して進み、決定論的toolの失敗結果を受けたら後続へ進まない。
 
 ## 2. Journeyに該当するかを先に決める
 
 [入力に根拠づける規律](references/input-grounding.md)に従い、利用者の発言、明示された資料、`grill`工程で確認した`decisions`だけを`ground`工程で`grounded_input`へ束ねる。
 
-`map-user-journey`を実行し、何がJourneyで何がJourneyでないかを判定する。ユーザーの目的、開始地点、最終地点、完了条件のどれかが分からなければ場面を書き始めない。目的ではなく機能利用が中心、意味のある場面が一つだけ、対象システム一つの責任だけを問う依頼ならJourneyへ広げず、非該当理由と適切な成果物を返して停止する。
+[Journeyを判定し接続する判断規律](references/journey-judgment.md)を全文読み、`map-journey`で何がJourneyで何がJourneyでないかを判定する。ユーザーの目的、開始地点、最終地点、完了条件のどれかが分からなければ場面を書き始めない。目的ではなく機能利用が中心、意味のある場面が一つだけ、対象システム一つの責任だけを問う依頼ならJourneyへ広げず、非該当理由と適切な成果物を返して停止する。
 
 ## 3. 長さを削らず、場面へ分けて接続する
 
-[Journeyの構造](references/journey-structure.md)と[場面のBDD](references/scenario-writing.md)を読む。
+[Journeyの構造](references/journey-structure.md)、[Journeyを判定し接続する判断規律](references/journey-judgment.md)、[場面のBDD](references/scenario-writing.md)を適用する。
+
+主たるユーザーの視点を各場面の軸にする。`When`にはそのユーザーまたは協働役割が行うこと、`Then`には主たるユーザーが見える、知らされる、判断できる、または次にできるようになることを書く。期間の開始・対象化・保存状態など内部の論理状態だけを応答や完了条件にせず、その境界が利用者へもたらす観測可能な結果まで表す。時刻の包含・除外など確認済みの業務境界は言い換えによって変えない。語彙は利用者が実際に使う自然な行動や状態の言葉を入力根拠から選び、内部モデル用の造語へ置き換えない。
 
 Journey全体に場面数の上限を置かない。目的達成までに必要な意味のある変化は省略しない。その代わり、全体を複数の場面へ分け、各場面で次を明らかにする。
 
@@ -74,11 +58,7 @@ Journey全体に場面数の上限を置かない。目的達成までに必要�
 
 ## 5. 検査して資料化する
 
-```bash
-python3 "${PLUGIN_ROOT}/scripts/scenario.py" check --config "$CFG_FILE" --file <story-draft.md> --matrix <condition-matrix.json>
-```
-
-違反があれば資料化しない。通ったものだけを`scripts/compose.sh`で束ね、その素材の絶対pathを`{kind: file, path: <素材の絶対パス>}`の1要素配列にして`material`、`${.playbook.document_type}`を`document_type`、`${.playbook.out_dir}`の絶対pathを`output_directory`、パス要素を含まない`.md`ファイル名を`name`として`write-doc`工程へ渡し、最初の正本を1本保存する。指定先に正本がすでにあれば`compose.sh`が止まる。上書きせず、formulationへ切り替える。
+条件マトリクスとBDD本文に対する検査工程の成功結果が無ければ資料化しない。開始時に公開入力の`output_directory`が既存の書き込み可能な絶対directory、`name`がパス要素を含まない`.md`名であることを確かめる。不明・相対path・同名fileが既存する場合は推測や上書きをせず停止する。同じ文脈で完成させたMarkdown本文を`{kind: text, content: <完成本文>}`の1要素配列にして`material`、`${.playbook.document_type}`を`document_type`、確認済みの2入力をそのまま`output_directory`と`name`に渡し、最初の正本を1本保存する。指定先に正本がすでにあるという工程結果なら上書きせず、formulationへ切り替える。
 
 ## 6. 報告する
 
@@ -87,9 +67,3 @@ python3 "${PLUGIN_ROOT}/scripts/scenario.py" check --config "$CFG_FILE" --file <
 - 目的達成までの場面数と主要な接続
 - 未決の接続と、確認すべき人
 - ユースケース、UX Journey map、domain、data model、実装、テスト実行へ送り返した事項
-
-## 実行設定の寿命
-
-prepareが返した絶対pathを実行記録へ保持する。別shellではそのpathを`CFG_FILE`へ明示して読み、shell変数の継承を前提にしない。完了時と失敗停止時のどちらも、最後の設定利用後に`python3 "${PLUGIN_ROOT}/scripts/run-config.py" cleanup --config "$CFG_FILE"`を実行する。他runの設定やdirectoryを削除しない。
-
-条件付き工程を含め、各工程を呼ぶ直前に`yq -o=json '.' "$CFG_FILE" | python3 "${PLUGIN_ROOT}/scripts/resolve-dependency.py" --check-steps <工程id>`を実行する。失敗時は工程を実行せず停止する。

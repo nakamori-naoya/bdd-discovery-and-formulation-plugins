@@ -7,33 +7,9 @@ description: 既存のBDD付きRDB論理設計をQA観点で深化させ、同�
 
 **既存の論理資料を反証して深化させる。** 新しい論理資料を作らず、入力された`rdb-logical-data-modeling`を同じパスで更新してから物理設計へ進む。
 
-## 0. プラグイン root を決める
+## 1. 実行契約と対象RDBを受け取る
 
-<!-- BEGIN shared:skill-entry/root-block -->
-```bash
-BUNDLE_ROOT="${CLAUDE_PLUGIN_ROOT:-/absolute/path/to/this/plugin}"
-if [ -d "${BUNDLE_ROOT}/playbooks/bdd/data-model-bdd-formulation" ]; then
-  PLUGIN_ROOT="${BUNDLE_ROOT}/playbooks/bdd/data-model-bdd-formulation"
-else
-  PLUGIN_ROOT="${BUNDLE_ROOT}"
-fi
-```
-
-`PLUGIN_ROOT`は配布物rootの絶対パスである。単一skill pluginではこの`SKILL.md`があるdirectory、複数skill pluginでは`skills/<skill>/`の2つ上に当たる。Claude Codeでは`${CLAUDE_PLUGIN_ROOT}`が自動展開される。
-<!-- END shared:skill-entry/root-block -->
-
-## 1. 工程と対象RDBを解決する
-
-<!-- BEGIN shared:skill-entry/config-load -->
-```bash
-CFG_FILE=$(bash "${PLUGIN_ROOT}/scripts/prepare.sh" "$(pwd)") || exit 2
-printf '%s\n' "$CFG_FILE"
-```
-
-**このコマンドは説明例ではない。必ず実行する。** 解決済みYAMLが空なら先へ進まない。設定ファイルを直接読んで代用しない。
-
-本文中の `${...}` は解決済みYAMLのプロパティである。使用時に `yq -er` で読み、欠落または `null` なら停止する。
-<!-- END shared:skill-entry/config-load -->
+このSKILLを実行する同じagentが、同じdirectoryの`playbook.yml`と本文から参照する資料を全文読み、利用者の入力と明示された資料を保持した一つの文脈で最後まで判断する。`playbook.yml`の`steps`、`needs`、`provides`は仕事の順序と前後関係を示す正本であり、宣言順に辿る。`agent_work: invoking_agent`はこのagentが同じ文脈で担う意味ある認知工程、`script:`は明示した実在入力から閉じた結果を得る決定論的tool、`playbook:`は外部公開Skillの直接呼び出しである。外部runtimeによる値注入や、値運搬だけの中間fileを前提にしない。必要な入力、判断、成果、公開Skill結果が無ければ推測せず停止する。
 
 `${.instructions.execution.directive}`と[工程間の契約](references/contract.md)を読み、対象RDBと成果の境界を確定する。まだ`${.playbook.steps}`は実行しない。
 
@@ -43,11 +19,11 @@ printf '%s\n' "$CFG_FILE"
 
 **資料保存は版2の直接呼び出しである。** `write-doc`には型付き`material`と明示した保存先を直接渡す。返された`status: completed`と保存済みMarkdownの絶対パスを確認し、`path`を`updated_logical_document_path`へ対応させる。更新時は`path == update_target`も確認する。失敗や結果欠落なら後続工程と素材削除へ進まない。入力・出力YAMLや相手の設定解決は使わない。
 
-**根拠づけられた入力は`ground`工程が作る。** `grill`が返すのは`decisions`と`open_questions`だけである。
+`grill:grill`が直接返した`decisions`と`open_questions`を利用者入力・明示資料と突き合わせ、同じagentが根拠づけられた入力を確定する。`grounded_input`はこの確認済み集合の論理名であり、別の認知担当から受け取る中間成果ではない。
 
-**後片付けは自分でする。** 最終資料の保存を確認してから`python3 "${PLUGIN_ROOT}/scripts/cleanup.py" --config "$CFG_FILE" --artifact <名前>=<path> ...`を実行する。消えるのは`${.playbook.contract.cleanup.delete_after_document}`に宣言し、かつgitが追跡していないファイルだけである。
+後片付けは、最終資料の保存成功を確認した同じagentが`${.playbook.agent_work.temporary_files}`に従い、system temporary directory内に自分が作った検査用fileだけへ明示pathで適用する。保存失敗時は削除しない。
 
-[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。変更するBDDごとに条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。
+[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。変更するBDDごとに条件マトリクスを作り、対応する検査工程の成功結果を確認する。
 
 ## 2. 定式化へ進める入力かを最初に評価する
 
@@ -57,25 +33,25 @@ printf '%s\n' "$CFG_FILE"
 
 ## 3. 既存の論理資料を永続化の観点で反証する
 
-`${.instructions.execution.directive}`に従って最初の`grill`工程より後の`${.playbook.steps}`を順に実行し、同梱工程へ`--scope=${.resolution.scope_root}`を渡す（直接入力を使う`grill`と`write-doc`には渡さない）。[重要なシナリオを見つけるQA観点](references/important-scenarios.md)を読む。`grounded_input`にならない業務用語・イベント・概念を後続へ渡さない。論理モデル工程には`--override=method=${.playbook.modeling.method}`、RDB設計工程には`--override=database.product=${.playbook.database.product}`と`--override=database.version=${.playbook.database.version}`を渡す。
+`${.instructions.execution.directive}`に従って最初の`grill`工程より後も、同じagentが利用者の回答、根拠、既存資料、前工程の判断を保持して順に進む。[重要なシナリオを見つけるQA観点](references/important-scenarios.md)と[正規化中心の論理モデリング規律](references/normalized-method.md)を全文読む。`grounded_input`にならない業務用語・イベント・概念を後続へ渡さない。論理モデル責務では正規化中心の規律、RDB設計責務では`${.playbook.database.product}`と`${.playbook.database.version}`を適用する。
 
-`rdb-logical-data-modeling`型の既存論理資料の絶対パスを最初の工程へ渡す。資料が無い、出力先が別パス、BDDと論理テーブルの対応が読めない場合は止まる。
+`rdb-logical-data-modeling`型の既存論理資料の絶対パスと、物理資料の新規保存先である`physical_output_directory`と`physical_name`を最初の工程へ渡す。前者は既存の書き込み可能な絶対directory、後者はパス要素を含まない`.md`名でなければならない。資料が無い、論理資料の更新先が別パス、物理資料の保存先が無いまたは同名fileがある、BDDと論理テーブルの対応が読めない場合は止まる。
 
 作成・更新・削除に関係するBDDだけを、`${.playbook.contract.probe_dimensions}`で反証する。境界、精度と単位、状態遷移、順序、重複、同時実行、権限内の悪用、時間、規則変更の遡及、失敗時保証によって残す事実や履歴が変わるかを見る。Readやindexを論理設計へ混ぜない。
 
-確認済みの発見は既存資料のBDD、事実、論理テーブル、列、業務制約へ戻す。未決は推測で埋めない。既存資料の同じ絶対パスであることを次で検査し、返された`update_target`を`update_target`、改訂本文を束ねたファイルの絶対pathを`{kind: file, path: <素材の絶対パス>}`の1要素配列にして`material`、`rdb-logical-data-modeling`を`document_type`として`write-doc`工程へ渡して差し替える。**新規作成の指定（`output_directory`と`name`）は渡さない。** 保存先を相手に作り直させない。
+確認済みの発見は既存資料のBDD、事実、論理テーブル、列、業務制約へ戻す。未決は推測で埋めない。既存資料の同じ絶対パスであることを検査し、その絶対pathを`update_target`、同じ文脈で完成させた改訂Markdown本文を`{kind: text, content: <完成本文>}`の1要素配列にして`material`、`rdb-logical-data-modeling`を`document_type`として`write-doc`工程へ渡して差し替える。**新規作成の指定（`output_directory`と`name`）は渡さない。** 保存先を相手に作り直させない。
 
-```bash
-python3 "${PLUGIN_ROOT}/scripts/update-guard.py" --existing <入力論理資料> --output <更新先>
-```
+更新先検査工程が、入力論理資料と同じ絶対pathを`update_target`として返したことを確認する。`document_type: rdb-logical-data-modeling`はwrite-doc公開契約のtemplate選択値であり、consumerからprovider内部templateのpathへ到達しない。
 
 ## 4. 論理構造を変えずに物理設計する
 
-更新済み論理資料だけを物理設計へ渡す。対象は`${.playbook.database.product}` `${.playbook.database.version}`であり、その版の公式資料または実機で確認できない機能は使わない。
+[RDB物理設計へ写す判断規律](references/physical-design-judgment.md)を全文読み、`update-logical-document`が保存成功した`updated_logical_document_path`だけを`design-physical`工程へ渡して同じagentが適用する。論理資料の保存成功前に物理設計を始めない。対象は`${.playbook.database.product}` `${.playbook.database.version}`であり、その版の公式資料または実機で確認できない機能は使わない。
 
 物理設計では、業務で典型的かつ重要なRead、絞り込み、並び順、結合、必要な鮮度、想定件数を記録してからindexを決める。BDD形式にはせず、論理資料へ再掲しない。論理テーブル定義も複製せず、入力論理資料を一つ明記したうえで物理制約、型、index、分離レベル、配置、容量・性能・運用を書く。
 
 論理設計で見つけた同時実行上の必要保証を、対象RDBの分離レベル、制約、ロック、競合時の再試行へ写す。物理設計で構造変更が必要なら、物理側で補わず論理設計へ戻す。
+
+同じagentが完成させた物理設計本文を`{kind: text, content: <完成本文>}`として`document-physical`から`write-doc`へ渡す。`document_type`はwrite-doc公開契約のtemplate選択値`rdb-physical-design`、保存先は確認済み入力をそのまま`output_directory: ${physical_output_directory}`と`name: ${physical_name}`に対応させる。consumerからprovider内部templateのpathへ到達しない。返された`status: completed`と`path`が指定した新規保存先に完全一致することを確認し、その`path`を`physical_rdb_design_path`に対応させるまで完了にしない。
 
 ## 5. 報告する
 
@@ -86,10 +62,4 @@ python3 "${PLUGIN_ROOT}/scripts/update-guard.py" --existing <入力論理資料>
 - 論理構造を物理資料へ重複させず、変更もしていないこと
 - NULLを許した箇所、選択した分離レベル、競合時の扱い
 
-同梱工程のexit 2、または検査失敗なら後続へ進まない。`grill`は結果YAML、`write-doc`は直接返された`status`で成功を判断する。設定形式は[README](README.md)を参照する。
-
-## 実行設定の寿命
-
-prepareが返した絶対pathを実行記録へ保持する。別shellではそのpathを`CFG_FILE`へ明示して読み、shell変数の継承を前提にしない。完了時と失敗停止時のどちらも、最後の設定利用後に`python3 "${PLUGIN_ROOT}/scripts/run-config.py" cleanup --config "$CFG_FILE"`を実行する。他runの設定やdirectoryを削除しない。
-
-条件付き工程を含め、各工程を呼ぶ直前に`yq -o=json '.' "$CFG_FILE" | python3 "${PLUGIN_ROOT}/scripts/resolve-dependency.py" --check-steps <工程id>`を実行する。失敗時は工程を実行せず停止する。
+同梱工程のexit 2、または検査失敗なら後続へ進まない。`grill`は直接返された結果objectの`status: completed`と型付き`decisions`・`open_questions`、`write-doc`は直接返された結果objectの`status: completed`で成功を判断する。設定形式は[README](README.md)を参照する。

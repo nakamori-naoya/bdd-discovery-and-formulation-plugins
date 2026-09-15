@@ -1,50 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 file="$1"
+# Deterministic validation declaration:
+# source=the public playbook JSON; input=the sole write-doc update step;
+# normalization=none; predicate=the delivery mapping names the existing domain
+# rule and the step has exactly update_target, never create-mode destinations;
+# diagnostic=the single structural-contract error below; positive=current
+# playbook; negative=missing update_target, wrong mapping, or mixed needs;
+# boundary=document meaning remains invoking-agent review.
 jq -e '
-  . as $root |
-  ([.requires[] | select(.marketplace=="write-doc")] == [{"plugin":"write-doc","marketplace":"write-doc"}]) and
-  (.contract.cleanup.delete_after_document | type=="array" and length>0) and
-  (.contract.cleanup.preserve | type=="array" and length>0) and
-  ((.contract.cleanup.delete_after_document + .contract.cleanup.preserve) - .steps[-1].needs | length==0) and
-  (.steps[-1].id=="cleanup" and .steps[-1].script=="scripts/cleanup.py" and .steps[-1].provides==["cleanup_report"]) and
-  ([.steps[] | select(.playbook=="write-doc")] | length==1 and all(.[]; (.input.document_type|type=="string" and length>0))) and
-  ([.steps | to_entries[] | select(.value.playbook=="write-doc") | .key] | length>0 and max < (($root.steps|length)-1))
-' "$file" >/dev/null || { echo "[error] write-doc後の中間生成物の後片付け契約は外せない" >&2; exit 2; }
-jq -e '
-  . as $root |
-  ($root.steps | to_entries | map(select(.value.playbook=="grill"))) as $grill |
-  ($root.steps | to_entries | map(select(.value.script=="scripts/ground.py"))) as $ground |
-  $root.requirements.input_grounded==true and
-  $root.requirements.clarify_with_grill==true and
-  $root.contract.grounding_sources==["user_input","referenced_artifacts","grill_decisions"] and
-  (any($root.requires[]; .plugin=="grill")) and
-  (all($root.steps[]; .skill!="grill")) and
-  ($grill|length)==1 and
-  $grill[0].key==0 and
-  ($grill[0].value.provides == ["decisions","open_questions"]) and
-  ($ground|length)==1 and
-  $ground[0].key==1 and
-  ($ground[0].value.needs == ["decisions","open_questions"]) and
-  ($ground[0].value.provides | index("grounded_input") != null) and
-  ($root.steps | to_entries | map(select(.key > $ground[0].key)) | all(.[]; ((.value.needs // []) | index("grounded_input") != null)))
-' "$file" >/dev/null || {
-  echo "[error] BDD工程は入力根拠を固定し、grillで確認したgrounded_inputを全後続工程へ渡すこと" >&2
-  exit 2
-}
-jq -e '
-  .focus=="domain" and
-  .output_format=="markdown" and
-  (.allow_background|type=="boolean") and
-  (.contract.probe_dimensions == ["同値分割","境界値","精度と単位","条件組合せ","状態遷移","イベント順序","重複と再実行","同時実行","アクターと権限","悪用と不正","時間","規則変更と遡及","失敗時保証","不変条件"]) and
-  (.requirements.core_domain_only==true) and
-  (.requirements.existing_document_required==true) and
-  (.requirements.update_in_place==true) and
-  (.requirements.create_new_document==false) and
-  ([.steps[].provides[]?] | index("existing_domain_rule_path") != null and index("decisions") != null and index("validated_scenarios") != null and index("update_target") != null and index("updated_domain_rule_path") != null)
-' "$file" >/dev/null || {
-  echo "[error] domain formulationはMarkdown出力・コア限定・既存資料の同一パス更新・QA反証・必須成果を変更できない" >&2
-  exit 2
-}
-jq -e '.document_type=="domain-rule"' "$file" >/dev/null \
-  || { echo "[error] domainの資料型はdomain-ruleに固定する" >&2; exit 2; }
+  .inputs==["user_input","referenced_artifacts","existing_domain_rule_path"] and
+  .agent_work.owner=="invoking_agent" and
+  .agent_work.delivery.provider=="write-doc" and .agent_work.delivery.input_mapping=={"material_kind":"text","material_content":"final_markdown"} and .agent_work.delivery.output_path_from=="existing_domain_rule_path" and
+  .agent_work.temporary_files.location=="system_temporary_directory" and .agent_work.temporary_files.delete_only_after=="document_saved" and
+  [.steps[].id]==["challenge","ground","revise","validate","guard-update","document"] and
+  [.steps[] | (.agent_work // .script // .playbook)]==["grill","invoking_agent","invoking_agent","scripts/scenario.py","scripts/update-guard.py","write-doc"] and
+  all(.steps[] | select(has("agent_work")); .agent_work=="invoking_agent") and
+  ([.steps[] | select(has("skill") or has("plugin"))]|length)==0 and
+  ([.steps[] | select(has("playbook")) | .playbook]==["grill","write-doc"]) and
+  .steps[-1].needs==["final_markdown","validation_report","update_target"] and .steps[-1].input=={"document_type":"${.document_type}"} and .steps[-1].provides==["updated_domain_rule_path"]
+' "$file" >/dev/null || { echo "[error] domain-bdd-formulationはYAML宣言順、同一agentの認知工程、決定論的検査、text資料化の構造契約を満たすこと" >&2; exit 2; }

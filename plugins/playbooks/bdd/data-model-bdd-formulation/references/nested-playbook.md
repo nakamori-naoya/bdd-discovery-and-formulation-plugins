@@ -4,20 +4,13 @@
 
 ## 公開入口を使う
 
-依存解決で得た `${.deps.<論理名>.entry}` が入口の `SKILL.md` の絶対パスである。この入口を読み、対応する公開契約に従って呼ぶ。依存先の内部 skill、参考資料、設定、保存処理を探さない。
+同じagentの利用可能Skill一覧から、`playbook.yml`の`requires`に宣言された `{plugin, marketplace}` と一致する公開Skill名を選び、その公開契約に従って呼ぶ。`grill`は`grill:grill`、`write-doc`は`write-doc:write-doc`である。この照合は実在する`requires`宣言と利用可能Skillを直接比較し、別runtimeが作る依存解決objectを前提にしない。依存先のroot、内部skill、参考資料、設定、保存処理を探さない。
 
-両方とも公開入口へ契約入力を直接渡し、相手の設定を解決しない。`grill` の版1は入力YAMLと結果YAMLを使えるが、`write-doc` の版2は直接入力・直接結果だけを使う。両者の入出力を混用しない。
+両方とも公開入口へ契約入力objectを直接渡し、公開結果objectを直接受け取る。相手の設定を解決せず、中間YAMLを工程間relayに使わない。
 
 ## grill（契約 `grill/grill` 版1）
 
-契約入力をYAMLに保存し、その通常ファイルの絶対パスを `${.deps.grill.entry}` へ直接渡す。入力objectを直接渡してもよい。相手の設定解決や解決済みYAMLの引き渡しは行わず、`scope` と `bindings` も入力へ加えない。
-
-```bash
-NESTED_INPUT=$(mktemp "${TMPDIR:-/tmp}/nested-input.XXXXXX") || exit 2
-NESTED_OUTPUT=$(mktemp "${TMPDIR:-/tmp}/nested-output.XXXXXX") || exit 2
-# NESTED_INPUT へ grill の契約入力を書く（output_to は "$NESTED_OUTPUT"）
-# NESTED_INPUT の絶対パスを公開入口へ直接渡す
-```
+契約入力objectを公開Skill `grill:grill`へ直接渡す。相手の設定解決、入力・出力YAML、`scope`、`bindings`は使わない。
 
 公開入口の対話に従い、利用者の回答と、決定・未決の一覧および対話終了への明示合意を待つ。呼び出し元が回答や合意を代行しない。回答待ちを成功や失敗へ変換しない。
 
@@ -28,19 +21,18 @@ NESTED_OUTPUT=$(mktemp "${TMPDIR:-/tmp}/nested-output.XXXXXX") || exit 2
 - `context`：`purpose`、`audience`、`boundary`
 - `questions`：`{id, question, recommendation}` の配列。問いを相手に立ててもらう場合は空配列
 - `grounding`：任意の根拠資料の絶対パス配列
-- `output_to`：結果を書き出す絶対パス
 
 題材固有の観点は `context` と `questions` で渡す。空の `questions` は確認を省略する指示ではない。
 
 ### 受け取る結果
 
-`NESTED_OUTPUT` を読み、`status: completed` の場合だけ続ける。結果は `decisions`（`{id, question, answer, rationale}`）と `open_questions`（`{id, question, state, reason}`）である。未決の `state` は `open` または `withdrawn`。この結果から根拠づけられた入力を作るのは、呼び出し元の `ground` 工程である。
+直接返された結果objectを読み、`status: completed` の場合だけ続ける。`decisions` と `open_questions` はキーが存在する配列でなければならず、欠落、`null`、別の型は空配列へ補正せず失敗として停止する。合法な空配列はそのまま受け入れる。`decisions` の各要素は `{id, question, answer, rationale}`、`open_questions` の各要素は `{id, question, state, reason}` を持ち、未決の `state` は `open` または `withdrawn` である。同じagentがこれらを利用者入力・明示資料と突き合わせて根拠づけられた入力を確定し、別の認知担当へrelayしない。
 
 ## write-doc（契約 `write-doc/write-doc` 版2）
 
-呼ぶ直前に、自分の入口に同梱した依存検査を実行する。`yq -o=json '.' "$CFG_FILE" | python3 "${PLUGIN_ROOT}/scripts/resolve-dependency.py" --check-steps <資料保存の工程id>` が失敗したら呼ばない。これにより、解決後の依存の変更や契約不一致を検出する。
+呼ぶ直前に、同じagentが`playbook.yml`の`requires`に宣言された公開Skill identityと利用可能な公開Skillを照合する。欠落または不一致なら呼ばない。依存先のroot、設定、内部pathは調べない。
 
-`${.deps.write-doc.entry}` を読み、次の入力を直接渡して Markdown 資料を1本保存する。契約IDと版は依存の識別情報であり、執筆入力へ加えない。入力YAML、解決済みYAML、出力YAMLは作らず、設定解決scriptや `output_to` は使わない。`scope`、`bindings`、`output_format` も入力に含めない。
+公開Skill `write-doc:write-doc`へ次の入力を直接渡してMarkdown資料を1本保存する。契約IDと版は依存の識別情報であり、執筆入力へ加えない。入力YAML、解決済みYAML、出力YAMLは作らず、設定解決scriptや`output_to`は使わない。`scope`、`bindings`、`output_format`も入力に含めない。
 
 ### 素材と文書型を渡す
 
@@ -49,7 +41,7 @@ NESTED_OUTPUT=$(mktemp "${TMPDIR:-/tmp}/nested-output.XXXXXX") || exit 2
 - ファイル素材：`{kind: file, path: /absolute/path/to/material.md}`
 - 本文素材：`{kind: text, content: "根拠となる本文"}`
 
-BDD工程で束ねた素材ファイルは `kind: file` を使う。絶対パス文字列だけの配列にしない。`document_type` にはこの工程で決めた型を渡し、`references` には追加で従う自分の資料の読み取り可能な絶対パスだけを渡す。相手の内部文書は参照しない。
+同じagentが組み立てた本文は `kind: text`、実在する素材ファイルを渡す場合だけ `kind: file` を使う。`final_markdown` を一時ファイルへ変換せず `kind: text` で直接渡し、絶対パス文字列だけの配列にも変えない。`document_type` にはこの工程で決めた型を渡し、`references` には追加で従う自分の資料の読み取り可能な絶対パスだけを渡す。相手の内部文書は参照しない。
 
 ### 保存先を明示する
 

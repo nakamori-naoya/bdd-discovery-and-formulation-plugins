@@ -9,35 +9,11 @@ description: コアドメインの業務知識と代表的な振る舞いを共�
 
 **探求が先で、記述は後である。** 何が起きるのかを知らないまま型を埋めにいくと、型の穴を埋めるための作り話が入る。
 
-## 0. プラグイン root を決める
+## 1. 実行契約を受け取り、書かれた順に進める
 
-<!-- BEGIN shared:skill-entry/root-block -->
-```bash
-BUNDLE_ROOT="${CLAUDE_PLUGIN_ROOT:-/absolute/path/to/this/plugin}"
-if [ -d "${BUNDLE_ROOT}/playbooks/bdd/domain-bdd-discovery" ]; then
-  PLUGIN_ROOT="${BUNDLE_ROOT}/playbooks/bdd/domain-bdd-discovery"
-else
-  PLUGIN_ROOT="${BUNDLE_ROOT}"
-fi
-```
+このSKILLを実行する同じagentが、同じdirectoryの`playbook.yml`と本文から参照する資料を全文読み、利用者の入力と明示された資料を保持した一つの文脈で最後まで判断する。`playbook.yml`の`steps`、`needs`、`provides`は工程順と前後関係の正本であり、宣言順に辿る。`agent_work: invoking_agent`はこのagentが同じ文脈で担う意味ある認知工程、`script:`は明示した実在入力から閉じた結果を得る決定論的tool、`playbook:`は外部公開Skillの直接呼び出しである。外部runtimeによる値注入や、値運搬だけの中間fileを前提にしない。必要な入力、判断、成果、公開Skill結果が無ければ推測せず停止する。
 
-`PLUGIN_ROOT`は配布物rootの絶対パスである。単一skill pluginではこの`SKILL.md`があるdirectory、複数skill pluginでは`skills/<skill>/`の2つ上に当たる。Claude Codeでは`${CLAUDE_PLUGIN_ROOT}`が自動展開される。
-<!-- END shared:skill-entry/root-block -->
-
-## 1. 工程を解決して、書かれた順に実行する
-
-<!-- BEGIN shared:skill-entry/config-load -->
-```bash
-CFG_FILE=$(bash "${PLUGIN_ROOT}/scripts/prepare.sh" "$(pwd)") || exit 2
-printf '%s\n' "$CFG_FILE"
-```
-
-**このコマンドは説明例ではない。必ず実行する。** 解決済みYAMLが空なら先へ進まない。設定ファイルを直接読んで代用しない。
-
-本文中の `${...}` は解決済みYAMLのプロパティである。使用時に `yq -er` で読み、欠落または `null` なら停止する。
-<!-- END shared:skill-entry/config-load -->
-
-`${.instructions.execution.directive}` に従い、`${.playbook.contract}` と `${.deps}` を工程へ渡し、成果は `${.playbook.out_dir}` へ集める。契約の役を確認するときだけ[役の契約](references/roles.md)を読む。
+`playbook.yml`の`instructions.execution.directive`と`contract`を直接読み、同じagentの判断基準へ適用する。新規保存先は公開入力の`output_directory`と`name`だけから決める。`requires`のうち同梱する`domain-events`と`core-domain`はその責務・資料をこのagentが適用し、外部の`grill`と`write-doc`だけを公開Skillとして呼ぶ。未生成の依存解決objectや解決済み設定を工程へ渡す前提は置かない。契約の役を確認するときだけ[役の契約](references/roles.md)を読む。
 
 [実行指示書](references/execution-guidance.md)を必ず読む。`playbook.yml`は工程順・依存・入出力を決定し、実行指示書は背景・前提・目的と各工程で意識することを補う。`grill`工程には実行指示書のdomain固有の文脈を`context`と`questions`として渡し、相手にdomainの観点を求めない。
 
@@ -45,15 +21,13 @@ printf '%s\n' "$CFG_FILE"
 
 **資料保存は版2の直接呼び出しである。** `write-doc`には型付き`material`と明示した保存先を直接渡す。返された`status: completed`と保存済みMarkdownの絶対パスを確認し、`path`を`domain_rule_path`へ対応させる。`path`が指定した`output_directory`と`name`による新規保存先に一致することも確認する。失敗や結果欠落なら後続工程と素材削除へ進まない。入力・出力YAMLや相手の設定解決は使わない。
 
-**根拠づけられた入力は`ground`工程が作る。** `grill`が返すのは`decisions`と`open_questions`だけである。
+`grill:grill`が直接返した`decisions`と`open_questions`を利用者入力・明示資料と突き合わせ、同じagentが根拠づけられた入力を確定する。`grounded_input`はこの確認済み集合の論理名であり、別の認知担当から受け取る中間成果ではない。
 
-**後片付けは自分でする。** 最終資料の保存を確認してから`python3 "${PLUGIN_ROOT}/scripts/cleanup.py" --config "$CFG_FILE" --artifact <名前>=<path> ...`を実行する。消えるのは`${.playbook.contract.cleanup.delete_after_document}`に宣言し、かつgitが追跡していないファイルだけである。
+後片付けは、最終資料の保存成功を確認した同じagentが`${.playbook.agent_work.temporary_files}`に従い、system temporary directory内に自分が作った検査用fileだけへ明示pathで適用する。保存失敗時は削除しない。
 
-[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。代表BDDを書く前に条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。必要条件が不明ならgrillへ戻し、暗黙に成立させない。
+[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。代表BDDを書く前に条件マトリクスを作り、対応する検査工程の成功結果を確認する。必要条件が不明ならgrillへ戻し、暗黙に成立させない。
 
-**同梱工程には `--scope=${.resolution.scope_root}` を渡す。**この段取りを通るときだけ効く設定がそこにある。直接入力を使う`grill`と`write-doc`には渡さない。
-
-**exit 2 で止まったら先へ進まない。** 何が起きたかは `scripts/resolve.sh` の冒頭に書いてある。
+同じagentが利用者の入力と前工程で得た判断を保持して進む。決定論的toolが失敗結果を返したら先へ進まない。
 
 ## 2. 利用者が持っている知識から始める
 
@@ -73,6 +47,8 @@ printf '%s\n' "$CFG_FILE"
 
 [振る舞い発見](references/behavior-discovery.md)、[アクターとステークホルダー](references/actors-and-stakeholders.md)、[業務ルール](references/domain-rules.md)、[ユビキタス言語](references/ubiquitous-language.md)、[共通理解を作る問い](references/questions.md)を読み、コアについて次を一続きで確かめる。
 
+ユビキタス言語は、業務関係者が仕事の会話と判断で合意して使う語、その業務上の意味、使用文脈としてまとめる。バックエンドの部品名、保存方式、内部状態名を混ぜず、技術語を平易な独自語へ言い換えて業務語に見せない。対応する合意語が無ければ作らず、回答責任者つきの未決へ戻す。
+
 ```text
 役割の目的 + 協働役割 + 事前状態 + 業務イベント + 条件
 → 判断権者の業務判断 → 観測できる結果 + 次状態 + 引継ぎ + 後続イベント
@@ -82,9 +58,9 @@ printf '%s\n' "$CFG_FILE"
 
 ## 5. 確からしさを落とさずに束ねる
 
-`scripts/map.py`で振る舞い断面と代表BDDを記録し、`scripts/material.sh`で1つの素材へ束ねる。事実、線引き、決定、振る舞い、代表BDDのどれかが欠けていたら束ねない。[成果物の形](references/discovery-deliverable.md)に沿って本文の要求を決める。
+同じagentが確定した事実、線引き、決定から振る舞い断面と代表BDDを作り、1つの素材へ束ねる。事実、線引き、決定、振る舞い、代表BDDのどれかが欠けていたら資料化しない。[成果物の形](references/discovery-deliverable.md)に沿って本文の要求を決める。
 
-保存は`write-doc`工程が行う。束ねた素材の絶対pathを`{kind: file, path: <素材の絶対パス>}`の1要素配列にして`material`、`${.playbook.document_type}`を`document_type`、`${.playbook.out_dir}`の絶対pathを`output_directory`、パス要素を含まない`.md`ファイル名を`name`として渡し、1本だけ保存する。`references`には[成果物の形](references/discovery-deliverable.md)の絶対pathを渡す。
+保存は`write-doc`工程が行う。開始時に公開入力の`output_directory`が既存の書き込み可能な絶対directory、`name`がパス要素を含まない`.md`名であることを確かめる。不明・相対path・同名fileが既存する場合は推測や上書きをせず停止する。同じ文脈で完成させたMarkdown本文を`{kind: text, content: <完成本文>}`の1要素配列にして`material`、`${.playbook.document_type}`を`document_type`、確認済みの2入力をそのまま`output_directory`と`name`に渡し、1本だけ保存する。`references`には[成果物の形](references/discovery-deliverable.md)の絶対pathを渡す。
 
 ## 6. 報告する
 
@@ -95,7 +71,3 @@ printf '%s\n' "$CFG_FILE"
 - まだ決まっていない論点
 
 設定形式は[README](README.md)を参照する。モデルと推論の強さは決定的でないため設定に持たない。
-
-## 実行設定の寿命
-
-prepareが返した絶対pathを実行記録へ保持する。別shellではそのpathを`CFG_FILE`へ明示して読み、shell変数の継承を前提にしない。完了時と失敗停止時のどちらも、最後の設定利用後に`python3 "${PLUGIN_ROOT}/scripts/run-config.py" cleanup --config "$CFG_FILE"`を実行する。他runの設定やdirectoryを削除しない。
