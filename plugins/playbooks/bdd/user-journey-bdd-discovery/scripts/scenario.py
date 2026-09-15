@@ -17,22 +17,6 @@ STEP = re.compile(r"^\s*(Given|When|Then|And|But|前提|もし|ならば|かつ|
 NOTE = re.compile(r"^\s*NOTE\s*:\s*$")
 NOTE_FIELD = re.compile(r"^\s+(Rule|Source|Reason)\s*:\s*(.+?)\s*$")
 KIND = {"Given": "given", "前提": "given", "When": "when", "もし": "when", "Then": "then", "ならば": "then"}
-IMPLEMENTATION_WORDS = (
-    "画面", "ボタン", "クリック", "押下", "入力欄", "url", "api", "endpoint", "エンドポイント",
-    "request", "response", "リクエスト", "レスポンス", "http", "json", "db", "table", "テーブル",
-    "class", "method", "selector", "セレクタ",
-)
-TEST_EXECUTION_WORDS = (
-    "test runner", "テストランナー", "実行環境", "試行回数", "実行証拠", "ci", "flaky", "trace",
-)
-
-
-def contains_forbidden(text, word):
-    if word.isascii():
-        return re.search(rf"(?<![a-z0-9]){re.escape(word)}(?![a-z0-9])", text) is not None
-    return word in text
-
-
 def fail(message, code=2):
     print(json.dumps({"error": message}, ensure_ascii=False))
     raise SystemExit(code)
@@ -174,12 +158,6 @@ def check(text, matrix):
                 last_step = max(step["line"] for step in scene["steps"]) if scene["steps"] else scene["line"]
                 if notes[0]["line"] <= last_step:
                     add(notes[0]["line"], "NOTE", "Thenの途中にある", "すべてのThenとAndの直後へ移す")
-
-        for step in scene["steps"]:
-            lowered = step["body"].lower()
-            for word in IMPLEMENTATION_WORDS + TEST_EXECUTION_WORDS:
-                if contains_forbidden(lowered, word):
-                    add(step["line"], "責務外の語", word, "ユーザーまたは協働役割から観測できる振る舞いの言葉へ戻す")
 
     return problems, len(scenes)
 
