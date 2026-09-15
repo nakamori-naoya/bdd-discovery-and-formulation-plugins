@@ -36,6 +36,76 @@ matrix_bad="$TMP_ROOT/matrix-bad.json"
 sed 's/"state":"satisfied","target":false/"state":"unsatisfied","target":false/' "$matrix_good" > "$matrix_bad"
 if python3 "$matrix_validator" check --file "$matrix_bad" >/dev/null 2>&1; then fail "条件マトリクスの暗黙前提を許可"; else pass "条件マトリクスの暗黙前提を拒否"; fi
 
+# step数とExamplesの行列数は内容の十分性を表さない。構造が正しい大きな例を受理し、
+# Given/When/Thenと条件マトリクスの対応という表現契約は引き続き拒否できることを確かめる。
+domain_formulation="$ROOT/plugins/playbooks/bdd/domain-bdd-formulation"
+large_scenario="$TMP_ROOT/large-scenario.feature"
+cat > "$large_scenario" <<'EOF'
+Feature: 多数の結果と代表例を持つ業務規則
+Scenario Outline: 必要な結果をすべて観測する
+  Given <a> <b> <c> <d> <e> <f> <g> が前提である
+  When 判定する
+  Then 結果1を観測する
+  And 結果2を観測する
+  And 結果3を観測する
+  And 結果4を観測する
+  And 結果5を観測する
+  And 結果6を観測する
+  Examples:
+    | a | b | c | d | e | f | g |
+    | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
+    | 2 | 2 | 2 | 2 | 2 | 2 | 2 |
+    | 3 | 3 | 3 | 3 | 3 | 3 | 3 |
+    | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+    | 5 | 5 | 5 | 5 | 5 | 5 | 5 |
+    | 6 | 6 | 6 | 6 | 6 | 6 | 6 |
+    | 7 | 7 | 7 | 7 | 7 | 7 | 7 |
+    | 8 | 8 | 8 | 8 | 8 | 8 | 8 |
+    | 9 | 9 | 9 | 9 | 9 | 9 | 9 |
+    | 10 | 10 | 10 | 10 | 10 | 10 | 10 |
+    | 11 | 11 | 11 | 11 | 11 | 11 | 11 |
+EOF
+large_matrix="$TMP_ROOT/large-scenario-matrix.json"
+cat > "$large_matrix" <<'EOF'
+{"scenarios":[{"name":"必要な結果をすべて観測する","kind":"success","expected":"success","rule":"R","trigger":{"kind":"action","text":"判定する"},"premises":[{"name":"全条件","text":"<a> <b> <c> <d> <e> <f> <g> が前提である","state":"satisfied","target":false,"source":"業務規則"}]}]}
+EOF
+if python3 "$domain_formulation/scripts/scenario.py" check --config "$domain_formulation/playbook.yml" --file "$large_scenario" --matrix "$large_matrix" >/dev/null; then
+  pass "step数とExamples行列数を品質gateにしない"
+else
+  fail "量だけで正しいBDD構造を拒否"
+fi
+broken_scenario="$TMP_ROOT/broken-large-scenario.feature"
+sed 's/^  Then 結果1を観測する$/  When 結果1を観測する/' "$large_scenario" > "$broken_scenario"
+if python3 "$domain_formulation/scripts/scenario.py" check --config "$domain_formulation/playbook.yml" --file "$broken_scenario" --matrix "$large_matrix" >/dev/null 2>&1; then
+  fail "複数Whenを許可"
+else
+  pass "一つのWhenという表現契約を拒否側で検証"
+fi
+
+core_domain="$ROOT/plugins/skills/domain/core-domain"
+scope_config="$TMP_ROOT/core-domain.yml"
+scope_directory="$TMP_ROOT/core-scope"
+scope_material="$TMP_ROOT/core-scope.md"
+mkdir -p "$scope_directory"
+cat > "$scope_config" <<EOF
+scope_dir: $scope_directory
+EOF
+cat > "$scope_material" <<'EOF'
+## コア
+API商品という業務上の固有名を扱う
+## 支援
+なし
+## 汎用
+なし
+## スコープ外
+なし
+EOF
+if python3 "$core_domain/scripts/check.py" write --config "$scope_config" --topic semantic-boundary --body-file "$scope_material" >/dev/null; then
+  pass "語の存在だけでコア境界を機械判定しない"
+else
+  fail "語の存在だけでコア境界の意味を判定"
+fi
+
 if jq -e '.name=="bdd-discovery-and-formulation" and (.plugins|length==1) and .plugins[0].name=="bdd-discovery-and-formulation" and .plugins[0].source.path=="./plugins"' "$ROOT/.agents/plugins/marketplace.json" >/dev/null; then
   pass "Codex marketplaceの配布境界"
 else
@@ -243,9 +313,9 @@ fi
 bad_map="$TMP_ROOT/bad-ui-map.md"
 sed 's/希望条件を伝える/APIを呼び出す/' "$good_map" > "$bad_map"
 if python3 "$journey/scripts/journey.py" check --file "$bad_map" >/dev/null 2>&1; then
-  fail "User JourneyへAPI操作を許可"
+  pass "User Journeyの語彙責務を機械判定しない"
 else
-  pass "User Journeyから実装操作を拒否"
+  fail "語の存在だけでUser Journeyの意味を判定"
 fi
 boundary_map="$TMP_ROOT/one-scene-map.md"
 awk '/^### 場面 2:/{exit} {print}' "$good_map" > "$boundary_map"
@@ -296,10 +366,12 @@ fi
 
 bad_story="$TMP_ROOT/bad-user-journey-bdd.md"
 sed 's/予約者が希望を伝える/予約者がAPIを呼び出す/' "$good_story" > "$bad_story"
-if python3 "$journey_discovery/scripts/scenario.py" check --config "$journey_discovery/playbook.yml" --file "$bad_story" --matrix "$good_matrix" >/dev/null 2>&1; then
-  fail "ユーザー目的達成BDDにAPI操作を許可"
+semantic_matrix="$TMP_ROOT/semantic-user-journey-matrix.json"
+sed 's/予約者が希望を伝える/予約者がAPIを呼び出す/' "$good_matrix" > "$semantic_matrix"
+if python3 "$journey_discovery/scripts/scenario.py" check --config "$journey_discovery/playbook.yml" --file "$bad_story" --matrix "$semantic_matrix" >/dev/null 2>&1; then
+  pass "ユーザー目的達成BDDの語彙責務を機械判定しない"
 else
-  pass "ユーザー目的達成BDDからAPI操作を拒否"
+  fail "語の存在だけでユーザー目的達成BDDの意味を判定"
 fi
 
 journey_formulation="$ROOT/plugins/playbooks/bdd/user-journey-bdd-formulation"

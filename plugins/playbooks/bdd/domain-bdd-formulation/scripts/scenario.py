@@ -5,14 +5,11 @@
 その読みやすさを機械で守れる部分だけである。意図が伝わるかは人の判断に残る。
 
   scenario.py check --config <解決済みplaybook YAML> --file <path> --matrix <condition-matrix.json>
-                    [--allow <語>]...
       -> 違反を1件ずつ出し、1つでもあれば異常終了する
 
   scenario.py save --config <json|path> --topic <題材> --file <path> --matrix <condition-matrix.json> [--force]
       -> 検査を通ったものだけを scenario_dir へ保存する
 
-  scenario.py vocabulary --config <解決済みplaybook YAML>
-      -> その高さで書けない語と、その理由を出す
 """
 
 import argparse
@@ -24,13 +21,6 @@ import sys
 
 from scenario_matrix import validate as validate_matrix
 
-STORAGE = ["テーブル", "カラム", "SQL", "スキーマ", "インデックス", "主キー"]
-WIRE = ["エンドポイント", "リクエスト", "レスポンス", "HTTP", "gRPC", "JSON", "ペイロード"]
-SCREEN = ["画面", "ボタン", "クリック", "押下", "入力欄", "プルダウン", "モーダル", "URL", "タブ"]
-CODE = ["クラス", "メソッド", "関数", "enum", "セレクタ", "HTML", "CSS"]
-FORBIDDEN = {"domain": STORAGE + WIRE + SCREEN + CODE}
-WHY = {"domain": "業務の決まりは、作りを変えても変わらない言葉だけで書く"}
-
 FEATURE = re.compile(r"^\s*(Feature|機能)\s*:\s*(.*)$")
 RULE = re.compile(r"^\s*(Rule|ルール)\s*:\s*(.*)$")
 BACKGROUND = re.compile(r"^\s*(Background|背景)\s*:")
@@ -40,10 +30,6 @@ STEP = re.compile(r"^\s*(Given|When|Then|And|But|前提|もし|ならば|かつ|
 KEYWORD_KIND = {"Given": "given", "前提": "given", "When": "when", "もし": "when",
                 "Then": "then", "ならば": "then"}
 PLACEHOLDER = re.compile(r"<([^<>]+)>")
-VAGUE_NAME = re.compile(r"^(テスト|test|scenario\s*\d*|シナリオ\s*\d*|確認)$", re.I)
-# または／or は、そのシナリオが何を主張しているのかを決められなくする。
-DISJUNCTION = re.compile(r"(または|もしくは|\bor\b)", re.I)
-FIRST_PERSON = re.compile(r"(^|[^ぁ-んァ-ン一-龥])私([^ぁ-んァ-ン一-龥]|$)")
 OLD_CLOSURE = re.compile(r"^\s*#\s*クロージャ\s*:")
 NOTE = re.compile(r"^\s*NOTE\s*:\s*$")
 NOTE_FIELD = re.compile(r"^\s+(Rule|Source|Reason)\s*:\s*(.+?)\s*$")
@@ -140,7 +126,7 @@ def parse(text):
     return doc
 
 
-def check(doc, focus, max_steps, allow_background, limits, allow, matrix):
+def check(doc, allow_background, matrix):
     problems = []
 
     def bad(line, kind, detail, howto):
@@ -167,15 +153,11 @@ def check(doc, focus, max_steps, allow_background, limits, allow, matrix):
     for extra in sorted(set(matrix_by_name) - document_names):
         bad(0, "条件マトリクス", "BDD本文に無いシナリオがある: {}".format(extra), "BDD本文と条件マトリクスを一対一にする")
 
-    forbidden = [w for w in FORBIDDEN[focus] if w not in set(allow)]
     seen_names = {}
     for sc in doc["scenarios"]:
         name, ln = sc["name"], sc["line"]
         if not name:
             bad(ln, "シナリオ名", "名前が無い", "何の話かが1行で分かる名前を付ける")
-        elif VAGUE_NAME.match(name):
-            bad(ln, "シナリオ名", "意図を説明していない名前: {}".format(name),
-                "そのシナリオが何を主張するかを名前にする")
         if name:
             if name in seen_names:
                 bad(ln, "シナリオ名", "同じ名前が {} 行目にもある".format(seen_names[name]),
@@ -197,11 +179,6 @@ def check(doc, focus, max_steps, allow_background, limits, allow, matrix):
         if kinds != sorted(kinds, key=order.get):
             bad(ln, "ステップの順序", "Given / When / Then の順になっていない",
                 "すでにある前提、検証する唯一の入力、観測可能な結果の順に並べる")
-        non_given_steps = [step for step in sc["steps"] if step["kind"] != "given"]
-        if len(non_given_steps) > max_steps:
-            bad(ln, "長さ", "WhenとThenが {} 個（上限 {}）".format(len(non_given_steps), max_steps),
-                "必要なGivenは削らず、複数の振る舞いを分ける")
-
         matrix_item = matrix_by_name.get(name)
         if matrix_item:
             premise_texts = {item.get("text") for item in matrix_item.get("premises", []) if isinstance(item, dict)}
@@ -238,15 +215,6 @@ def check(doc, focus, max_steps, allow_background, limits, allow, matrix):
         norm = {}
         for st in sc["steps"]:
             t, sl = st["text"], st["line"]
-            if DISJUNCTION.search(t):
-                bad(sl, "または", "1文が2つのことを言っている: {}".format(t),
-                    "シナリオを2つに分ける。または は、何を主張しているか決められなくする")
-            if FIRST_PERSON.search(t):
-                bad(sl, "一人称", "「私」を使っている: {}".format(t),
-                    "役割の名前で書く")
-            for w in forbidden:
-                if w in t:
-                    bad(sl, "この焦点で書けない語", "{}（{}）".format(w, t), WHY[focus])
             if st["kind"] == "given":
                 key = re.sub(r"\s+", "", t)
                 if key in norm:
@@ -266,14 +234,6 @@ def check(doc, focus, max_steps, allow_background, limits, allow, matrix):
             else:
                 header = sc["examples"][0]["cells"]
                 rows = sc["examples"][1:]
-                if len(header) > limits["columns"]:
-                    bad(sc["examples"][0]["line"], "表の幅",
-                        "{} 列（上限 {}）".format(len(header), limits["columns"]),
-                        "1画面に収まらない表は、共通理解を壊す")
-                if len(rows) > limits["rows"]:
-                    bad(sc["examples"][0]["line"], "表の高さ",
-                        "{} 行（上限 {}）".format(len(rows), limits["rows"]),
-                        "同じ振る舞いを示す行は消す。行を足す前に、その値の意味を言えるか確かめる")
                 for h in header:
                     if h and h not in used:
                         bad(sc["examples"][0]["line"], "使われていない列", h,
@@ -306,14 +266,6 @@ def resolve_focus(cfg):
     return focus
 
 
-def limits_of(cfg):
-    lim = playbook_config(cfg).get("examples_limits") or {}
-    try:
-        return {"rows": int(lim.get("rows", 10)), "columns": int(lim.get("columns", 6))}
-    except (TypeError, ValueError):
-        fail("examples_limits が数値でない")
-
-
 def load_matrix(path):
     try:
         data = json.loads(read_text(path))
@@ -327,22 +279,17 @@ def load_matrix(path):
     return data
 
 
-def run_check(cfg, path, matrix_path, focus, allow):
+def run_check(cfg, path, matrix_path):
     pb = playbook_config(cfg)
     doc = parse(read_text(path))
     matrix = load_matrix(matrix_path)
-    try:
-        max_steps = int(pb.get("max_steps", 5))
-    except (TypeError, ValueError):
-        fail("max_steps が数値でない")
-    problems = check(doc, focus, max_steps, bool(pb.get("allow_background")),
-                     limits_of(cfg), allow, matrix)
+    problems = check(doc, bool(pb.get("allow_background")), matrix)
     return doc, problems
 
 
 def cmd_check(args, cfg):
     focus = resolve_focus(cfg)
-    doc, problems = run_check(cfg, args.file, args.matrix, focus, args.allow)
+    doc, problems = run_check(cfg, args.file, args.matrix)
     for p in problems:
         print(json.dumps(p, ensure_ascii=False))
     if problems:
@@ -364,7 +311,7 @@ def cmd_save(args, cfg):
         fail("playbookに scenario_dir が無い")
     if not os.path.isabs(d) and cfg.get("repo_root"):
         d = os.path.join(cfg["repo_root"], d)
-    doc, problems = run_check(cfg, args.file, args.matrix, focus, args.allow)
+    doc, problems = run_check(cfg, args.file, args.matrix)
     if problems:
         for p in problems:
             print(json.dumps(p, ensure_ascii=False))
@@ -386,12 +333,6 @@ def cmd_save(args, cfg):
                      ensure_ascii=False))
 
 
-def cmd_vocabulary(args, cfg):
-    focus = resolve_focus(cfg)
-    print(json.dumps({"focus": focus, "forbidden": FORBIDDEN[focus], "why": WHY[focus]},
-                     ensure_ascii=False))
-
-
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -400,22 +341,17 @@ def main():
     sp.add_argument("--config", required=True)
     sp.add_argument("--file", required=True)
     sp.add_argument("--matrix", required=True)
-    sp.add_argument("--allow", action="append", default=[])
 
     sp = sub.add_parser("save")
     sp.add_argument("--config", required=True)
     sp.add_argument("--topic", required=True)
     sp.add_argument("--file", required=True)
     sp.add_argument("--matrix", required=True)
-    sp.add_argument("--allow", action="append", default=[])
     sp.add_argument("--force", action="store_true")
-
-    sp = sub.add_parser("vocabulary")
-    sp.add_argument("--config", required=True)
 
     args = p.parse_args()
     cfg = load_config(args.config)
-    {"check": cmd_check, "save": cmd_save, "vocabulary": cmd_vocabulary}[args.cmd](args, cfg)
+    {"check": cmd_check, "save": cmd_save}[args.cmd](args, cfg)
 
 
 if __name__ == "__main__":

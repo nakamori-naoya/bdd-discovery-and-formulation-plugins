@@ -35,10 +35,7 @@ jq -e '
 jq -e '
   .focus=="domain" and
   .output_format=="markdown" and
-  (.max_steps|type=="number" and .>=3 and .<=12) and
   (.allow_background|type=="boolean") and
-  (.examples_limits.rows|type=="number" and .>=1) and
-  (.examples_limits.columns|type=="number" and .>=1) and
   (.contract.probe_dimensions == ["同値分割","境界値","精度と単位","条件組合せ","状態遷移","イベント順序","重複と再実行","同時実行","アクターと権限","悪用と不正","時間","規則変更と遡及","失敗時保証","不変条件"]) and
   (.requirements.core_domain_only==true) and
   (.requirements.existing_document_required==true) and
