@@ -14,6 +14,7 @@ unset HARNESS_PLUGIN_DEV_ROOTS HARNESS_PLUGIN_CACHE_ROOT
 export -n HARNESS_PLUGIN_DEV_ROOTS HARNESS_PLUGIN_CACHE_ROOT 2>/dev/null || true
 
 python3 "$ROOT/scripts/test-hardening.py" || exit 1
+python3 "$ROOT/scripts/check-direct-consumer-entry.py" || exit 1
 status=0
 
 # runtimeの複製が正本と一致していること。意図しない差分をここで止める。

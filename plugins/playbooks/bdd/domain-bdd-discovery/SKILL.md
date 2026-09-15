@@ -43,13 +43,15 @@ printf '%s\n' "$CFG_FILE"
 
 [入れ子の段取りを呼ぶ](references/nested-playbook.md)を必ず読む。`playbook:`の工程（`grill`、`write-doc`）は、そこに書いた入口・入力・出力だけで呼ぶ。相手の中の部品名、工程の呼び名、保存の呼び名、script、参考資料、設定へは触れない。
 
+**資料保存は版2の直接呼び出しである。** `write-doc`には型付き`material`と明示した保存先を直接渡す。返された`status: completed`と保存済みMarkdownの絶対パスを確認し、`path`を`domain_rule_path`へ対応させる。`path`が指定した`output_directory`と`name`による新規保存先に一致することも確認する。失敗や結果欠落なら後続工程と素材削除へ進まない。入力・出力YAMLや相手の設定解決は使わない。
+
 **根拠づけられた入力は`ground`工程が作る。** `grill`が返すのは`decisions`と`open_questions`だけである。
 
 **後片付けは自分でする。** 最終資料の保存を確認してから`python3 "${PLUGIN_ROOT}/scripts/cleanup.py" --config "$CFG_FILE" --artifact <名前>=<path> ...`を実行する。消えるのは`${.playbook.contract.cleanup.delete_after_document}`に宣言し、かつgitが追跡していないファイルだけである。
 
 [BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。代表BDDを書く前に条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。必要条件が不明ならgrillへ戻し、暗黙に成立させない。
 
-**各工程を呼ぶときは `--scope=${.resolution.scope_root}` を必ず渡す。**この段取りを通るときだけ効く設定がそこにある。渡さなければ効かない。入れ子の段取りへは、受け取ったものをそのまま渡す（自分の名前で作り直さない）。
+**同梱工程には `--scope=${.resolution.scope_root}` を渡す。**この段取りを通るときだけ効く設定がそこにある。直接入力を使う`grill`と`write-doc`には渡さない。
 
 **exit 2 で止まったら先へ進まない。** 何が起きたかは `scripts/resolve.sh` の冒頭に書いてある。
 
@@ -82,7 +84,7 @@ printf '%s\n' "$CFG_FILE"
 
 `scripts/map.py`で振る舞い断面と代表BDDを記録し、`scripts/material.sh`で1つの素材へ束ねる。事実、線引き、決定、振る舞い、代表BDDのどれかが欠けていたら束ねない。[成果物の形](references/discovery-deliverable.md)に沿って本文の要求を決める。
 
-保存は`write-doc`工程が行う。束ねた素材の絶対pathを1要素の配列にして`material`、`${.playbook.document_type}`を`document_type`、`${.playbook.output_format}`を`output_format`、`${.playbook.out_dir}`の絶対pathを`output_directory`、資料のファイル名を`name`として渡し、1本だけ保存する。`references`には[成果物の形](references/discovery-deliverable.md)の絶対pathを渡す。
+保存は`write-doc`工程が行う。束ねた素材の絶対pathを`{kind: file, path: <素材の絶対パス>}`の1要素配列にして`material`、`${.playbook.document_type}`を`document_type`、`${.playbook.out_dir}`の絶対pathを`output_directory`、パス要素を含まない`.md`ファイル名を`name`として渡し、1本だけ保存する。`references`には[成果物の形](references/discovery-deliverable.md)の絶対pathを渡す。
 
 ## 6. 報告する
 

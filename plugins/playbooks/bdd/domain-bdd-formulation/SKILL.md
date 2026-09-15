@@ -41,6 +41,8 @@ printf '%s\n' "$CFG_FILE"
 
 [入れ子の段取りを呼ぶ](references/nested-playbook.md)を必ず読む。`playbook:`の工程（`grill`、`write-doc`）は、そこに書いた入口・入力・出力だけで呼ぶ。相手の中の部品名、工程の呼び名、保存の呼び名、script、参考資料、設定へは触れない。
 
+**資料保存は版2の直接呼び出しである。** `write-doc`には型付き`material`と明示した保存先を直接渡す。返された`status: completed`と保存済みMarkdownの絶対パスを確認し、`path`を`updated_domain_rule_path`へ対応させる。更新時は`path == update_target`も確認する。失敗や結果欠落なら後続工程と素材削除へ進まない。入力・出力YAMLや相手の設定解決は使わない。
+
 **根拠づけられた入力は`ground`工程が作る。** `grill`が返すのは`decisions`と`open_questions`だけである。
 
 **後片付けは自分でする。** 最終資料の保存を確認してから`python3 "${PLUGIN_ROOT}/scripts/cleanup.py" --config "$CFG_FILE" --artifact <名前>=<path> ...`を実行する。消えるのは`${.playbook.contract.cleanup.delete_after_document}`に宣言し、かつgitが追跡していないファイルだけである。
@@ -55,7 +57,7 @@ printf '%s\n' "$CFG_FILE"
 
 ## 3. コアの既存理解をQA観点で反証する
 
-最初の`grill`工程より後の`${.playbook.steps}`を順に実行し、各工程へ`--scope=${.resolution.scope_root}`を渡す。[重要なシナリオを見つけるQA観点](references/important-scenarios.md)を読み、[コアドメインへの適用](references/qa-probes.md)に従う。`grounded_input`にならない業務用語・イベント・概念を後続へ渡さない。既存理解で説明できたもの、確認済みの修正、回答責任者つきの未決、コアの外へ分ける。網羅感のためにシナリオを増やさない。
+最初の`grill`工程より後の`${.playbook.steps}`を順に実行し、同梱工程へ`--scope=${.resolution.scope_root}`を渡す（直接入力を使う`grill`と`write-doc`には渡さない）。[重要なシナリオを見つけるQA観点](references/important-scenarios.md)を読み、[コアドメインへの適用](references/qa-probes.md)に従う。`grounded_input`にならない業務用語・イベント・概念を後続へ渡さない。既存理解で説明できたもの、確認済みの修正、回答責任者つきの未決、コアの外へ分ける。網羅感のためにシナリオを増やさない。
 
 確認済みの発見だけを既存資料のユビキタス言語、業務ルール、状態、アクター、BDDへ戻す。未確認の疑問は決まりにせず未回答の問いへ置く。QA手法の説明は資料へ書かない。
 
@@ -73,7 +75,7 @@ python3 "${PLUGIN_ROOT}/scripts/update-guard.py" --existing <入力資料> --out
 
 ## 5. 既存資料を同じパスで更新する
 
-既存資料を読んだうえで、`scripts/compose.sh`が束ねた素材の絶対pathを1要素の配列にして`material`、`${.playbook.document_type}`を`document_type`、`${.playbook.output_format}`を`output_format`、`update-guard.py`が返した`update_target`を`update_target`として`write-doc`工程へ渡す。**新規作成の指定（`output_directory`と`name`）は渡さない。** 保存先を相手に作り直させず、入力資料と同じ絶対パスだけを差し替える。差し替え後もコア以外の記述を勝手に深化させない。
+既存資料を読んだうえで、`scripts/compose.sh`が束ねた素材の絶対pathを`{kind: file, path: <素材の絶対パス>}`の1要素配列にして`material`、`${.playbook.document_type}`を`document_type`、`update-guard.py`が返した`update_target`を`update_target`として`write-doc`工程へ渡す。**新規作成の指定（`output_directory`と`name`）は渡さない。** 保存先を相手に作り直させず、入力資料と同じ絶対パスだけを差し替える。差し替え後もコア以外の記述を勝手に深化させない。
 
 ## 6. 報告する
 

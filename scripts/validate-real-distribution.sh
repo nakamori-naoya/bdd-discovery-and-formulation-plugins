@@ -55,7 +55,7 @@ for runtime in codex claude; do
         (.deps.grill.source_kind=="dev-map") and
         (.deps["write-doc"].source_kind=="dev-map") and
         ([.deps.grill.implements[] | select(.id=="grill/grill" and .version==1 and .kind=="playbook")] | length==1) and
-        ([.deps["write-doc"].implements[] | select(.id=="write-doc/write-doc" and .version==1 and .kind=="playbook")] | length==1)' >/dev/null; then
+        ([.deps["write-doc"].implements[] | select(.id=="write-doc/write-doc" and .version==2 and .kind=="playbook")] | length==1)' >/dev/null; then
       pass "$runtime/$directory 実配布物に対する解決"
     else
       fail "$runtime/$directory 実配布物に対する解決（$(head -1 "$out.err")）"

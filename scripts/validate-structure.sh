@@ -143,7 +143,7 @@ fi
 # 外部依存の実体を同梱していないこと。名前は playbook.yml の requires から引く。
 # 相手の内部の作りを列挙して検査すると、その内部名がこちらの検査へ焼き付いてしまう。
 own_marketplace=$(jq -r '.metadata.harness.marketplace' "$ROOT/plugins/.claude-plugin/plugin.json")
-external_plugins=$(for pb in "$ROOT"/plugins/playbooks/**/playbook.yml; do
+external_plugins=$(for pb in "$ROOT"/plugins/playbooks/*/*/playbook.yml; do
     yq -o=json -I=0 '.' "$pb" | jq -r --arg own "$own_marketplace" '.requires[] | select(.marketplace != $own) | .plugin'
   done | sort -u)
 bundled=""

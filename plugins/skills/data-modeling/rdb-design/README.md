@@ -29,7 +29,7 @@ instructions:
     directive: 論理構造を複製せず、対象バージョンで裏付けた物理制約・型・index・分離レベル・配置へ写す
 ```
 
-単体利用では対象製品・版をprompt overrideとして必ず渡します。data-modeling playbookから呼ぶ場合は、playbookの`database.product`と`database.version`が渡されます。
+対象製品・版は`database.product`と`database.version`のprompt overrideとして必ず渡します。値が不明なまま設計を開始しません。
 
 ## しないこと
 
