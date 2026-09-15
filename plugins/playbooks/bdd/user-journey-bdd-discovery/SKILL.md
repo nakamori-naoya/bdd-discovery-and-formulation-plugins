@@ -35,13 +35,15 @@ printf '%s\n' "$CFG_FILE"
 
 [入れ子の段取りを呼ぶ](references/nested-playbook.md)を必ず読む。`playbook:`の工程（`grill`、`write-doc`）は、そこに書いた入口・入力・出力だけで呼ぶ。相手の中の部品名、工程の呼び名、保存の呼び名、script、参考資料、設定へは触れない。
 
+**資料保存は版2の直接呼び出しである。** `write-doc`には型付き`material`と明示した保存先を直接渡す。返された`status: completed`と保存済みMarkdownの絶対パスを確認し、`path`を`user_journey_bdd_path`へ対応させる。`path`が指定した`output_directory`と`name`による新規保存先に一致することも確認する。失敗や結果欠落なら後続工程と素材削除へ進まない。入力・出力YAMLや相手の設定解決は使わない。
+
 **根拠づけられた入力は`ground`工程が作る。** `grill`が返すのは`decisions`と`open_questions`だけである。
 
 **後片付けは自分でする。** 最終資料の保存を確認してから`python3 "${PLUGIN_ROOT}/scripts/cleanup.py" --config "$CFG_FILE" --artifact <名前>=<path> ...`を実行する。消えるのは`${.playbook.contract.cleanup.delete_after_document}`に宣言し、かつgitが追跡していないファイルだけである。
 
 [BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を必ず読む。場面ごとに条件マトリクスを作り、`python3 "${PLUGIN_ROOT}/scripts/scenario_matrix.py" check --file <condition-matrix.json>`を通す。失敗場面の業務ルールが別資料にある場合は、`NOTE:`の`Source:`から外部正本の見出しを参照し、本文を複製しない。
 
-各工程へ`--scope=${.resolution.scope_root}`を渡す。`exit 2`で止まったら後続へ進まない。
+同梱工程へ`--scope=${.resolution.scope_root}`を渡す（直接入力を使う`grill`と`write-doc`には渡さない）。`exit 2`で止まったら後続へ進まない。
 
 ## 2. Journeyに該当するかを先に決める
 
@@ -76,7 +78,7 @@ Journey全体に場面数の上限を置かない。目的達成までに必要�
 python3 "${PLUGIN_ROOT}/scripts/scenario.py" check --config "$CFG_FILE" --file <story-draft.md> --matrix <condition-matrix.json>
 ```
 
-違反があれば資料化しない。通ったものだけを`scripts/compose.sh`で束ね、その素材の絶対pathを1要素の配列にして`material`、`${.playbook.document_type}`を`document_type`、`${.playbook.output_format}`を`output_format`、`${.playbook.out_dir}`の絶対pathを`output_directory`、資料のファイル名を`name`として`write-doc`工程へ渡し、最初の正本を1本保存する。指定先に正本がすでにあれば`compose.sh`が止まる。上書きせず、formulationへ切り替える。
+違反があれば資料化しない。通ったものだけを`scripts/compose.sh`で束ね、その素材の絶対pathを`{kind: file, path: <素材の絶対パス>}`の1要素配列にして`material`、`${.playbook.document_type}`を`document_type`、`${.playbook.out_dir}`の絶対pathを`output_directory`、パス要素を含まない`.md`ファイル名を`name`として`write-doc`工程へ渡し、最初の正本を1本保存する。指定先に正本がすでにあれば`compose.sh`が止まる。上書きせず、formulationへ切り替える。
 
 ## 6. 報告する
 

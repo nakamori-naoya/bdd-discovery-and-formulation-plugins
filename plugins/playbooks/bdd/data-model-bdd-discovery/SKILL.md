@@ -41,6 +41,8 @@ printf '%s\n' "$CFG_FILE"
 
 [入れ子の段取りを呼ぶ](references/nested-playbook.md)を必ず読む。`playbook:`の工程（`grill`、`write-doc`）は、そこに書いた入口・入力・出力だけで呼ぶ。相手の中の部品名、工程の呼び名、保存の呼び名、script、参考資料、設定へは触れない。
 
+**資料保存は版2の直接呼び出しである。** `write-doc`には型付き`material`と明示した保存先を直接渡す。返された`status: completed`と保存済みMarkdownの絶対パスを確認し、`path`を`logical_document_path`へ対応させる。`path`が指定した`output_directory`と`name`による新規保存先に一致することも確認する。失敗や結果欠落なら後続工程と素材削除へ進まない。入力・出力YAMLや相手の設定解決は使わない。
+
 **根拠づけられた入力は`ground`工程が作る。** `grill`が返すのは`decisions`と`open_questions`だけである。
 
 **後片付けは自分でする。** 最終資料の保存を確認してから`python3 "${PLUGIN_ROOT}/scripts/cleanup.py" --config "$CFG_FILE" --artifact <名前>=<path> ...`を実行する。消えるのは`${.playbook.contract.cleanup.delete_after_document}`に宣言し、かつgitが追跡していないファイルだけである。
@@ -49,7 +51,7 @@ printf '%s\n' "$CFG_FILE"
 
 ## 2. 永続化の振る舞いを先に発見する
 
-[入力に根拠づける規律](references/input-grounding.md)を読み、利用者の発言、明示された資料、`grill`工程で確認した決定にない業務用語・イベント・概念を作らない。`${.playbook.steps}`を順に実行し、各工程へ`--scope=${.resolution.scope_root}`を渡す。`design-data-model`工程には加えて`--override=method=${.playbook.modeling.method}`を渡す。アクター、事前状態、業務イベント、条件、判断、結果、次状態から、初めて成立する事実、追加する履歴、保持理由、物理削除を許す条件を確かめる。
+[入力に根拠づける規律](references/input-grounding.md)を読み、利用者の発言、明示された資料、`grill`工程で確認した決定にない業務用語・イベント・概念を作らない。`${.playbook.steps}`を順に実行し、同梱工程へ`--scope=${.resolution.scope_root}`を渡す（直接入力を使う`grill`と`write-doc`には渡さない）。`design-data-model`工程には加えて`--override=method=${.playbook.modeling.method}`を渡す。アクター、事前状態、業務イベント、条件、判断、結果、次状態から、初めて成立する事実、追加する履歴、保持理由、物理削除を許す条件を確かめる。
 
 `${.playbook.contract.persistence_operations}`の作成・更新・削除を、シナリオありまたは理由つき対象外として全て検討する。不明点や深掘りが必要な点は`grill`工程で利用者へ1問ずつ確認し、`ground`工程が束ねた`grounded_input`にならない仮説を後続へ渡さない。未確認事項が残る、対象操作のシナリオが無い、業務上の取消と物理削除が混ざる場合は論理モデルへ進まない。
 
@@ -63,7 +65,7 @@ printf '%s\n' "$CFG_FILE"
 
 ## 4. RDB論理設計資料として保存する
 
-論理モデルとBDDを1つのファイルへ束ね、その絶対pathを1要素の配列にして`material`、`${.playbook.document_type}`を`document_type`、`${.playbook.output_format}`を`output_format`、`${.playbook.out_dir}`の絶対pathを`output_directory`、資料のファイル名を`name`として`write-doc`工程へ渡す。BDDは素材の末尾に置く。
+論理モデルとBDDを1つのファイルへ束ね、その絶対pathを`{kind: file, path: <素材の絶対パス>}`の1要素配列にして`material`、`${.playbook.document_type}`を`document_type`、`${.playbook.out_dir}`の絶対pathを`output_directory`、パス要素を含まない`.md`ファイル名を`name`として`write-doc`工程へ渡す。BDDは素材の末尾に置く。
 
 ## 5. 報告する
 

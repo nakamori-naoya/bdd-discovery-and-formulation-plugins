@@ -1,3 +1,5 @@
+> 作業を始める前に、workspace正本入口 `/Users/naoya-nakamoriq/Documents/Github/harness-pluginsv2/AGENTS.md` を読み、そこから指定される共通規約とこのrepository固有の規則を適用する。
+
 # AGENTS.md
 
 このrepositoryは、BDDによるdiscovery、formulation、User Journeyの意味判断を配布するsourceである。
@@ -8,7 +10,7 @@
 - ユースケース、UX Journey map、画面・API・データ構造・テスト実行環境をUser Journeyへ混ぜない。
 - ユーザー入力、明示された資料、grillで確認した決定にない用語・イベント・役割・状態・制約を確定事項として作らない。
 - 不明点または深掘りが必要な点があれば、外部`grill@grill`の段取りを呼ぶ先頭工程で1問ずつ確認し、回答前に後続工程へ進まない。根拠づけられた入力は、その次の`ground`工程が`decisions`と`open_questions`から作る。
-- `write-doc`と`grill`は同梱せず、別repositoryへは`playbook:`工程だけで依存する。相手を`skill:`や`script:`で指さない。相手の中の部品名、工程の呼び名、保存の呼び名、script、参考資料、設定へ触れず、依存versionも固定しない。使ってよい入口は`references/nested-playbook.md`の4点だけである。
+- `write-doc`と`grill`は同梱せず、別repositoryへは`playbook:`工程だけで依存する。相手を`skill:`や`script:`で指さない。相手の中の部品名、工程の呼び名、保存の呼び名、script、参考資料、設定へ触れず、依存versionも固定しない。呼び方は`references/nested-playbook.md`の公開契約に従う。どちらも公開入口へ入力を直接渡し、相手の設定解決は行わない。`write-doc/write-doc`版2の直接結果と、`grill/grill`版1の結果YAMLを混同しない。
 - Slack、meeting、session収集、digest、cadence、agent-run、PR関連を追加しない。
 - 変更後は`bash scripts/validate.sh`を実行し、正常系だけでなく意図的に壊した負の試験が落ちることも確認する。
 - install cacheは編集せず、このsourceを正本としてチューニングする。

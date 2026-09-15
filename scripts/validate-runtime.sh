@@ -4,6 +4,15 @@
 # ここで固定するのは「外部pluginの公開面はplaybook 1枚だけ」という規則である。
 # fixtureは公開契約（metadata.harness.marketplace / implements）を宣言した形だけを作り、
 # 相手の中の作りを消費側から掴む形は、どれも赤にする。
+#
+# write-doc版2移行の機械検査:
+# 正本: shared/consumer-contract/nested-playbook.mdと依存resolverの要求契約版。
+# 入力: 6入口、両runtimeのmanifest、隔離cache・dev-mapのprovider fixture。
+# 正規化: manifest JSONとresolve.shが返す依存情報。
+# 合格述語: write-doc版2かつ公開2入口があれば解決成功し、版1では失敗する。
+# 失敗時の診断: runtime/入口名、契約版、resolverのerror code。
+# 正例: 版2provider。反例: 版1provider。境界例: 版2には旧runtime scriptが無い。
+# 意味評価として残す範囲: 直接入力の組み立て、執筆品質、保存後のBDDの内容。
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -19,24 +28,26 @@ fail() { printf 'FAIL: %s\n' "$1"; failed=$((failed + 1)); }
 
 entries='domain-bdd-discovery domain-bdd-formulation data-model-bdd-discovery data-model-bdd-formulation user-journey-bdd-discovery user-journey-bdd-formulation'
 
-# 公開playbook packageのfixture。契約IDを implements で自己宣言し、
-# 入口4点（playbook.yml / scripts/resolve.sh / scripts/prepare.sh / SKILL.md）を持つ。
+# 公開playbook packageのfixture。grill版1とwrite-doc版2には設定解決scriptが無い。
+# 旧write-doc版1だけは旧入口一式を備えた反例として作る。
 fixture_playbook_package() {
-  market=$1 plugin=$2 version=$3 skill=$4 types=$5
+  market=$1 plugin=$2 version=$3 skill=$4 types=$5 contract_version=$6
   root="$CACHE/$market/$plugin/$version"
   mkdir -p "$root/.codex-plugin" "$root/.claude-plugin" "$root/entry/scripts"
   printf -- '---\nname: %s\ndescription: fixture\n---\n' "$skill" > "$root/entry/SKILL.md"
   printf 'version: 2\nname: %s\n' "$skill" > "$root/entry/playbook.yml"
-  for script in resolve.sh prepare.sh; do
-    printf '#!/usr/bin/env bash\nexit 0\n' > "$root/entry/scripts/$script"
-    chmod +x "$root/entry/scripts/$script"
-  done
+  if [ "$contract_version" -eq 1 ] && [ "$market/$plugin" != "grill/grill" ]; then
+    for script in resolve.sh prepare.sh; do
+      printf '#!/usr/bin/env bash\nexit 0\n' > "$root/entry/scripts/$script"
+      chmod +x "$root/entry/scripts/$script"
+    done
+  fi
   for runtime in codex claude; do
-    jq -n --arg n "$plugin" --arg v "$version" --arg m "$market" --arg s "$skill" --argjson t "$types" '
+    jq -n --arg n "$plugin" --arg v "$version" --arg m "$market" --arg s "$skill" --argjson t "$types" --argjson c "$contract_version" '
       {name:$n, version:$v, skills:["./entry"],
        metadata:{harness:{installationSurface:"playbook-package", marketplace:$m,
-         entryRoot:"./entry", playbooks:{($s):"./entry"}, contractVersion:1,
-         implements:[({id:($m+"/"+$n), version:1, kind:"playbook", playbook:$s}
+         entryRoot:"./entry", playbooks:{($s):"./entry"}, contractVersion:$c,
+         implements:[({id:($m+"/"+$n), version:$c, kind:"playbook", playbook:$s}
                       + (if $t==null then {} else {types:$t} end))]}}}' \
       > "$root/.$runtime-plugin/plugin.json"
   done
@@ -54,10 +65,10 @@ add_internal_plugin() {
   done
 }
 
-fixture_playbook_package grill grill 0.2.13 grill null
-fixture_playbook_package grill grill 9.9.9 grill null
+fixture_playbook_package grill grill 0.2.13 grill null 1
+fixture_playbook_package grill grill 9.9.9 grill null 1
 fixture_playbook_package write-doc write-doc 0.6.0 write-doc \
-  '["domain-rule","user-journey-bdd","rdb-logical-data-modeling"]'
+  '["domain-rule","user-journey-bdd","rdb-logical-data-modeling"]' 2
 write_doc_package="$CACHE/write-doc/write-doc/0.6.0"
 add_internal_plugin "$write_doc_package" fixture-inner fixture-inner-skill
 
@@ -82,10 +93,33 @@ for runtime in codex claude; do
         .deps.grill.dependency_scope=="external" and .deps["write-doc"].dependency_scope=="external" and
         .deps.grill.contract=="grill/grill" and .deps["write-doc"].contract=="write-doc/write-doc" and
         (.deps["write-doc"].implements[0].playbook=="write-doc") and
+        (.deps["write-doc"].implements[0].version==2) and
         all(.deps[] | select(.marketplace=="bdd-discovery-and-formulation"); .dependency_scope=="internal")' >/dev/null; then
       pass "$runtime/$directory 公開playbookとして依存を解決"
     else
       fail "$runtime/$directory 公開playbookとして依存を解決"
+    fi
+  done
+done
+
+# 6入口すべてが旧write-docへ自動で戻らないことを、別の完全な版1providerで確かめる。
+# v1に必要なscriptを備えたfixtureなので、script欠落による偶然の失敗ではない。
+fixture_playbook_package write-doc write-doc 0.5.0 write-doc \
+  '["domain-rule","user-journey-bdd","rdb-logical-data-modeling"]' 1
+old_doc_map="$TMP_ROOT/old-doc-roots.json"
+jq -n --arg root "$CACHE/write-doc/write-doc/0.5.0" \
+  '{schema:1,dependencies:{"write-doc/write-doc":$root}}' > "$old_doc_map"
+for runtime in codex claude; do
+  for directory in $entries; do
+    pb="$CALLERS/$directory"
+    if HARNESS_PLUGIN_RUNTIME="$runtime" HARNESS_PLUGIN_CACHE_ROOT="$pb/.harness-plugin-test-cache" \
+        HARNESS_PLUGIN_DEV_ROOTS="$old_doc_map" bash "$pb/scripts/resolve.sh" "$REPO" \
+        > "$TMP_ROOT/old-doc.out" 2> "$TMP_ROOT/old-doc.err"; then
+      fail "$runtime/$directory 旧write-doc契約を許可"
+    elif rg -n '\[error:external-dependency-no-playbook\].*contract=write-doc/write-doc' "$TMP_ROOT/old-doc.err" >/dev/null; then
+      pass "$runtime/$directory 旧write-doc契約を停止"
+    else
+      fail "$runtime/$directory 旧write-doc契約のerror contract（$(head -1 "$TMP_ROOT/old-doc.err")）"
     fi
   done
 done
@@ -148,7 +182,7 @@ expect_check_steps_error "外部pluginのscript実行" \
   '(.playbook.steps[-1]) |= (.script="scripts/write.sh" | .plugin="write-doc")' \
   '\[error:external-dependency-script\].*plugin=write-doc'
 
-# (4) 公開面4点以外のpathを外部rootから組み立てる。
+# (4) 公開契約にないpathを外部rootから組み立てる。
 expect_check_steps_error "外部root配下のpath組み立て" \
   '(.playbook.steps[-1].purpose) |= (. + " ${.deps[\"write-doc\"].root}/scripts/write-anything.sh")' \
   '\[error:external-dependency-path\].*plugin=write-doc'
