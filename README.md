@@ -140,7 +140,7 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 
 各入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`references/execution-guidance.md`が背景・前提・目的と各工程実行時の付加的な指示を持つ。`grill`へdomainやdata model固有の文脈を与えるのは後者であり、相手へ観点を持ち込まない。
 
-外部の段取り（`grill`、`write-doc`）は、`references/nested-playbook.md`に書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。入力YAMLや出力YAMLは作らず、返された`status`と`path`または`reason`を直接受け取る。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`output_format: markdown`はBDD側の成果物条件として保持するが、write-docへの入力には含めない。`grill/grill`版1は入力objectまたは入力YAMLの絶対パスを公開入口へ直接渡し、`output_to`の結果YAMLを受け取る。どちらも相手の設定解決は行わず、両者の結果形式を混用しない。相手の内部の部品、工程、保存処理、参考資料、設定へは触れない。差し替えは利用者が`dependencies.yml`で契約IDへ実体を束縛して行う。
+外部の段取り（`grill`、`write-doc`）は、`references/nested-playbook.md`に書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。入力YAMLや出力YAMLは作らず、返された`status`と`path`または`reason`を直接受け取る。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`output_format: markdown`はBDD側の成果物条件として保持するが、write-docへの入力には含めない。`grill/grill`版1は契約objectを公開入口へ直接渡し、利用者が最終記録の保存も求めた場合だけ`output_to`を指定する。完了時は保存の有無にかかわらず、`decisions`と`open_questions`を持つ結果objectを直接受け取る。両配列の`[]`は合法であるが、回答または一覧全体と対話終了の明示合意を待っている間は後続へ進まない。どちらも相手の設定解決は行わず、両者の結果形式を混用しない。相手の内部の部品、工程、保存処理、参考資料、設定へは触れない。
 
 ## インストール済みである必要があるplugin
 
@@ -149,9 +149,7 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 - `grill@grill`
 - `write-doc@write-doc`
 
-外部依存は公開playbook packageの`marketplace / plugin / runtime`で解決し、versionは固定しない。install済みcacheに複数versionがあれば最新のsemantic versionを選び、そのmanifestのpackage名と、`metadata.harness.implements`が宣言する契約IDを検査する。契約を宣言していない実体、外部packageの内部機能名は解決しない。名前が一致する公開packageが無ければ停止する。開発時だけ`HARNESS_PLUGIN_DEV_ROOTS`の明示mapでsource checkoutを指定できる。
-
-利用者は`~/.config/harness-plugins/dependencies.yml`、`<repo>/.harness-plugins/dependencies.yml`、`<repo>/.harness-plugins/scopes/<入口playbook>/dependencies.yml`で、契約ID（`grill/grill`、`write-doc/write-doc`）へ別の実体を束縛できる。playbook側の`requires`は変えない。
+公開入口は同じagentの利用可能Skill一覧と`requires`を照合する。契約IDと版が異なる、または必要な公開Skillが無い場合は停止する。consumerが依存先のroot、cache、設定、内部pathを探さない。
 
 ## 設定の上書きと優先順位
 
@@ -183,7 +181,9 @@ bash scripts/validate.sh
 
 install cacheは編集せず、このrepositoryを正本として変更する。
 
-## 実行契約と保守
+## repository保守用runtime
+
+以下はsource repository自体の配布検証と保守の説明であり、公開Skillが`grill`または`write-doc`を呼ぶ手順ではない。consumerはこのruntimeを介さず、公開契約objectと直接結果だけを扱う。
 
 設定はprepareが返すrun専用の絶対pathで引き継ぐ。別shellで同じpathを明示し、完了・失敗停止の最後に同梱run-configのcleanupを呼ぶ。中断後は保存したpathを使い、既にcleanup済みなら設定を再解決する。
 
@@ -202,27 +202,6 @@ CIは同ownerの依存repositoryを兄弟directoryへcheckoutしてからvalidat
 [release CLI](scripts/release.py)は`--plugin --version --notes --breaking --migration --checks`で更新計画を返す。`--checks`にはcodex/claudeの実検証結果、または未検証と理由を明示する。`--apply`で両manifestとcatalogの整合を確認して一括更新し、releases配下へ変更内容・移行・検証結果のJSON記録を残す。依存宣言は変更しない。
 
 [意味評価fixture](evals/scenarios.json)を[評価runner](scripts/evaluate-skills.py)へ渡し、異なる生成modelとjudge modelを指定する。モデル名、実model利用、適用設定、入力、出力、SKILL hash、判定の引用と理由を保存する。criterionの真偽は意味評価の記録であり、CLIの合否にはしない。CLIの非zero終了はadapter失敗、不正な応答、根拠不整合など記録を完了できない操作失敗を示す。人またはエージェントが記録を読み、根拠付きで評価する。これはツール無効の次応答を対象とした代表caseであり、実ツールを使った全工程E2Eや全行動の保証ではない。保存・CLI・再開の検証は[振る舞い回帰試験](scripts/test-hardening.py)と既存validateが担う。実モデル未実行のfixtureを合格扱いにしない。
-
-### 依存先を束縛する`dependencies.yml`
-
-契約ID（`marketplace/plugin`）に対する実体を`{plugin, marketplace}`で束縛する。**top-levelは`version: 1`と`bindings`の2つだけである。** それ以外のキーがあると`[error:binding-file-invalid] reason=top-level-keys`で停止する。
-
-```yaml
-version: 1
-bindings:
-  "grill/grill": {plugin: ask-one, marketplace: my-marketplace}
-  "write-doc/write-doc": {plugin: write-documents, marketplace: my-marketplace}
-```
-
-置き場所は3層で、下ほど優先する。**層はマージせず、見つかった最優先の1ファイルだけを使う。**
-
-1. personal: `$XDG_CONFIG_HOME/harness-plugins/dependencies.yml`（未設定時は`~/.config/harness-plugins/dependencies.yml`）
-2. repository: `<repo>/.harness-plugins/dependencies.yml`
-3. scope: `<repo>/.harness-plugins/scopes/<入口playbook>/dependencies.yml`
-
-値に書けるのは`plugin`と`marketplace`だけで、**pathやversionは書けない。** 差し替え先はmarketplace経由（installed cache、同一repository、開発時の`HARNESS_PLUGIN_DEV_ROOTS`）で解決でき、manifestの`metadata.harness.implements`にその契約IDを宣言しているpluginでなければならない。宣言が無ければ`[error:binding-not-implemented]`で停止する。playbook側の`requires`は書き換えない。
-
-入口が選んだ束縛はrun専用のlockへ固定して子へ渡す。同じ実行の中で実体が食い違うことはなく、実行中に`dependencies.yml`を書き換えても、そのrunの解決は変わらない。
 
 ### explainの読み方
 

@@ -3,6 +3,7 @@
 version: 2
 name: data-model-bdd-formulation
 description: 既存のBDD付きRDB論理設計を永続化のQA観点で反証して同じ資料へ戻し、そのテーブル構造を変えずに対象RDBの物理設計を作る
+inputs: [user_input, referenced_artifacts, existing_logical_document_path, physical_output_directory, physical_name]
 instructions:
   execution:
     directive: stepsを上から順に実行し、既存論理資料の同一パス更新を検査してから物理設計へ渡す
@@ -22,9 +23,6 @@ contract:
   probe_dimensions: [同値分割, 境界値, 精度と単位, 条件組合せ, 状態遷移, イベント順序, 重複と再実行, 同時実行, アクターと権限, 悪用と不正, 時間, 規則変更と遡及, 失敗時保証, 不変条件]
   logical_schema_markers: [table, column, business_constraint]
   confidence: [confirmed, assumed, unknown]
-  cleanup:
-    delete_after_document: [revised_persistence_scenarios, persistence_coverage, condition_matrix, revised_logical_data_model, revised_logical_body]
-    preserve: [grounded_input, existing_logical_document_path, updated_logical_document_path, read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]
 
 requirements:
   input_grounded: true
@@ -45,54 +43,77 @@ database:
 modeling:
   method: normalized
 
-out_dir: design/data-modeling
+agent_work:
+  owner: invoking_agent
+  inputs: [user_input, referenced_artifacts, existing_logical_document_path, decisions, open_questions]
+  produces: [grounded_input, revised_persistence_scenarios, persistence_coverage, condition_matrix, revised_logical_data_model, final_markdown, requested_output_path, read_scenarios, physical_rdb_design, physical_final_markdown, isolation_level_decisions, feature_evidence]
+  validation:
+    - {script: scripts/scenario_matrix.py, command: check, input: condition_matrix}
+    - {script: scripts/update-guard.py, inputs: [existing_logical_document_path, requested_output_path]}
+  delivery:
+    provider: write-doc
+    input_mapping: {material_kind: text, material_content: final_markdown}
+    output_path_from: existing_logical_document_path
+  temporary_files:
+    location: system_temporary_directory
+    delete_only_after: document_saved
+    preserve: [referenced_artifacts, existing_logical_document_path, updated_logical_document_path, physical_rdb_design_path]
 
 steps:
   - id: challenge-persistence
     playbook: grill
     purpose: 既存論理資料を根拠にQA観点で問い、不明点と深掘りが必要な点を利用者へ1問ずつ確認して、確認済みの発見と未決を分ける
+    needs: [user_input, referenced_artifacts, existing_logical_document_path]
     provides: [decisions, open_questions]
 
   - id: ground
-    script: scripts/ground.py
-    purpose: 依頼、反証の対象にした既存論理資料、確かめた決定と未決を、根拠づけられた入力として1つに束ねる
+    agent_work: invoking_agent
+    purpose: 同じagentが既存論理資料、依頼、決定、未決を根拠・仮説・未確認へ区別して保持する
     needs: [decisions, open_questions]
     provides: [grounded_input, existing_logical_document_path]
 
   - id: deepen-scenarios
-    skill: write-persistence-scenarios
-    purpose: 作成・更新・削除、履歴、保持、失敗時保証の不足を独立したBDDシナリオへ深化させる
+    agent_work: invoking_agent
+    purpose: 同じagentが作成・更新・削除、履歴、保持、失敗時保証の不足をBDDと条件マトリクスへ深化させる
     needs: [existing_logical_document_path, decisions, open_questions, grounded_input]
     provides: [revised_persistence_scenarios, persistence_coverage, condition_matrix]
 
+  - id: validate-scenarios
+    script: scripts/scenario_matrix.py
+    purpose: 条件マトリクスの構造契約を検査し、意味品質は採点しない
+    needs: [revised_persistence_scenarios, condition_matrix]
+    provides: [validation_report]
+
   - id: revise-logical-model
-    skill: design-data-model
-    purpose: 確認済みの発見を論理テーブルとBDDへ戻し、既存論理資料の更新本文を作る
-    needs: [existing_logical_document_path, revised_persistence_scenarios, persistence_coverage, condition_matrix, grounded_input]
-    provides: [revised_logical_data_model, revised_logical_body, requested_logical_output_path]
+    agent_work: invoking_agent
+    purpose: 同じagentが確認済みの発見を論理構造とBDDへ戻し、同一パス更新へ渡す本文を作る
+    needs: [existing_logical_document_path, revised_persistence_scenarios, persistence_coverage, condition_matrix, validation_report, grounded_input]
+    provides: [revised_logical_data_model, final_markdown, requested_output_path]
 
   - id: guard-logical-update
     script: scripts/update-guard.py
-    purpose: 論理設計の更新先が入力資料と同じパスであり、新規の論理資料を作らないことを検査する
-    needs: [existing_logical_document_path, requested_logical_output_path, grounded_input]
+    purpose: 更新先が入力された既存論理資料と同じパスであることを検査する
+    needs: [existing_logical_document_path, requested_output_path]
     provides: [update_target]
 
   - id: update-logical-document
     playbook: write-doc
-    purpose: 深化したBDDと論理モデルを、update_targetが指す既存のRDB論理データモデル資料と同じパスへ差し替える
+    purpose: 同じagentが保持した深化済みBDDと論理モデルをtext materialとして渡し、既存資料と同じパスへ差し替える
     input:
       document_type: rdb-logical-data-modeling
-    needs: [revised_logical_body, condition_matrix, update_target, grounded_input]
+    needs: [final_markdown, validation_report, update_target]
     provides: [updated_logical_document_path]
 
-  - id: physical-design
-    skill: design-rdb-persistence
-    purpose: 典型的なReadシナリオを特定し、論理構造を変えずに指定RDB・版の型、制約、index、分離レベル、配置へ写す
-    needs: [updated_logical_document_path, revised_logical_data_model, condition_matrix, grounded_input]
-    provides: [read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]
+  - id: design-physical
+    agent_work: invoking_agent
+    purpose: 同じagentが保存成功した更新済み論理資料の構造を固定し、対象RDBと版の根拠に基づくRead、型、制約、index、分離レベル、配置を物理設計本文へ写す
+    needs: [updated_logical_document_path, physical_output_directory, physical_name, grounded_input]
+    provides: [read_scenarios, physical_rdb_design, physical_final_markdown, isolation_level_decisions, feature_evidence]
 
-  - id: cleanup
-    script: scripts/cleanup.py
-    purpose: 論理資料の更新と物理設計の完了を確認した後、contract.cleanupで削除候補にした改訂案と検査用ファイルだけを削除し、入力資料、更新済み論理資料、物理設計成果を保持する
-    needs: [revised_persistence_scenarios, persistence_coverage, condition_matrix, revised_logical_data_model, revised_logical_body, grounded_input, existing_logical_document_path, updated_logical_document_path, read_scenarios, physical_rdb_design, isolation_level_decisions, feature_evidence]
-    provides: [cleanup_report]
+  - id: document-physical
+    playbook: write-doc
+    purpose: 更新済み論理資料に基づく検査済み物理設計本文をtext materialとして渡し、RDB物理設計資料を1本保存する
+    input:
+      document_type: rdb-physical-design
+    needs: [updated_logical_document_path, physical_output_directory, physical_name, physical_rdb_design, physical_final_markdown, isolation_level_decisions, feature_evidence]
+    provides: [physical_rdb_design_path]

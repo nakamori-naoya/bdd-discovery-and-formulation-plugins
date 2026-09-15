@@ -1,6 +1,7 @@
 version: 2
 name: user-journey-bdd-discovery
 description: 1人の主たるユーザーが1つの目的を達成するまでを発見し、接続した場面のBDD正本として初めて作る
+inputs: [user_input, referenced_artifacts, output_directory, name]
 instructions:
   execution:
     directive: stepsを上から順に実行し、目的と両端を確定してから、場面の連なりと資料化へ渡す
@@ -8,8 +9,6 @@ instructions:
 focus: user-journey
 document_type: user-journey-bdd
 output_format: markdown
-out_dir: bdd/user-journey
-
 requires:
   - {plugin: user-journey, marketplace: bdd-discovery-and-formulation}
   - {plugin: grill, marketplace: grill}
@@ -21,9 +20,6 @@ contract:
   journey_boundary: [central_question, inclusion_reason, excluded_questions]
   journey_scene: [sequence, prior_state, acting_role, action, observable_response, next_state, handoff]
   excluded_concerns: [use_case_responsibility, ux_experience_map, domain_rule_discovery, data_model_design, interface_operation_details, test_execution]
-  cleanup:
-    delete_after_document: [journey_map, scenario_draft, condition_matrix, material, validated_journey_bdd]
-    preserve: [grounded_input, user_journey_bdd_path]
 
 requirements:
   input_grounded: true
@@ -36,46 +32,55 @@ requirements:
   create_first_canonical_document: true
   existing_document_must_not_be_overwritten: true
 
+agent_work:
+  owner: invoking_agent
+  inputs: [user_input, referenced_artifacts, decisions, open_questions]
+  produces: [grounded_input, journey_map, journey_frame, journey_boundary, scenario_draft, condition_matrix, final_markdown]
+  validation:
+    - {script: scripts/scenario.py, command: check, inputs: [scenario_draft, condition_matrix]}
+  delivery:
+    provider: write-doc
+    input_mapping: {material_kind: text, material_content: final_markdown}
+  temporary_files:
+    location: system_temporary_directory
+    delete_only_after: document_saved
+    preserve: [referenced_artifacts, user_journey_bdd_path]
+
 steps:
   - id: settle
     playbook: grill
     purpose: ユーザー、目的、開始地点、最終地点、到達と判断する条件、途中で関わる役割について、入力から分からない点だけを1問ずつ確かめる
+    needs: [user_input, referenced_artifacts]
     provides: [decisions, open_questions]
 
   - id: ground
-    script: scripts/ground.py
-    purpose: 依頼、参照資料、確かめた決定と未決を、根拠づけられた入力として1つに束ねる
+    agent_work: invoking_agent
+    purpose: 同じagentが依頼、参照資料、決定、未決を根拠・仮説・未確認へ区別して保持する
     needs: [decisions, open_questions]
     provides: [grounded_input]
 
   - id: map-journey
-    skill: map-user-journey
-    purpose: 入力がJourneyに該当するかを何であるかと何でないかの両面で判定し、目的、両端、意味のある場面、状態の受け渡しを検査済みmapへ残す
+    agent_work: invoking_agent
+    purpose: 同じagentが目的、両端、場面、状態の受け渡しをJourney mapへ構成する
     needs: [decisions, grounded_input]
     provides: [journey_map, journey_frame, journey_boundary]
 
   - id: compose
-    script: scripts/compose.sh
-    purpose: 1つの目的達成を、前の結果が次の状態へつながる場面とBDDへ組み立てた草案と条件マトリクスが揃い、保存先が新規であることを確かめて1つの素材へ束ねる
+    agent_work: invoking_agent
+    purpose: 同じagentが場面の接続とBDD、条件マトリクス、完成本文を作る
     needs: [journey_map, journey_frame, journey_boundary, grounded_input]
-    provides: [material, scenario_draft, condition_matrix, requested_output_path]
+    provides: [scenario_draft, condition_matrix, final_markdown]
 
   - id: validate
     script: scripts/scenario.py
-    purpose: 目的と両端、1つ以上の場面、場面間の接続、各場面のBDD、対象外の実装・テスト実行関心を検査する
-    needs: [scenario_draft, condition_matrix, grounded_input]
-    provides: [validated_journey_bdd]
+    purpose: JourneyとBDDの構造契約を検査し、意味品質は採点しない
+    needs: [scenario_draft, condition_matrix]
+    provides: [validation_report]
 
   - id: document
     playbook: write-doc
-    purpose: 検査済みの目的達成ストーリーをuser-journey-bddの型でMarkdown正本として初めて1本保存する
+    purpose: 同じagentが保持した検査済みの目的達成ストーリーをtext materialとして渡し、Markdown正本を初めて1本保存する
     input:
       document_type: ${.document_type}
-    needs: [material, validated_journey_bdd, requested_output_path, grounded_input]
+    needs: [final_markdown, validation_report, output_directory, name]
     provides: [user_journey_bdd_path]
-
-  - id: cleanup
-    script: scripts/cleanup.py
-    purpose: 正本の保存を確認した後、contract.cleanupで削除候補にしたJourney map、BDD草案、束ねた素材、検査用ファイルだけを削除し、入力資料とユーザー目的達成BDD正本を保持する
-    needs: [journey_map, scenario_draft, condition_matrix, material, validated_journey_bdd, grounded_input, user_journey_bdd_path]
-    provides: [cleanup_report]

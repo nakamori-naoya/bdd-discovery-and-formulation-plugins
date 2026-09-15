@@ -172,8 +172,16 @@ for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-disc
   fi
   cmp -s "$ROOT/shared/quality-engineering/scenario-premises.md" "$pb/references/scenario-premises.md" && pass "$directory 前提規律同期" || fail "$directory 前提規律同期"
   cmp -s "$ROOT/shared/quality-engineering/scenario_matrix.py" "$pb/scripts/scenario_matrix.py" && pass "$directory 条件マトリクスvalidator同期" || fail "$directory 条件マトリクスvalidator同期"
-  cmp -s "$ROOT/shared/consumer-contract/ground.py" "$pb/scripts/ground.py" && pass "$directory ground工程同期" || fail "$directory ground工程同期"
-  cmp -s "$ROOT/shared/consumer-contract/cleanup.py" "$pb/scripts/cleanup.py" && pass "$directory 後片付け工程同期" || fail "$directory 後片付け工程同期"
+  if yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -e '
+      .agent_work.owner=="invoking_agent" and
+      .agent_work.delivery.provider=="write-doc" and
+      .agent_work.delivery.input_mapping=={"material_kind":"text","material_content":"final_markdown"} and
+      all(.steps[]; (.script // "") as $s |
+        ($s != "scripts/ground.py" and $s != "scripts/compose.sh" and $s != "scripts/map.py" and $s != "scripts/material.sh" and $s != "scripts/cleanup.py"))' >/dev/null; then
+    pass "$directory は認知判断を同一agentが保持しtext materialへ直接接続"
+  else
+    fail "$directory が旧認知relayを公開工程に残している"
+  fi
   # 外部pluginは playbook: でしか指さない。skill: / script:+plugin: での参照はここでも止める。
   if yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -e --arg own bdd-discovery-and-formulation '
       . as $root |
@@ -188,10 +196,59 @@ for directory in domain-bdd-discovery domain-bdd-formulation data-model-bdd-disc
   fi
 done
 
-for directory in domain-bdd-formulation user-journey-bdd-discovery user-journey-bdd-formulation; do
+# Formulationのwrite-doc呼出しは更新先と新規保存先を混ぜない。
+# 現行YAMLを正常例にし、更新target欠落、論理path名の取り違え、
+# output_directory/nameとの混在をそれぞれ一箇所だけ変えた負例で固定する。
+while IFS='|' read -r directory document_step expected_output_path; do
   pb="$ROOT/plugins/playbooks/bdd/$directory"
-  cmp -s "$ROOT/shared/consumer-contract/compose.sh" "$pb/scripts/compose.sh" && pass "$directory 素材組み立て工程同期" || fail "$directory 素材組み立て工程同期"
-done
+  current="$TMP_ROOT/$directory-current.json"
+  yq -o=json -I=0 '.' "$pb/playbook.yml" > "$current"
+  if bash "$pb/scripts/validate-config.sh" "$current" >/dev/null; then
+    pass "$directory 更新専用write-doc契約"
+  else
+    fail "$directory 更新専用write-doc正常系"
+  fi
+
+  missing_update="$TMP_ROOT/$directory-missing-update-target.json"
+  jq --arg id "$document_step" '(.steps[] | select(.id==$id) | .needs) -= ["update_target"]' "$current" > "$missing_update"
+  if bash "$pb/scripts/validate-config.sh" "$missing_update" >/dev/null 2>&1; then
+    fail "$directory がupdate_target欠落を許可"
+  else
+    pass "$directory はupdate_target欠落を拒否"
+  fi
+
+  wrong_mapping="$TMP_ROOT/$directory-wrong-output-path.json"
+  jq '.agent_work.delivery.output_path_from="different_existing_path"' "$current" > "$wrong_mapping"
+  if bash "$pb/scripts/validate-config.sh" "$wrong_mapping" >/dev/null 2>&1; then
+    fail "$directory が既存path論理名の不一致を許可"
+  else
+    pass "$directory は既存path論理名の不一致を拒否"
+  fi
+
+  mixed_mode="$TMP_ROOT/$directory-mixed-destination-mode.json"
+  jq --arg id "$document_step" '(.steps[] | select(.id==$id) | .needs) += ["output_directory","name"]' "$current" > "$mixed_mode"
+  if bash "$pb/scripts/validate-config.sh" "$mixed_mode" >/dev/null 2>&1; then
+    fail "$directory が同じwrite-doc呼出しの新規/更新混在を許可"
+  else
+    pass "$directory は同じwrite-doc呼出しの新規/更新混在を拒否"
+  fi
+done <<'EOF'
+data-model-bdd-formulation|update-logical-document|existing_logical_document_path
+domain-bdd-formulation|document|existing_domain_rule_path
+user-journey-bdd-formulation|document|existing_user_journey_bdd_path
+EOF
+
+# Data Model Formulationの物理設計は新規作成側なので、逆向きの混在も拒否する。
+data_formulation="$ROOT/plugins/playbooks/bdd/data-model-bdd-formulation"
+data_current="$TMP_ROOT/data-model-bdd-formulation-current.json"
+data_mixed_create="$TMP_ROOT/data-model-bdd-formulation-mixed-create.json"
+yq -o=json -I=0 '.' "$data_formulation/playbook.yml" > "$data_current"
+jq '(.steps[] | select(.id=="document-physical") | .needs) += ["update_target"]' "$data_current" > "$data_mixed_create"
+if bash "$data_formulation/scripts/validate-config.sh" "$data_mixed_create" >/dev/null 2>&1; then
+  fail "data-model-bdd-formulation が物理設計の新規/更新混在を許可"
+else
+  pass "data-model-bdd-formulation は物理設計の新規/更新混在を拒否"
+fi
 
 # 実行指示書が無い、または入口から必読になっていない構成を拒否する負の試験。
 broken="$TMP_ROOT/broken-guidance"
