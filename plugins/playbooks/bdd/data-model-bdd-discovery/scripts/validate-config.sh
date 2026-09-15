@@ -1,47 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# 正本: 公開playbook.ymlとwrite-doc/write-doc v2の新規保存契約。
+# 入力: 解決後のplaybook JSON。正規化: jqで配列・文字列の完全一致を見る。
+# 合格述語: output_directory/nameが公開入力にあり、document工程が両方をneedし、旧output_target/out_dirを持たない。
+# 診断: 本scriptの契約違反。正例: 両入力がdocumentへ到達。反例: output_targetだけ。境界例: 一方だけは不合格。
+# 意味評価: 実pathの書込可否、名前の妥当性、本文品質は同じagentが読む。
 file="$1"
 jq -e '
-  . as $root |
-  ([.requires[] | select(.marketplace=="write-doc")] == [{"plugin":"write-doc","marketplace":"write-doc"}]) and
-  (.contract.cleanup.delete_after_document | type=="array" and length>0) and
-  (.contract.cleanup.preserve | type=="array" and length>0) and
-  ((.contract.cleanup.delete_after_document + .contract.cleanup.preserve) - .steps[-1].needs | length==0) and
-  (.steps[-1].id=="cleanup" and .steps[-1].script=="scripts/cleanup.py" and .steps[-1].provides==["cleanup_report"]) and
-  ([.steps[] | select(.playbook=="write-doc")] | length==1 and all(.[]; (.input.document_type|type=="string" and length>0))) and
-  ([.steps | to_entries[] | select(.value.playbook=="write-doc") | .key] | length>0 and max < (($root.steps|length)-1))
-' "$file" >/dev/null || { echo "[error] write-doc後の中間生成物の後片付け契約は外せない" >&2; exit 2; }
-jq -e '
-  . as $root |
-  ($root.steps | to_entries | map(select(.value.playbook=="grill"))) as $grill |
-  ($root.steps | to_entries | map(select(.value.script=="scripts/ground.py"))) as $ground |
-  $root.requirements.input_grounded==true and
-  $root.requirements.clarify_with_grill==true and
-  $root.contract.grounding_sources==["user_input","referenced_artifacts","grill_decisions"] and
-  (any($root.requires[]; .plugin=="grill")) and
-  (all($root.steps[]; .skill!="grill")) and
-  ($grill|length)==1 and
-  $grill[0].key==0 and
-  ($grill[0].value.provides == ["decisions","open_questions"]) and
-  ($ground|length)==1 and
-  $ground[0].key==1 and
-  ($ground[0].value.needs == ["decisions","open_questions"]) and
-  ($ground[0].value.provides | index("grounded_input") != null) and
-  ($root.steps | to_entries | map(select(.key > $ground[0].key)) | all(.[]; ((.value.needs // []) | index("grounded_input") != null)))
-' "$file" >/dev/null || {
-  echo "[error] BDD工程は入力根拠を固定し、grillで確認したgrounded_inputを全後続工程へ渡すこと" >&2
-  exit 2
-}
-jq -e '
-  .focus=="data-model" and
-  .document_type=="rdb-logical-data-modeling" and
-  .output_format=="markdown" and
-  (.modeling.method|type=="string" and length>0) and
-  (.out_dir|type=="string" and length>0) and
-  (.contract.persistence_operations==["create","update","delete"]) and
-  (.contract.scenario_roles|type=="array" and length==10 and length==(unique|length)) and
-  ([.steps[].provides[]?] | index("persistence_scenarios") != null and index("logical_data_model") != null and index("logical_document_path") != null)
-' "$file" >/dev/null || {
-  echo "[error] data-model焦点・RDB論理設計の資料型・Markdown出力・modeling.method・CUD契約・必須成果は変更できない" >&2
-  exit 2
-}
+  .inputs==["user_input","referenced_artifacts","output_directory","name"] and
+  (has("out_dir")|not) and
+  .agent_work.owner=="invoking_agent" and
+  .agent_work.delivery=={"provider":"write-doc","input_mapping":{"material_kind":"text","material_content":"final_markdown"}} and
+  .agent_work.temporary_files.location=="system_temporary_directory" and .agent_work.temporary_files.delete_only_after=="document_saved" and
+  [.steps[].id]==["settle","ground","explore","scenarios","validate-scenarios","logical-model","document"] and
+  [.steps[] | (.agent_work // .script // .playbook)]==["grill","invoking_agent","invoking_agent","invoking_agent","scripts/scenario_matrix.py","invoking_agent","write-doc"] and
+  all(.steps[] | select(has("agent_work")); .agent_work=="invoking_agent") and
+  ([.steps[] | select(has("skill") or has("plugin"))]|length)==0 and
+  ([.steps[] | select(has("playbook")) | .playbook]==["grill","write-doc"]) and
+  .steps[-1].needs==["logical_bdd_scenarios","logical_data_model","final_markdown","validation_report","output_directory","name"] and (.steps[-1].provides|index("logical_document_path")!=null)
+' "$file" >/dev/null || { echo "[error] data-model-bdd-discoveryはYAML宣言順、同一agentの認知工程、決定論的検査、text資料化の構造契約を満たすこと" >&2; exit 2; }

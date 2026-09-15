@@ -28,44 +28,8 @@
 - `grill@grill`
 - `write-doc@write-doc`
 
-## 設定
+## 入力と保存先
 
-同梱の `playbook.yml` が既定。`<repo>/.harness-plugins/domain-bdd-discovery.config.yml` を置くと**丸ごと差し替わる**（混ぜない）。
+`user_input`と`referenced_artifacts`に加え、新規保存先を`output_directory`と`name`で直接渡す。`output_directory`は既存の書き込み可能な絶対directory、`name`はパス要素を含まない`.md`名である。両方のどちらかが無い、または同名fileが既存する場合は保存せず停止する。
 
-```yaml
-version: 1
-name: domain-bdd-discovery
-output_format: markdown
-contract:
-  material_roles: [業務イベント, 担い手, 常に守られること, 移り変わり, 業務ルール, 拒む理由, 未決]
-  confidence: [confirmed, assumed, unknown]
-  behavior_slice: [業務目的, 起点役割, 協働役割, 事前状態, 業務イベント, 条件, 業務判断, 判断権者, 結果, 次状態, 引継ぎ, 後続イベント]
-requirements:
-  exclude_implementation: true    # 実装の関心を落とす工程を外せなくする
-out_dir: domain
-steps: [...]                      # 上書きすると丸ごと差し替わる
-```
-
-**`exclude_implementation: true` のまま、線引きの工程を落とせない。** `implementation_excluded` を作る工程が無ければ、解決の時点で止まる。真偽値以外を書いても止まる。
-
-**役の名前を減らすと、その役は本文に置かれなくなる。** 減らすのは、その観点を捨てると決めたときだけにする。
-
-## 使うもの
-
-| コマンド | 必要な場面 |
-|---|---|
-| `bash` | 工程の解決と素材の束ね |
-| `jq` / `yq` v4系 | playbook の検証と読み取り |
-| `git` | repository root の判定（無ければカレントを root として扱う） |
-
-## 中身
-
-| 場所 | 役割 |
-|---|---|
-| `playbook.yml` | 何を、どの順で呼ぶか。役の契約と出力先 |
-| `scripts/prepare.sh` | playbook root を検証し、解決済みYAMLの一時パスを返す |
-| `scripts/resolve.sh` | 設定を1件選び、工程の順序と依存を検証する |
-| `scripts/map.py` | コアの振る舞い断面と代表BDDを記録する |
-| `scripts/material.sh` | 事実・線引き・決定・振る舞いを1つの素材へ束ねる |
-| `references/roles.md` | 素材の役の定義 |
-| `SKILL.md` | 入口と、工程間で守ること |
+`playbook.yml`の宣言順を工程順の正本とし、外部依存は公開Skillへ契約objectを直接渡して呼ぶ。依存先のroot・設定・内部scriptを探さない。

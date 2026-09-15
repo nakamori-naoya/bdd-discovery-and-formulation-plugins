@@ -48,9 +48,10 @@ requirements:
   read_scenarios_in_physical_only: true
   rdb_only: true
   verified_features_only: true
-out_dir: design/data-modeling
 steps: [...]  # 上書き時はrequires、instructionsを含む完全な設定にする
 ```
+
+既存論理資料は`existing_logical_document_path`と同じ絶対pathだけを`update_target`へ渡す。物理設計資料の新規保存先は`physical_output_directory`と`physical_name`で直接指定する。両系統の保存指定を混ぜず、相対の既定保存先から推測しない。
 
 `database.product`と`database.version`がRDB設計工程へ渡され、その組み合わせで裏付けられた機能だけを使います。既定はreservationで使っているPostgreSQL 18です。
 
