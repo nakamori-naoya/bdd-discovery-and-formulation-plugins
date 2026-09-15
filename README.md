@@ -140,7 +140,7 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 
 各入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`references/execution-guidance.md`が背景・前提・目的と各工程実行時の付加的な指示を持つ。`grill`へdomainやdata model固有の文脈を与えるのは後者であり、相手へ観点を持ち込まない。
 
-外部の段取り（`grill`、`write-doc`）は、`references/nested-playbook.md`に書いた入口・入力・出力だけで呼ぶ。相手の中の部品名、工程の呼び名、保存の呼び名、script、参考資料、設定へは触れない。差し替えは利用者が`dependencies.yml`で契約IDへ実体を束縛して行う。
+外部の段取り（`grill`、`write-doc`）は、`references/nested-playbook.md`に書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。入力YAMLや出力YAMLは作らず、返された`status`と`path`または`reason`を直接受け取る。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`output_format: markdown`はBDD側の成果物条件として保持するが、write-docへの入力には含めない。`grill/grill`版1は入力objectまたは入力YAMLの絶対パスを公開入口へ直接渡し、`output_to`の結果YAMLを受け取る。どちらも相手の設定解決は行わず、両者の結果形式を混用しない。相手の内部の部品、工程、保存処理、参考資料、設定へは触れない。差し替えは利用者が`dependencies.yml`で契約IDへ実体を束縛して行う。
 
 ## インストール済みである必要があるplugin
 
@@ -169,7 +169,7 @@ playbookの静的設定は、scope、repository、personal、同梱 `playbook.ym
 
 skillでは、同梱設定の `prompt_parameters` に宣言されたpathだけ、依頼で明示された値を `--override=<path>=<value>` として最終上書きできる。宣言されていないpathを任意に上書きすることはできない。
 
-たとえば入口は `<repo>/.harness-plugins/domain-bdd-discovery.config.yml`、その入口から呼ぶ `grill` だけの設定は `<repo>/.harness-plugins/scopes/domain-bdd-discovery/grill.config.yml` に置く。
+たとえば入口は `<repo>/.harness-plugins/domain-bdd-discovery.config.yml` に置く。scopeは同梱工程の設定へ使い、直接入力を受け取る外部の`grill`と`write-doc`には渡さない。
 
 ## 検証
 
@@ -187,13 +187,13 @@ install cacheは編集せず、このrepositoryを正本として変更する。
 
 設定はprepareが返すrun専用の絶対pathで引き継ぐ。別shellで同じpathを明示し、完了・失敗停止の最後に同梱run-configのcleanupを呼ぶ。中断後は保存したpathを使い、既にcleanup済みなら設定を再解決する。
 
-依存宣言のversionは固定しない。対応する実行契約は`contractVersion: 1`で、未宣言の旧fixtureは契約1として扱う。未知の契約版は拒否する。installed cacheでは安定版の最大SemVerを選び、prereleaseは`HARNESS_PLUGIN_ALLOW_PRERELEASE=1`を明示した場合だけ候補にする。解決したversion、内容hash、契約版を記録し、工程直前とwrite-doc再開時に内容変更を拒否する。
+依存の配布versionは固定しない。`grill/grill`は契約版1、`write-doc/write-doc`は契約版2を要求し、差し替え先も同じ契約IDと版の実装宣言を必要とする。古いwrite-doc契約へ自動で戻さない。installed cacheでは安定版の最大SemVerを選び、prereleaseは`HARNESS_PLUGIN_ALLOW_PRERELEASE=1`を明示した場合だけ候補にする。解決したversion、内容hash、契約版を記録し、工程直前に内容変更を拒否する。
 
 [doctor](scripts/doctor.py)は`python3 scripts/doctor.py --repo <対象project>`でCLI構文、両runtime公開入口、依存、設定の解決元を読み取り専用で診断する。`--distribution-only`は依存・project設定を検査しない限定診断であり、full診断の代用にはしない。
 
 doctorのfull診断は、依存を**実配布物**に対して解く。依存先は`HARNESS_PLUGIN_REAL_ROOTS`（契約ID→package rootのJSON）か、兄弟checkout `../<marketplace>-plugins/plugins`（親directoryは`HARNESS_PLUGIN_SIBLING_ROOT`で差し替える）から探し、どちらでも見つからなければfixtureへ倒さず理由付きでNGにする。同梱既定に実値を置かない`prompt_parameters`（`required: true`で`default`が無いもの）を持つskillは、上書きが無ければ必ず落ちるので実行せず、`skipped: requires-override`と必要なパラメータ名を出す。これは配布物の不具合ではないのでNGにしない。
 
-依存参照の検査はresolverとlintが同じ関数で行う。外部依存を指せるのは`${.deps.<論理名>.root}`直下3点と`${.deps.<論理名>.entry}`だけで、それ以外は`external-dependency-path`で落ちる。内部依存（同一package）の`${.deps.<内部名>.skills.<名前>}`は、解決結果に実在するskill名だけを許し、綴り違いや名前の無い形は`internal-skill-unknown`で落ちる。`--explain`の依存行は`[外部] <論理名> → <marketplace>/<plugin> <version> [runtime/source_kind]: <root>`の形で、束縛で実体が変わったときだけ行末に`← <層>`が付く。
+依存参照の検査はresolverとlintが同じ関数で行う。外部依存の実行は`${.deps.<論理名>.entry}`の公開入口だけを使い、相手の設定解決scriptは呼ばない。内部パスを組み立てる禁止形は`external-dependency-path`で落ちる。内部依存（同一package）の`${.deps.<内部名>.skills.<名前>}`は、解決結果に実在するskill名だけを許し、綴り違いや名前の無い形は`internal-skill-unknown`で落ちる。`--explain`の依存行は`[外部] <論理名> → <marketplace>/<plugin> <version> [runtime/source_kind]: <root>`の形で、束縛で実体が変わったときだけ行末に`← <層>`が付く。
 
 CIは同ownerの依存repositoryを兄弟directoryへcheckoutしてからvalidate.shを走らせる。**兄弟のrefは既定でmainである。** PR headと同名のbranchを採るのは、(1)実行が`pull_request`であり、(2)PR headが同一repository（forkではない）で、(3)同ownerの兄弟repoにその名前のbranchが実在する、の3つが揃うときだけで、選んだrefと理由はログへ出る。forkのPR作者はownerの兄弟repoにbranchを作れないため、PRから兄弟checkoutの内容を差し替える経路は無い。code scanningの`actions/untrusted-checkout/medium`はこの根拠により`won't fix`として扱う。
 

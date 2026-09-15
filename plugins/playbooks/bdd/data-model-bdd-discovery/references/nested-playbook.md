@@ -1,74 +1,64 @@
 # 入れ子の段取りを呼ぶ
 
-`playbook:` の工程は、別の配布物が公開した段取りである。**公開されているのは段取り1枚だけで、その中の作りは公開面ではない。**
+`playbook:` の工程は、別の配布物が公開した段取りである。呼び出し元が扱うのは公開入口、入力、出力だけであり、相手の内部の工程や実装は参照しない。
 
-## 見てよいもの
+## 公開入口を使う
 
-外部依存の参照形は次の**2形だけ**である。
+依存解決で得た `${.deps.<論理名>.entry}` が入口の `SKILL.md` の絶対パスである。この入口を読み、対応する公開契約に従って呼ぶ。依存先の内部 skill、参考資料、設定、保存処理を探さない。
 
-| # | 参照 | 使い道 |
-|---|---|---|
-| 1 | `${.deps.<論理名>.root}` | 直下の `playbook.yml` / `scripts/prepare.sh` / `scripts/resolve.sh` の3つだけを組み立ててよい |
-| 2 | `${.deps.<論理名>.entry}` | **入口のSKILL.mdの絶対path**。実行手順はここに従う |
+両方とも公開入口へ契約入力を直接渡し、相手の設定を解決しない。`grill` の版1は入力YAMLと結果YAMLを使えるが、`write-doc` の版2は直接入力・直接結果だけを使う。両者の入出力を混用しない。
 
-**これ以外は見ない。** `root` 配下のその他のscript、参考資料、設定、下段の部品、工程の呼び名、保存の呼び名、引数、exit codeは、いつ変わってもよい相手の事情である。名前で掴んだ瞬間に、その相手は差し替えられなくなる。
+## grill（契約 `grill/grill` 版1）
 
-次の形は resolver と lint が拒否する。
-
-- `${.deps.<論理名>.skills.<名前>}`（相手の公開skill一覧を引く形）
-- `${.deps["<論理名>"]...}`（ブラケット形）
-- `${.deps.<論理名>.root}/..` を含むpath、上の3つ以外のroot配下path
-- `${<論理名>:.<key>}`（相手の解決済みYAMLをプロパティで読む形）
-
-## 呼び方 — 解決はこちら、実行は相手
-
-呼び出しは**2段**である。**解決するのは呼び出し元で、相手は解決をやり直さない。**
-
-**1段目: 入力を書いて、こちらが解決する。**
+契約入力をYAMLに保存し、その通常ファイルの絶対パスを `${.deps.grill.entry}` へ直接渡す。入力objectを直接渡してもよい。相手の設定解決や解決済みYAMLの引き渡しは行わず、`scope` と `bindings` も入力へ加えない。
 
 ```bash
 NESTED_INPUT=$(mktemp "${TMPDIR:-/tmp}/nested-input.XXXXXX") || exit 2
 NESTED_OUTPUT=$(mktemp "${TMPDIR:-/tmp}/nested-output.XXXXXX") || exit 2
-# NESTED_INPUT へ契約の入力を書く（output_to は "$NESTED_OUTPUT"）
-NESTED_CFG=$(bash "${.deps.<論理名>.root}/scripts/prepare.sh" "$(pwd)" \
-  --input="$NESTED_INPUT" --scope="${.resolution.scope_root}" --bindings="${.resolution.bindings_lock}") || exit 2
+# NESTED_INPUT へ grill の契約入力を書く（output_to は "$NESTED_OUTPUT"）
+# NESTED_INPUT の絶対パスを公開入口へ直接渡す
 ```
 
-`--scope` と `--bindings` は、入口が決めたものをそのまま流す。**自分の名前で作り直さない。** 出力が空なら先へ進まない。
+公開入口の対話に従い、利用者の回答と、決定・未決の一覧および対話終了への明示合意を待つ。呼び出し元が回答や合意を代行しない。回答待ちを成功や失敗へ変換しない。
 
-**2段目: 得た解決済みYAMLのpathを渡して、相手のSKILL.mdに従って実行する。**
+### 渡す入力
 
-`${.deps.<論理名>.entry}` のSKILL.mdを読み、そこに書かれた手順を `NESTED_CFG` を `CFG_FILE` として実行する。**相手に `prepare.sh` を実行し直させない。** 解決は1段目で済んでおり、やり直すと入力も束縛も落ちる。
+- `contract: grill/grill` と `version: 1`
+- `topic`：確認したい題材
+- `context`：`purpose`、`audience`、`boundary`
+- `questions`：`{id, question, recommendation}` の配列。問いを相手に立ててもらう場合は空配列
+- `grounding`：任意の根拠資料の絶対パス配列
+- `output_to`：結果を書き出す絶対パス
 
-**3段目は無い。** 完了したら `"$NESTED_OUTPUT"` を読む。`status` が `completed` でなければ先へ進まない。劣化した結果で続けない。
+題材固有の観点は `context` と `questions` で渡す。空の `questions` は確認を省略する指示ではない。
 
-実行設定の後始末は相手が自分で行う。こちらから相手のscriptを実行しない。
+### 受け取る結果
 
-## grill（契約 `grill/grill` 版1）
+`NESTED_OUTPUT` を読み、`status: completed` の場合だけ続ける。結果は `decisions`（`{id, question, answer, rationale}`）と `open_questions`（`{id, question, state, reason}`）である。未決の `state` は `open` または `withdrawn`。この結果から根拠づけられた入力を作るのは、呼び出し元の `ground` 工程である。
 
-| 向き | キー |
-|---|---|
-| 入力 | `contract`（`grill/grill`）、`version`（`1`）、`topic`、`context`（`purpose` / `audience` / `boundary`）、`questions`（`{id, question, recommendation}` の配列。空配列でもよい）、`grounding`（任意。絶対pathの配列）、`output_to` |
-| 出力 | `status`、`decisions`（`{id, question, answer, rationale}`）、`open_questions`（`{id, question, state, reason}`。`state` は `open` または `withdrawn`） |
+## write-doc（契約 `write-doc/write-doc` 版2）
 
-**題材固有の観点は `context` と `questions` で渡す。** 相手に業務の観点を持たせない。`topic` は日本語のままでよい。
+呼ぶ直前に、自分の入口に同梱した依存検査を実行する。`yq -o=json '.' "$CFG_FILE" | python3 "${PLUGIN_ROOT}/scripts/resolve-dependency.py" --check-steps <資料保存の工程id>` が失敗したら呼ばない。これにより、解決後の依存の変更や契約不一致を検出する。
 
-`questions` の空配列は「問いはこちらで立ててよい」であって「問わなくてよい」ではない。
+`${.deps.write-doc.entry}` を読み、次の入力を直接渡して Markdown 資料を1本保存する。契約IDと版は依存の識別情報であり、執筆入力へ加えない。入力YAML、解決済みYAML、出力YAMLは作らず、設定解決scriptや `output_to` は使わない。`scope`、`bindings`、`output_format` も入力に含めない。
 
-**「根拠づけられた入力」は相手の出力ではない。** `decisions` と `open_questions` から、こちらの `ground` 工程が作る。
+### 素材と文書型を渡す
 
-## write-doc（契約 `write-doc/write-doc` 版1）
+`material` は1要素以上の配列とし、各要素を次のどちらかで渡す。
 
-| 向き | キー |
-|---|---|
-| 入力 | `contract`（`write-doc/write-doc`）、`version`（`1`）、`document_type`（型slug）、`material`（**絶対pathの配列**。1つ以上、それぞれregular file）、`output_format`（`markdown` / `html`）、新規なら `name`（保存先directoryを明示するときだけ `output_directory` も添える）、差し替えなら `update_target`、`references`（任意。**自分の配布物の文書だけ**）、`output_to` |
-| 出力 | `status`、`path`（保存した資料1本の絶対path）、`document_type`、`output_format`。`failed` のときは `path` を持たず `reason` を持つ |
+- ファイル素材：`{kind: file, path: /absolute/path/to/material.md}`
+- 本文素材：`{kind: text, content: "根拠となる本文"}`
 
-- **未知のキーを書くと止まる。** 上の表に無いキーを足さない。
-- `material` は配列である。1本のファイルでも配列で渡す。
-- `name` と `update_target` は**排他**である。両方渡しても、どちらも渡さなくても止まる。
-- `output_directory` は任意である。渡すなら `name` も要る（`output_directory` だけでは止まる）。省けば保存先は利用者の設定が決める。
-- `document_type` を渡したら、相手は型を選び直さない。
-- `references` に相手の配布物内のpathを渡すと止まる。渡してよいのは自分の配布物の文書だけである。
-- 1回の呼び出しで作る資料は**1本だけ**である。複数本が要るなら複数回呼ぶ。
-- 保存先を相手の設定ファイルから作り直させない。差し替えなら `update_target`、新規なら `name` を渡す。`output_directory` を添えるのは**依頼で保存先directoryが明示されたとき**か、こちらの設定が保存先を持つときだけで、明示が無ければ省いて利用者の設定に委ねる。依頼に無いpathを推測して渡さない。
+BDD工程で束ねた素材ファイルは `kind: file` を使う。絶対パス文字列だけの配列にしない。`document_type` にはこの工程で決めた型を渡し、`references` には追加で従う自分の資料の読み取り可能な絶対パスだけを渡す。相手の内部文書は参照しない。
+
+### 保存先を明示する
+
+新規作成では `output_directory` と `name` の両方を渡す。保存先ディレクトリは自分の設定から絶対パスへ解決し、`name` はパス要素を含まない `.md` ファイル名とする。保存先が不明なら利用者へ確認し、推測や相手の既定値で補わない。同名ファイルがあれば上書きしない。
+
+既存正本の更新では、同一パス検査で得た `update_target` だけを渡す。新規用の `output_directory` と `name` は渡さない。更新先は既存の Markdown ファイルである。
+
+### 直接返された結果を工程成果へ対応させる
+
+成功時は `status: completed` と `path`、失敗時は `status: failed` と `reason` が直接返る。`completed` と、保存済み Markdown の絶対パスを確認した場合だけ、`path` を自分の資料成果物名へ対応させる。新規の場合は指定した `output_directory` と `name` による保存先、更新の場合は `update_target` と `path` が一致することも確認する。
+
+失敗、結果欠落、不正なパス、保存先不一致の場合は理由を報告し、後続の設計や中間素材の削除へ進まない。文書型や媒体が出力に戻ることを前提にしない。

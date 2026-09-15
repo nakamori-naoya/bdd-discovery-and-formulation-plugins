@@ -4,7 +4,7 @@
 
 **作りを全部やめても残るものだけを残す。** 画面・保存・境界のやりとり・手順の組み立ては正本へ入れない。
 
-正本は`output_format: markdown`に固定する。資料作成の段取りへ毎回この媒体を渡すので、相手の既定がHTMLでも、BDD playbookの資料成果物はMarkdownで保存する。
+正本はMarkdownに固定する。`output_format: markdown`はこの段取り自身の成果物条件であり、外部への入力には含めない。資料保存は`write-doc/write-doc`版2の直接入力で行う。
 
 ## 工程
 
