@@ -19,7 +19,7 @@
 
 #### 問いの選び方
 
-[重要なシナリオを見つけるQA観点](important-scenarios.md)で反例を当て、残った論点を次の3段に分ける。**問うのは第1段と、grillの上限に枠が残れば第2段から**である。第3段は問わず、推奨を仮置きした未決として資料へ載せる。問う数の上限と対話の作法はgrillの公開契約に従う。
+同梱の内部skill `write-bdd`の重要なシナリオを見つけるQA観点で反例を当て、残った論点を次の3段に分ける。**問うのは第1段と、grillの上限に枠が残れば第2段から**である。第3段は問わず、推奨を仮置きした未決として資料へ載せる。問う数の上限と対話の作法はgrillの公開契約に従う。
 
 | 段 | 論点の性質 | 例 | 扱い |
 |---|---|---|---|
@@ -31,7 +31,7 @@
 
 ### deepen-scenarios と revise-logical-model（論理設計の深化）
 
-確認済みの発見をBDD、table、column、business constraintへ対応づける。仮説に依存するBDDと要素は仮説であることと根拠をその箇所に明示し、未決の節へ推奨・根拠・採らなかった解釈を並べる。BeforeとAfterで全tableを同じ順序に置き、変更なしとレコードなしを省略しない。更新先は入力論理資料と同じパスにする。
+確認済みの発見をBDD、table、column、business constraintへ対応づける。仮説に依存するBDDと要素は仮説であることと根拠をその箇所に明示し、未決の節へ推奨・根拠・採らなかった解釈を並べる。BeforeとAfterで全tableを同じ順序に全カラム見出し付きの表として置き、0件の表も変化しない表も省略しない（`write-doc`の`rdb-logical-data-modeling`型の記法に従う）。更新先は入力論理資料と同じパスにする。
 
 ### design-physical（物理設計）
 
@@ -39,4 +39,4 @@
 
 ### update-logical-document / document-physical（write-doc）
 
-論理資料は`document_type: rdb-logical-data-modeling`と`update_target`で同じpathを差し替え、物理資料は`document_type: rdb-physical-design`と`output_directory` / `name`で新規に1本保存する。呼び方は[入れ子の段取りを呼ぶ](nested-playbook.md)に従う。
+論理資料は`document_type: rdb-logical-data-modeling`と`update_target`で同じpathを差し替え、物理資料は`document_type: rdb-physical-design`と`output_directory` / `name`で新規に1本保存する。呼び方は同梱の内部skill `write-bdd`の入れ子の段取りを呼ぶ規律に従う。

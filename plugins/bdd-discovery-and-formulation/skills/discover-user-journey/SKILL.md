@@ -7,7 +7,7 @@ description: 1人の主たるユーザーが1つの目的を達成するまで�
 
 読み終えると、主たるユーザーが目的を達成するまでを、そのユーザーが観測できる場面の連なりとしてBDD正本1本へ保存できる。正本は業務の人と開発者が同じ流れを読むためのものであり、ユースケース、UX Journey map、業務ルールの網羅、保存構造、テスト仕様は別の正本が担う。
 
-同じdirectoryの`playbook.yml`が工程順の正本である。このSKILLを読んだagentが、利用者の入力と明示された資料を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`skill:`の工程は同じpackageに同梱された同名skillの`SKILL.md`をこのagentが同じ文脈で読んで適用する工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。
+同じdirectoryの`playbook.yml`が工程順の正本である。このSKILLを読んだagentが、利用者の入力と明示された資料を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`skill:`の工程は同じpackageに同梱された同名skillの`SKILL.md`をこのagentが同じ文脈で読んで適用する工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。手順に入る前に同梱の内部skill `write-bdd`の`SKILL.md`を同じ文脈で読み、その規律（入力の根拠づけ、業務の言葉、`grill` / `write-doc`の呼び方、BDDの前提・トリガー・失敗理由と条件マトリクス）を全工程へ適用する。
 
 ## 入力
 
@@ -20,7 +20,7 @@ description: 1人の主たるユーザーが1つの目的を達成するまで�
 
 **保存先の決め方。** 依頼に資料構成が示されていれば、そのまま使う。示されていなければ、利用者の既存資料のdirectory階層と命名を読み、主たるユーザーごとに分ける置き場と名前を提案として`settle`の問いの1つに含めて確かめる。正本の置き場は利用者の資料構成に属するので、仮置きで書かない。既定のpathを持たない。`output_directory`が存在しない、相対pathである、または同名fileがすでにある場合は、書かずに止まって利用者へ返す。同名fileが既存の正本なら、この入口では扱わず既存正本の反証（formulation）が該当すると報告する。
 
-[入力に根拠づける規律](references/input-grounding.md)に従い、利用者の発言、明示された資料、`settle`で確認した決定だけを確定事項にする。
+`write-bdd`の入力に根拠づける規律に従い、利用者の発言、明示された資料、`settle`で確認した決定だけを確定事項にする。
 
 ## 判断基準
 
@@ -41,11 +41,11 @@ description: 1人の主たるユーザーが1つの目的を達成するまで�
 
 ## 手順
 
-1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって正本の骨格（主たるユーザー、目的、両端、完了条件、場面の接続）が変わる問いを成果を左右する順に選び、推奨と理由を添えて`context`と`questions`に渡す。最初の問いは「目的を持って始める役割はどれとどれか、各役割の目的は何か」である。保存先が依頼に無ければ、その提案を問いに含める。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは正本を完成できない場合だけ行う。
+1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって正本の骨格（主たるユーザー、目的、両端、完了条件、場面の接続）が変わる問いを成果を左右する順に選び、推奨と理由を添えて`context`と`questions`に渡す。最初の問いは「目的を持って始める役割はどれとどれか、各役割の目的は何か」である。保存先が依頼に無ければ、その提案を問いに含める。呼び方は`write-bdd`の入れ子の段取りを呼ぶ規律に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは正本を完成できない場合だけ行う。
 2. **ground。** 依頼、参照資料、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
 3. **select-journey。** 役割×目的の一覧を作り、今回作る1本と残りの順番を`journey_set`として決める。
 4. **map-journey。** 同梱skillの判断規律で、Journeyに該当するかを判定し、主たるユーザー、目的、開始地点、最終地点、完了条件、場面、状態の受け渡し、既知の分岐を`journey_map`として同じ文脈に保持する。
-5. **compose。** [Journeyを判定し接続する判断規律](references/journey-judgment.md)、[Journeyの構造](references/journey-structure.md)、[場面のBDD](references/scenario-writing.md)、[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を適用し、場面ごとの`Given / When / Then`、条件マトリクス、完成本文を作る。`open_questions`と仮置きした推奨は、該当する場面に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。冒頭の段落は、誰が何を達成するために、どこから始まり、何が観測できたら完了かを読み手の既知の語で文章として運ぶ。型の読み方の解説やメタ情報の一覧は本文に書かない。
+5. **compose。** `map-journey`で適用した同梱skillのJourneyを判定し接続する判断規律、Journeyの構造、場面のBDDと、`write-bdd`のBDDの前提・トリガー・失敗理由を適用し、場面ごとの`Given / When / Then`、条件マトリクス、完成本文を作る。`open_questions`と仮置きした推奨は、該当する場面に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。冒頭の段落は、誰が何を達成するために、どこから始まり、何が観測できたら完了かを読み手の既知の語で文章として運ぶ。型の読み方の解説やメタ情報の一覧は本文に書かない。
 6. **validate（`scripts/scenario.py`）。** 場面草案（`user-journey-bdd`型の本文記法: `## 場面 <連番>: <名前>`、コードフェンス内の`Given:` / `And:` / `When:` / `Then:`、失敗場面の`NOTE: Rule:` / `Source:` / `Reason:`、`**接続**:`）をそのまま標準入力で、条件マトリクスを`--matrix-json`引数のJSON文字列で`python3 scripts/scenario.py check`へ渡す。pathはこのSKILLと同じdirectoryを基準にし、fileは介さない。stdoutにJSONを1行ずつ返し、終了codeは0が違反なし、1が違反あり（各行が`line` / `kind` / `detail` / `howto`）、2が入力を読めない（標準入力が空、`--matrix-json`がJSONでないかobjectでない）。0以外なら資料化へ進まず、診断に従って`compose`へ戻る。
 
    ````bash

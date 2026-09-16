@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Scenario: BDD packageが6公開入口と4内部skillだけを配布し、入口のtoolが正例・反例・境界例で決まった結果を返す
+# Scenario: BDD packageが6公開入口と5内部skillだけを配布し、入口のtoolが正例・反例・境界例で決まった結果を返す
 #
-# 正本: 両marketplace、両runtime manifest、入口の playbook.yml、shared/quality-engineering と shared/consumer-contract の複製元。
+# 正本: 両marketplace、両runtime manifest、入口の playbook.yml。入口ごとの scripts/ に置く同名toolは、playbook.yml の script: が入口の scripts/ 配下を要求するための複製であり、互いにbyte一致する。
 # 入力: このrepositoryの配布物と、ここで作る fixture（検査toolへは標準入力または正本pathで渡し、tool専用の一時fileは置かない）。
-# 合格述語: identityと集合の一致、複製のbyte一致、外部依存の宣言形、各toolの self-test と exit code と診断。
-# 意味評価として残す範囲: SKILL本文の判断規律、参照資料の内容、生成された資料の業務上の正しさ。
+# 合格述語: identityと集合の一致、同名toolのbyte一致、外部依存の宣言形、各toolの self-test と exit code と診断。参照資料（references/*.md）は1か所にだけ置くので複製のbyte一致は検査しない。
+# 意味評価として残す範囲: SKILL本文の判断規律、参照資料の内容、内部skill write-bdd の規律へ各入口が到達できること、生成された資料の業務上の正しさ。
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -22,7 +22,7 @@ for cmd in jq yq python3 bash cmp find sort diff rg; do
 done
 
 entries='discover-domain formulate-domain discover-data-model formulate-data-model discover-user-journey formulate-user-journey'
-internals='explore-events map-user-journey write-persistence-scenarios design-data-model'
+internals='explore-events map-user-journey write-persistence-scenarios design-data-model write-bdd'
 
 # ── marketplace と manifest の identity ──────────────────────────────────
 if jq -e '.name=="bdd-discovery-and-formulation" and (.plugins|length==1) and .plugins[0].name=="bdd-discovery-and-formulation" and .plugins[0].source.path=="./plugins/bdd-discovery-and-formulation"' "$ROOT/.agents/plugins/marketplace.json" >/dev/null \
@@ -59,7 +59,7 @@ printf '%s\n' $internals | sort > "$TMP_ROOT/expected-internals"
 jq -r '.metadata.harness.internalPlugins | to_entries[] | select(.value=="./internal/"+.key) | .key' "$PACKAGE/.claude-plugin/plugin.json" | sort > "$TMP_ROOT/manifest-internals"
 find "$PACKAGE/internal" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort > "$TMP_ROOT/dir-internals"
 diff -u "$TMP_ROOT/expected-internals" "$TMP_ROOT/manifest-internals" >/dev/null && diff -u "$TMP_ROOT/expected-internals" "$TMP_ROOT/dir-internals" >/dev/null \
-  && pass "内部skill4つ = internalPlugins = internal/直下" || fail "内部skillの集合"
+  && pass "内部skill5つ = internalPlugins = internal/直下" || fail "内部skillの集合"
 if jq -e '.metadata.harness | (has("playbooks")|not) and (has("implements")|not) and (has("installationSurface")|not) and .marketplace=="bdd-discovery-and-formulation" and (.contractVersion|type=="number")' "$PACKAGE/.claude-plugin/plugin.json" >/dev/null; then
   pass "CONTRACT.mdを持たないpackageはplaybooks / implementsを宣言しない"
 else
@@ -67,7 +67,7 @@ else
 fi
 [ "$(find "$PACKAGE" -name CONTRACT.md | wc -l | tr -d ' ')" = "0" ] && pass "公開playbook契約（CONTRACT.md）を持たない" || fail "CONTRACT.mdがあるのにplaybooksが無い"
 [ "$(find "$PACKAGE" -type d \( -name .claude-plugin -o -name .codex-plugin \) | wc -l | tr -d ' ')" = "2" ] && pass "runtime manifestはpackage rootにだけ" || fail "nested runtime manifestが残っている"
-[ "$(find "$PACKAGE" -name SKILL.md | wc -l | tr -d ' ')" = "10" ] && pass "SKILL.mdは公開6本と内部4本だけ" || fail "SKILL.mdの本数"
+[ "$(find "$PACKAGE" -name SKILL.md | wc -l | tr -d ' ')" = "11" ] && pass "SKILL.mdは公開6本と内部5本だけ" || fail "SKILL.mdの本数"
 
 for name in $entries $internals; do
   if [ -d "$PACKAGE/skills/$name" ]; then dir="$PACKAGE/skills/$name"; else dir="$PACKAGE/internal/$name"; fi
@@ -76,6 +76,8 @@ for name in $entries $internals; do
 done
 
 # ── 隣接 playbook.yml: 外部依存の宣言形と参照の実在 ───────────────────
+# 同名toolの複製元: 条件マトリクスvalidatorは discover-domain の複製を基準に、他の入口と内部skillの複製がbyte一致する。
+matrix_source="$PACKAGE/skills/discover-domain/scripts/scenario_matrix.py"
 for directory in $entries; do
   pb="$PACKAGE/skills/$directory"
   if yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -e --arg n "$directory" '.version==2 and .name==$n and (.requires|length>0) and all(.requires[]; (keys|sort)==["marketplace","plugin"] and .marketplace!="bdd-discovery-and-formulation" and .plugin==.marketplace)' >/dev/null; then
@@ -103,35 +105,29 @@ for directory in $entries; do
   done < <(yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -r '.steps[] | select(.skill) | .skill')
   [ -s "$pb/references/execution-guidance.md" ] && rg -F '[実行指示書](references/execution-guidance.md)' "$pb/SKILL.md" >/dev/null \
     && pass "$directory は実行指示書を入口から参照" || fail "$directory の実行指示書参照"
-  cmp -s "$ROOT/shared/quality-engineering/scenario-premises.md" "$pb/references/scenario-premises.md" && pass "$directory 前提規律同期" || fail "$directory 前提規律同期"
-  cmp -s "$ROOT/shared/quality-engineering/scenario_matrix.py" "$pb/scripts/scenario_matrix.py" && pass "$directory 条件マトリクスvalidator同期" || fail "$directory 条件マトリクスvalidator同期"
-  cmp -s "$PACKAGE/skills/discover-domain/references/nested-playbook.md" "$pb/references/nested-playbook.md" && pass "$directory 入れ子の段取りの呼び方同期" || fail "$directory 入れ子の段取りの呼び方同期"
+  cmp -s "$matrix_source" "$pb/scripts/scenario_matrix.py" && pass "$directory 条件マトリクスvalidator同期" || fail "$directory 条件マトリクスvalidator同期"
 done
 for internal in write-persistence-scenarios; do
-  cmp -s "$ROOT/shared/quality-engineering/scenario_matrix.py" "$PACKAGE/internal/$internal/scripts/scenario_matrix.py" && pass "$internal 条件マトリクスvalidator同期" || fail "$internal 条件マトリクスvalidator同期"
+  cmp -s "$matrix_source" "$PACKAGE/internal/$internal/scripts/scenario_matrix.py" && pass "$internal 条件マトリクスvalidator同期" || fail "$internal 条件マトリクスvalidator同期"
 done
-# ── 同名 reference の byte 一致 ──────────────────────────────────────────
-# 正本: shared/{domain-modeling,data-modeling,quality-engineering,consumer-contract}/*.md と、package 配下の references/ にある同名 file 群
-# 入力: package 配下の *.md（SKILL.md、および入口ごとの文書である execution-guidance.md / focus.md を除く）
-# 正規化: basename でグループ化し、cmp で byte 比較する。shared に同名があればそれを基準に、無ければグループ内の全 file を互いに比較する
-# 合格述語: 同じ basename を持つ file はすべて byte 一致する
-# 失敗時の診断: 一致しない file の path を1行ずつ出す
-# 正例: 6入口の nested-playbook.md と scenario-premises.md、内部 skill の actors-and-stakeholders.md が一致する
-# 反例: 旧文言のままの scenario-premises.md が内部 skill に残る
-# 境界例: 別の文書は同名にしない（map-user-journey の journey-boundary.md / journey-map-structure.md / journey-concept-map.md）。入口ごとの execution-guidance.md / focus.md は入力から除く
-# 意味評価として残す範囲: 複製が本当に同じ知識であるべきか、入口ごとの文書の内容が入口の目的に合うか
-same_name_failed=0
-while IFS= read -r base; do
-  source=""
-  for candidate in "$ROOT/shared/domain-modeling/$base" "$ROOT/shared/data-modeling/$base" "$ROOT/shared/quality-engineering/$base" "$ROOT/shared/consumer-contract/$base"; do
-    [ -f "$candidate" ] && source="$candidate" && break
-  done
-  [ -n "$source" ] || source=$(find "$PACKAGE" -type f -name "$base" | sort | head -1)
-  while IFS= read -r copy; do
-    cmp -s "$source" "$copy" || { echo "  differs: $copy (基準: $source)"; same_name_failed=1; }
-  done < <(find "$PACKAGE" -type f -name "$base")
-done < <(find "$PACKAGE" -type f -name '*.md' ! -name SKILL.md ! -name execution-guidance.md ! -name focus.md -exec basename {} \; | sort | uniq -d)
-[ "$same_name_failed" -eq 0 ] && pass "同名の reference（shared 複製を含む）はすべて byte 一致" || fail "同名 reference の差分"
+# ── 参照資料は1か所にだけ置く ───────────────────────────────────────────
+# 正本: AGENTS.md「参照資料（references/*.md）は1か所にだけ置き、入口や内部skillへ複製しない」
+# 入力: package 配下の *.md（SKILL.md と、入口ごとに内容が違う execution-guidance.md / focus.md を除く）
+# 正規化: basename でグループ化する
+# 合格述語: 同じ basename を持つ file が package 内に1つしか無い
+# 失敗時の診断: 2か所以上にある basename と、その path を1行ずつ出す
+# 正例: scenario-premises.md は internal/write-bdd/references/ にだけある
+# 反例: 入口の references/ へ scenario-premises.md を複製する
+# 境界例: execution-guidance.md / focus.md は入口ごとの別文書なので入力から除く。別の文書を同名にした場合も不合格（名前を分ける）
+# 意味評価として残す範囲: 各入口が内部skillの規律へ到達できること（SKILL本文の適用文）、1か所に置いた資料の内容が各入口の目的に合うこと
+duplicated_refs=$(find "$PACKAGE" -type f -name '*.md' ! -name SKILL.md ! -name execution-guidance.md ! -name focus.md -exec basename {} \; | sort | uniq -d)
+if [ -z "$duplicated_refs" ]; then
+  pass "参照資料（references/*.md）は package 内で1か所だけ"
+else
+  while IFS= read -r base; do find "$PACKAGE" -type f -name "$base" | sed 's/^/  duplicated: /'; done <<< "$duplicated_refs"
+  fail "参照資料が2か所以上にある"
+fi
+# ── 同名toolの byte 一致（playbook.yml の script: が入口の scripts/ 配下を要求するための複製） ──
 cmp -s "$PACKAGE/skills/discover-domain/scripts/actor-coverage.py" "$PACKAGE/skills/formulate-domain/scripts/actor-coverage.py" && pass "actor-coverage.py 2入口で同一" || fail "actor-coverage.py の差分"
 cmp -s "$PACKAGE/skills/discover-user-journey/scripts/scenario.py" "$PACKAGE/skills/formulate-user-journey/scripts/scenario.py" && pass "user-journey scenario.py 2入口で同一" || fail "user-journey scenario.py の差分"
 cmp -s "$PACKAGE/skills/formulate-domain/scripts/update-guard.py" "$PACKAGE/skills/formulate-user-journey/scripts/update-guard.py" \
@@ -156,7 +152,7 @@ done
 [ -z "$bundled" ] && pass "外部依存の実体を同梱しない" || fail "外部pluginを同梱:${bundled}"
 
 # ── 条件マトリクス: 正例・境界例・反例 ───────────────────────────────────
-matrix_validator="$ROOT/shared/quality-engineering/scenario_matrix.py"
+matrix_validator="$matrix_source"
 matrix_good="$TMP_ROOT/matrix-good.json"
 cat > "$matrix_good" <<'EOF'
 {"scenarios":[
@@ -366,9 +362,9 @@ fi
 
 # ── 構文 ─────────────────────────────────────────────────────────────────
 syntax_failed=0
-while IFS= read -r script; do bash -n "$script" || syntax_failed=1; done < <(find "$ROOT/plugins" "$ROOT/scripts" "$ROOT/shared" -type f -name '*.sh' | sort)
+while IFS= read -r script; do bash -n "$script" || syntax_failed=1; done < <(find "$ROOT/plugins" "$ROOT/scripts" -type f -name '*.sh' | sort)
 [ "$syntax_failed" -eq 0 ] && pass "shell構文" || fail "shell構文"
-if find "$ROOT/plugins" "$ROOT/scripts" "$ROOT/shared" -type f -name '*.sh' -print0 \
+if find "$ROOT/plugins" "$ROOT/scripts" -type f -name '*.sh' -print0 \
     | xargs -0 python3 -c '
 import re, sys
 pattern = re.compile(r"\$(?!\{)[A-Za-z_][A-Za-z0-9_]*[^\x00-\x7f]")
@@ -386,7 +382,7 @@ else
   fail "非ASCIIに接する裸の変数参照（\${VAR} で囲む）"
 fi
 python_failed=0
-while IFS= read -r script; do PYTHONPYCACHEPREFIX="$TMP_ROOT/pycache" python3 -m py_compile "$script" || python_failed=1; done < <(find "$ROOT/plugins" "$ROOT/scripts" "$ROOT/shared" -type f -name '*.py' | sort)
+while IFS= read -r script; do PYTHONPYCACHEPREFIX="$TMP_ROOT/pycache" python3 -m py_compile "$script" || python_failed=1; done < <(find "$ROOT/plugins" "$ROOT/scripts" -type f -name '*.py' | sort)
 [ "$python_failed" -eq 0 ] && pass "Python構文" || fail "Python構文"
 
 printf '\nStructure: %d passed, %d failed\n' "$passed" "$failed"

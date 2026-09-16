@@ -39,4 +39,4 @@
 
 ### document（write-doc）
 
-`document_type`に`rdb-logical-data-modeling`を渡し、完成本文を`kind: text`の`material`として1本へ保存する。保存先は`output_directory`と`name`でこちらが指定し、既存資料があれば上書きせず止まる。呼び方は[入れ子の段取りを呼ぶ](nested-playbook.md)に従う。
+`document_type`に`rdb-logical-data-modeling`を渡し、完成本文を`kind: text`の`material`として1本へ保存する。保存先は`output_directory`と`name`でこちらが指定し、既存資料があれば上書きせず止まる。呼び方は同梱の内部skill `write-bdd`の入れ子の段取りを呼ぶ規律に従う。

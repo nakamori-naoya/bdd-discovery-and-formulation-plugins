@@ -142,12 +142,15 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 | `map-user-journey` | discover-user-journey、formulate-user-journey | 何がJourneyで何がJourneyでないかを判定し、両端と場面を決める |
 | `write-persistence-scenarios` | discover-data-model、formulate-data-model | 作成・更新・削除に関係する断面を永続化シナリオにする |
 | `design-data-model` | discover-data-model、formulate-data-model | 記録すべき事実を先に決め、BDD付きの論理設計本文を作る。手法は`fact-recording` / `normalized` / `dimensional`、または利用者の手法file |
+| `write-bdd` | 6入口すべて（同梱skillも適用する） | 入力の根拠づけ、業務の言葉（役割、業務イベント、ユビキタス言語）、BDDの前提・トリガー・失敗理由と条件マトリクス、定式化へ進める見極め、QA観点、`grill` / `write-doc`の呼び方という共通規律。成果物は作らず、各入口が手順に入る前に読んで全工程へ適用する |
 
-内部skillはmarketplaceの個別インストール対象にせず、公開入口の`playbook.yml`が`skill:`工程で呼ぶ。1つの公開入口だけが使っていた判断（コア・支援・汎用の線引き、RDB物理設計）はその公開入口へ統合した。
+内部skillはmarketplaceの個別インストール対象にせず、公開入口の`playbook.yml`が`skill:`工程で呼ぶか、`write-bdd`のように入口の`SKILL.md`が手順に入る前に読んで全工程へ適用する。1つの公開入口だけが使っていた判断（コア・支援・汎用の線引き、RDB物理設計）はその公開入口へ統合した。
 
 各公開入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`SKILL.md`が目的・入力・判断基準・手順・停止条件・出力を持ち、`references/execution-guidance.md`が背景・前提と各工程実行時の付加的な指示を持つ。入口が使うtool（`scripts/scenario.py`、`scripts/scenario_matrix.py`、`scripts/actor-coverage.py`、`scripts/update-guard.py`、`scripts/rdb.py`）は、入口directoryを基準にした相対pathで示し、入力・出力・終了code・失敗時の扱いをSKILL.mdの手順が1か所で宣言する。agentが作った本文（条件マトリクス、BDD草案、場面草案、完成本文、物理設計本文）はそのまま標準入力で渡し、条件マトリクスを併せて渡すtoolは`--matrix-json`引数で受け、保存済みの正本だけをpath引数で渡す。検査のためだけの一時fileや後片付け工程は無い。停止条件は「止まる（必須入力の欠落、契約に反する入力、toolの失敗、保存先の不確定）」と「仮説を明示して進む（判断の揺れ、資料の不足）」に分かれる。設定fileは持たず、保存先、対象RDB、論理モデリングの手法は依頼と対話から決める。
 
-外部の段取り（`grill`、`write-doc`）は、`references/nested-playbook.md`に書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`grill/grill`版1は契約objectを公開入口へ直接渡し、`decisions`と`open_questions`を持つ結果objectを直接受け取る。渡す`questions`は成果を左右する順に厳選し、対話の作法と問う数の上限は`grill`の公開契約に従う。上限で問われなかった論点は、返った`open_questions`の推奨を仮置きした未決として成果物へ載せる。各入口は任意入力`references`（追加で従う資料の絶対path配列）を持ち、手順の最初に読む。
+外部の段取り（`grill`、`write-doc`）は、内部skill `write-bdd`の`references/nested-playbook.md`に1か所で書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`grill/grill`版1は契約objectを公開入口へ直接渡し、`decisions`と`open_questions`を持つ結果objectを直接受け取る。渡す`questions`は成果を左右する順に厳選し、対話の作法と問う数の上限は`grill`の公開契約に従う。上限で問われなかった論点は、返った`open_questions`の推奨を仮置きした未決として成果物へ載せる。各入口は任意入力`references`（追加で従う資料の絶対path配列）を持ち、手順の最初に読む。
+
+資料のtemplateはこのrepositoryに無い。各入口は本文を`kind: text`で組み立て、`write-doc`の`document_type`（`domain-rule` / `user-journey-bdd` / `rdb-logical-data-modeling` / `rdb-physical-design`）で保存する。節構成と記法はwrite-docが所有するtemplateが定め、この入口のtool（`actor-coverage.py`、`scenario.py`、`rdb.py`）が読む見出しと欄は、そのtemplateが機械検査の記法として宣言する。参照資料は1か所にだけ置き、入口間で複製しない。
 
 ハーネスが作る資料は、冒頭を読み手の既知の語で書いた本文段落から始め、型や確認日のようなメタ情報の一覧を置かない。中心の問い、扱う理由、役割×目的の一覧、Journeyから外した事項の送り先のような作業記録は報告に載せ、正本へ写さない。保存先と名前は利用者の既存資料構成に従い、日本語のdirectory名・file名を許す。
 
@@ -166,7 +169,7 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 bash scripts/validate.sh
 ```
 
-`validate-structure.sh`は、両marketplaceと両runtime manifestのidentity、公開入口6つと内部skill4つの集合、`playbook.yml`の外部依存宣言と`script:` / `skill:`参照の実在、共有複製のbyte一致、禁止参照形の不在を検査し、各tool（条件マトリクス、Gherkin検査、誰が行えるかの網羅、ユーザー目的達成BDD、同一パス更新、物理設計検査）の`self-test`（旧引数のargparse拒否を含む）と、SKILL.mdの手順と同じ形（本文はstdin、条件マトリクスは`--matrix-json`）での正例・反例・境界例を実行する。続けて共有保守tool（`test-hardening.py`、`sync-runtime.py --check`、`validate-distribution.py`）と、兄弟checkout（`../grill-plugins/plugins/grill`、`../write-doc-plugins/plugins/write-doc`）の実配布物に対する消費側lint（`lint-consumer-contract.py`）を両runtimeで実行する。実配布物が見つからなければ落ちる。
+`validate-structure.sh`は、両marketplaceと両runtime manifestのidentity、公開入口6つと内部skill5つの集合、`playbook.yml`の外部依存宣言と`script:` / `skill:`参照の実在、入口ごとの`scripts/`に置く同名toolのbyte一致、参照資料（`references/*.md`）がpackage内で1か所にだけあること、禁止参照形の不在を検査し、各tool（条件マトリクス、Gherkin検査、誰が行えるかの網羅、ユーザー目的達成BDD、同一パス更新、物理設計検査）の`self-test`（旧引数のargparse拒否を含む）と、SKILL.mdの手順と同じ形（本文はstdin、条件マトリクスは`--matrix-json`）での正例・反例・境界例を実行する。続けて兄弟checkout `../harness-tools/tools/`の保守tool（root契約の`validate-plugin-repository.py`とその`--self-test`、回帰検査の`test-hardening.py --repository`）と、兄弟checkout（`../grill-plugins/plugins/grill`、`../write-doc-plugins/plugins/write-doc`）の実配布物に対する消費側lint（`lint-consumer-contract.py --repo --runtime`）を両runtimeで実行する。`../harness-tools/`が無ければexit 2で止まり、実配布物が見つからなければ落ちる。
 
 workspace rootの`bash scripts/validate.sh <このrepositoryの絶対path>`が配置・manifest・隣接playbook.yml・禁止参照形の構造契約を検査する。構造検査の成功は、SKILL本文の判断規律や生成された資料の業務上の正しさを保証しない。
 
@@ -176,11 +179,13 @@ install cacheは編集せず、このrepositoryを正本として変更する。
 
 以下はsource repository自体の配布検証と保守の説明であり、公開入口が`grill`または`write-doc`を呼ぶ手順ではない。公開入口は設定解決runtimeを持たず、公開契約objectと直接結果だけを扱う。
 
-共通実装の開発時正本はProduct Planning repositoryの`shared/runtime-source`にある。更新時はそのsource checkoutを取得し、[生成CLI](scripts/sync-runtime.py)へ`--source <取得した正本directory>`を渡す。`--check`は生成差分と[生成履歴](shared/runtime-manifest.json)のversion・内容hash・対象集合を検査する。同期対象は`.github/workflows/validate.yml`と`scripts/`配下の保守toolであり、配布物（`plugins/`）には複製を置かない。
+保守toolの正本は兄弟checkout`../harness-tools/`（同ownerの`harness-tools` repository）であり、このrepositoryは複製も同期機構も持たない。呼び方はharness-toolsのREADME「各repositoryからの呼び方」に従い、対象repositoryは絶対pathの引数で渡す。
 
-[doctor](scripts/doctor.py)は`python3 scripts/doctor.py --repo <対象project>`でCLI構文、両runtime公開入口、依存の解決元を読み取り専用で診断する。[release CLI](scripts/release.py)は`--plugin --version --notes --breaking --migration --checks`で更新計画を返し、`--apply`で両manifestとcatalogの整合を確認して一括更新し、releases配下へ記録を残す。[意味評価fixture](evals/scenarios.json)を[評価runner](scripts/evaluate-skills.py)へ渡すと、モデル名、入力、出力、SKILL hash、判定の引用と理由を保存する。criterionの真偽は意味評価の記録であり、CLIの合否にはしない。
+- 診断: `python3 ../harness-tools/tools/doctor.py --repository <このrepositoryの絶対path>`は、CLIの有無、両runtime公開入口、全公開入口の外部依存を兄弟checkoutの実配布物に対して解決する読み取り専用診断を返す。
+- リリース: `python3 ../harness-tools/tools/release.py --repo <このrepositoryの絶対path> --plugin bdd-discovery-and-formulation --version <semver> --notes … --breaking … --migration … --checks <JSON> [--apply]`が両marketplaceと両runtime manifestのversionを同時に更新し、`releases/<plugin>-<version>.json`を書く。
+- eval: [意味評価fixture](evals/scenarios.json)は`bash ../harness-tools/scripts/run-evals.sh --model … --judge-model … <このrepositoryの絶対path>`で実行し、`evals/runs/<日付>/`へ記録する。モデルを更新したときにlocalで手動実行し、前回の記録と読み比べる（読み比べはagentの意味評価）。criterionの真偽は記録であり、CLIの合否にはしない。
 
-CIは同ownerの依存repositoryを兄弟directoryへcheckoutしてからvalidate.shを走らせる。兄弟のrefは既定でmainである。PR headと同名のbranchを採るのは、(1)実行が`pull_request`であり、(2)PR headが同一repository（forkではない）で、(3)同ownerの兄弟repoにその名前のbranchが実在する、の3つが揃うときだけで、選んだrefと理由はログへ出る。code scanningの`actions/untrusted-checkout/medium`はこの根拠により`won't fix`として扱う。
+CIは`.github/workflows/validate.yml`が自repositoryを`<workspace>/<自分の名前>`に、`harness-tools`と依存provider（`grill-plugins`、`write-doc-plugins`）を`ref: main`で兄弟checkoutし、`bash harness-tools/ci/validate.sh "$GITHUB_WORKSPACE/<自分の名前>"`を呼ぶ。実行されるcommandはlocalの`scripts/validate.sh`と同じである。PR由来のrefを依存checkoutへ渡さない。
 
 ### 破壊的変更
 
@@ -188,4 +193,4 @@ CIは同ownerの依存repositoryを兄弟directoryへcheckoutしてからvalidat
 
 ### 開発CLIの入力境界
 
-`doctor`、`release`、`sync-runtime`、意味評価runnerは、操作者が明示したローカルsource、出力先、adapter argvを扱う開発CLIである。外部から受け取った文書やモデル出力をCLI引数へ自動変換しない。doctorは配布treeのsymlinkを読取・実行前に拒否し、sync-runtimeは生成先と正本treeのsymlinkをcopy前に拒否する。評価の会話・fixture・モデル出力はadapterへstdinデータとして渡し、実行argvに混ぜない。
+`doctor`、`release`、意味評価runnerは、操作者が明示したローカルsource、出力先、adapter argvを扱う開発CLIである。外部から受け取った文書やモデル出力をCLI引数へ自動変換しない。doctorは配布treeのsymlinkを読取・実行前に拒否する。評価の会話・fixture・モデル出力はadapterへstdinデータとして渡し、実行argvに混ぜない。各CLIの契約と自己検査はharness-toolsが持つ。

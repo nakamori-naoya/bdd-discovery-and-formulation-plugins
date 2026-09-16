@@ -7,7 +7,7 @@ description: 既存のユーザー目的達成BDDを、目的、両端、場面�
 
 読み終えると、既存のユーザー目的達成BDD正本に反例を当て、Journeyである条件を再判定し、確認済みの理解と未決を同じpathへ戻せる。作るのは更新後の正本1本だけで、新しい資料は作らない。
 
-同じdirectoryの`playbook.yml`が工程順の正本である。このSKILLを読んだagentが、利用者の入力と既存正本を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`skill:`の工程は同じpackageに同梱された同名skillの`SKILL.md`をこのagentが同じ文脈で読んで適用する工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。
+同じdirectoryの`playbook.yml`が工程順の正本である。このSKILLを読んだagentが、利用者の入力と既存正本を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`skill:`の工程は同じpackageに同梱された同名skillの`SKILL.md`をこのagentが同じ文脈で読んで適用する工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。手順に入る前に同梱の内部skill `write-bdd`の`SKILL.md`を同じ文脈で読み、その規律（入力の根拠づけ、業務の言葉、`grill` / `write-doc`の呼び方、BDDの前提・トリガー・失敗理由と条件マトリクス）を全工程へ適用する。
 
 ## 入力
 
@@ -17,7 +17,7 @@ description: 既存のユーザー目的達成BDDを、目的、両端、場面�
 | `references` | 任意。追加で従う資料の絶対path配列。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `existing_user_journey_bdd_path` | 更新する既存正本の絶対path。symlinkではない既存file | 無い、複数ある、別pathへの出力を求められた場合は止まる |
 
-[入力に根拠づける規律](references/input-grounding.md)に従い、利用者の発言、明示された資料、`challenge`で確認した決定だけを確定事項にする。既存本文は仮説を含み得るため、書いてあるという理由だけで確定事項にしない。
+`write-bdd`の入力に根拠づける規律に従い、利用者の発言、明示された資料、`challenge`で確認した決定だけを確定事項にする。既存本文は仮説を含み得るため、書いてあるという理由だけで確定事項にしない。
 
 ## 判断基準
 
@@ -34,10 +34,10 @@ description: 既存のユーザー目的達成BDDを、目的、両端、場面�
 
 ## 手順
 
-1. **challenge（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」と[Formulationの反証観点](references/formulation-probes.md)で、既存正本を根拠に答えで本文の変更が一つに決まる問いを成果を左右する順に選び、推奨と理由を添えて`context`と`questions`に渡す。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・既存正本・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは更新を完成できない場合だけ行う。
+1. **challenge（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」と[Formulationの反証観点](references/formulation-probes.md)で、既存正本を根拠に答えで本文の変更が一つに決まる問いを成果を左右する順に選び、推奨と理由を添えて`context`と`questions`に渡す。呼び方は`write-bdd`の入れ子の段取りを呼ぶ規律に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・既存正本・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは更新を完成できない場合だけ行う。
 2. **ground。** 既存正本、依頼、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
 3. **remap-journey。** 同梱skillの判断規律で、既存本文を既成事実として追認せずJourneyの該当を再判定し、目的、両端、場面、状態の受け渡し、分岐を`journey_map`として保持する。
-4. **revise。** [Journeyを判定し接続する判断規律](references/journey-judgment.md)、[Journeyの構造](references/journey-structure.md)、[場面のBDD](references/scenario-writing.md)、[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を適用し、確認済みの発見を該当する既存の場面へ戻し、`open_questions`と仮置きした推奨を該当する場面に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈・確認相手・影響場面を並べる。変更するBDDごとに条件マトリクスを作り、場面草案、条件マトリクス、改訂本文を同じ文脈で完成させる。更新先は入力された既存正本と同じpathであり、これを`requested_output_path`にする。
+4. **revise。** `remap-journey`で適用した同梱skillのJourneyを判定し接続する判断規律、Journeyの構造、場面のBDDと、`write-bdd`のBDDの前提・トリガー・失敗理由を適用し、確認済みの発見を該当する既存の場面へ戻し、`open_questions`と仮置きした推奨を該当する場面に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈・確認相手・影響場面を並べる。変更するBDDごとに条件マトリクスを作り、場面草案、条件マトリクス、改訂本文を同じ文脈で完成させる。更新先は入力された既存正本と同じpathであり、これを`requested_output_path`にする。
 5. **validate（`scripts/scenario.py`）。** 場面草案（`user-journey-bdd`型の本文記法: `## 場面 <連番>: <名前>`、コードフェンス内の`Given:` / `And:` / `When:` / `Then:`、失敗場面の`NOTE: Rule:` / `Source:` / `Reason:`、`**接続**:`）をそのまま標準入力で、条件マトリクスを`--matrix-json`引数のJSON文字列で`python3 scripts/scenario.py check`へ渡す。pathはこのSKILLと同じdirectoryを基準にし、fileは介さない。stdoutにJSONを1行ずつ返し、終了codeは0が違反なし、1が違反あり（各行が`line` / `kind` / `detail` / `howto`）、2が入力を読めない（標準入力が空、`--matrix-json`がJSONでないかobjectでない）。0以外なら更新へ進まず、診断に従って`revise`へ戻る。
 
    ````bash

@@ -7,7 +7,7 @@ description: 業務シナリオと業務イベントから、データの作成�
 
 読み終えると、業務イベントによってどの事実を、誰の後の判断や説明のために残す必要が生じるかを永続化シナリオとして確定し、検査済みBDDを含むRDB論理設計資料1本へ保存できる。テーブルから始めない。Read、索引、物理型、分離レベル、SQL、API、DTO、ORM、画面はこの入口の関心外である。
 
-同じdirectoryの`playbook.yml`が工程順の正本である。このSKILLを読んだagentが、利用者の入力と明示された資料を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`skill:`の工程は同じpackageに同梱された同名skillの`SKILL.md`をこのagentが同じ文脈で読んで適用する工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。
+同じdirectoryの`playbook.yml`が工程順の正本である。このSKILLを読んだagentが、利用者の入力と明示された資料を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`skill:`の工程は同じpackageに同梱された同名skillの`SKILL.md`をこのagentが同じ文脈で読んで適用する工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。手順に入る前に同梱の内部skill `write-bdd`の`SKILL.md`を同じ文脈で読み、その規律（入力の根拠づけ、業務の言葉、`grill` / `write-doc`の呼び方、BDDの前提・トリガー・失敗理由と条件マトリクス）を全工程へ適用する。
 
 ## 入力
 
@@ -21,7 +21,7 @@ description: 業務シナリオと業務イベントから、データの作成�
 
 **保存先の決め方。** 依頼に資料構成が示されていれば、そのまま使う。示されていなければ、利用者の既存資料のdirectory階層と命名を読み、置き場と名前を提案として`settle`の問いの1つに含めて確かめる。正本の置き場は利用者の資料構成に属するので、仮置きで書かない。既定のpathを持たない。`output_directory`が存在しない、相対pathである、または同名fileがすでにある場合は、書かずに止まって利用者へ返す。同名fileが既存の論理資料なら、この入口では扱わず既存資料の反証（formulation）が該当すると報告する。
 
-[入力に根拠づける規律](references/input-grounding.md)に従い、利用者の発言、明示された資料、`settle`で確認した決定にない業務用語、業務イベント、概念を事実として作らない。
+`write-bdd`の入力に根拠づける規律に従い、利用者の発言、明示された資料、`settle`で確認した決定にない業務用語、業務イベント、概念を事実として作らない。
 
 ## 判断基準
 
@@ -39,10 +39,10 @@ description: 業務シナリオと業務イベントから、データの作成�
 
 ## 手順
 
-1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって記録する事実・履歴・保持・削除の骨格が変わる問いを成果を左右する順に選び、推奨と理由を添えて`context`と`questions`に渡す。保存先や`modeling_method`が依頼と文脈から決まらなければ、その提案を問いに含める。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは資料を完成できない場合だけ行う。
+1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって記録する事実・履歴・保持・削除の骨格が変わる問いを成果を左右する順に選び、推奨と理由を添えて`context`と`questions`に渡す。保存先や`modeling_method`が依頼と文脈から決まらなければ、その提案を問いに含める。呼び方は`write-bdd`の入れ子の段取りを呼ぶ規律に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは資料を完成できない場合だけ行う。
 2. **ground。** 依頼、参照資料、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
 3. **explore。** 同梱skillの判断規律で、永続化の必要を生む業務イベントと関係する役割を時系列に洗い出し、`events`と`actors`として保持する。
-4. **scenarios。** 同梱skillの判断規律で、作成・更新・削除に関係する業務断面を、アクター、事前状態、業務イベント、条件、判断、結果、次状態、残す事実、履歴、保持理由を持つ永続化シナリオにし、3操作の検討状況（`persistence_coverage`）と条件マトリクスを作る。[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)、[この入口の焦点](references/focus.md)、[永続化から論理モデルへ写す判断規律](references/modeling-judgment.md)を適用する。
+4. **scenarios。** 同梱skillの判断規律で、作成・更新・削除に関係する業務断面を、アクター、事前状態、業務イベント、条件、判断、結果、次状態、残す事実、履歴、保持理由を持つ永続化シナリオにし、3操作の検討状況（`persistence_coverage`）と条件マトリクスを作る。`write-bdd`のBDDの前提・トリガー・失敗理由、[この入口の焦点](references/focus.md)、[永続化から論理モデルへ写す判断規律](references/modeling-judgment.md)を適用する。
 5. **validate-scenarios（`scripts/scenario_matrix.py`）。** 条件マトリクスJSONを標準入力で`python3 scripts/scenario_matrix.py check`へ渡す。pathはこのSKILLと同じdirectoryを基準にし、fileは介さない。stdoutにJSONを1行ずつ返し、終了codeは0が違反なし、1が違反あり（各行が`path` / `detail` / `howto`）、2が入力を読めない（空、不正JSON、objectでない）。0以外なら論理モデルへ進まず、診断に従って`scenarios`へ戻る。
 
    ```bash
@@ -51,7 +51,7 @@ description: 業務シナリオと業務イベントから、データの作成�
    EOF
    ```
 
-6. **logical-model。** 同梱skillの判断規律と`modeling_method`で選んだ手法に従い、検査済みシナリオだけから記録する事実と論理構造（論理テーブル、列と値域、業務上のキーと制約、関係と多重度、上書きする事実と履歴を残す事実の区別）を設計し、完成本文を作る。各BDDのBeforeとAfterへ全論理テーブルを同じ順序で置き、0件は「レコードなし」、変化しないものは「変更なし」と明記する。BDDは本文の末尾に置く。`open_questions`と仮置きした推奨は、該当するBDDと要素に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。冒頭の段落は、誰が何を判断・説明するためにどの事実を残すのかを読み手の既知の語で文章として運ぶ。
+6. **logical-model。** 同梱skillの判断規律と`modeling_method`で選んだ手法に従い、検査済みシナリオだけから記録する事実と論理構造（論理テーブル、列と値域、業務上のキーと制約、関係と多重度、上書きする事実と履歴を残す事実の区別）を設計し、完成本文を作る。各BDDのBeforeとAfterへ全論理テーブルを同じ順序で全カラム見出し付きの表として置き、0件でも見出し行と区切り行だけの表を省かず、変化しない表もBeforeと同じ全行をAfterへ再掲する。BDDは本文の末尾に置く。本文の節構成と記法は`write-doc`の`rdb-logical-data-modeling`型（公開契約の`document_type`）が定め、このpackageはtemplateを持たない。`open_questions`と仮置きした推奨は、該当するBDDと要素に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。冒頭の段落は、誰が何を判断・説明するためにどの事実を残すのかを読み手の既知の語で文章として運ぶ。
 7. **document（`write-doc`）。** 完成本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-logical-data-modeling`を`document_type`に、確認済みの`output_directory`と`name`をそのまま渡す。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`logical_document_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
 
 ## 停止条件

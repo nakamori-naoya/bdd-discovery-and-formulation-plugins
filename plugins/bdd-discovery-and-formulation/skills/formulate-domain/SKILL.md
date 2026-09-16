@@ -7,7 +7,7 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 
 読み終えると、既存のdomain-rule正本のコアドメインへQA観点の反例を当て、以前は説明できなかった境界を説明できる状態へ深化させ、確認済みの発見と未決を同じpathへ戻せる。作るのは更新後の正本1本だけで、新しい資料は作らない。
 
-同じdirectoryの`playbook.yml`が工程順の正本である。このSKILLを読んだagentが、利用者の入力と既存正本を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。
+同じdirectoryの`playbook.yml`が工程順の正本である。このSKILLを読んだagentが、利用者の入力と既存正本を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。手順に入る前に同梱の内部skill `write-bdd`の`SKILL.md`を同じ文脈で読み、その規律（入力の根拠づけ、業務の言葉、`grill` / `write-doc`の呼び方、BDDの前提・トリガー・失敗理由と条件マトリクス、定式化へ進める見極め、QA観点）を全工程へ適用する。
 
 ## 入力
 
@@ -17,13 +17,13 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 | `references` | 任意。追加で従う資料の絶対path配列。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `existing_domain_rule_path` | 更新する既存正本の絶対path。symlinkではない既存file | 無い、複数ある、別pathへの出力を求められた場合は止まる |
 
-[入力に根拠づける規律](references/input-grounding.md)に従い、利用者の発言、明示された資料、`challenge`で確認した決定だけを確定事項にする。既存資料も仮説を含み得るため、記載済みという理由だけで確定事項にしない。[この入口の焦点](references/focus.md)のとおり、反証の対象はコアに限る。
+`write-bdd`の入力に根拠づける規律に従い、利用者の発言、明示された資料、`challenge`で確認した決定だけを確定事項にする。既存資料も仮説を含み得るため、記載済みという理由だけで確定事項にしない。[この入口の焦点](references/focus.md)のとおり、反証の対象はコアに限る。
 
 ## 判断基準
 
 | 観察対象 | 述語 | 行動 |
 |---|---|---|
-| `grounded_input` | [定式化へ進める共通理解かを見極める](references/formulation-readiness.md)の基準で、コアの代表的な業務を説明できる | 進める。どの入力から読み取れたかと、残る疑問が発見不足ではなく反証で扱う深さである理由を短く明示する。既存正本にコアの業務ルールと代表BDDが無く反証の対象が存在しなければ、未決と回答責任者を示し、正本を初めて作る入口（discovery）が該当すると報告して止まる |
+| `grounded_input` | `write-bdd`の定式化へ進める共通理解かを見極める基準で、コアの代表的な業務を説明できる | 進める。どの入力から読み取れたかと、残る疑問が発見不足ではなく反証で扱う深さである理由を短く明示する。既存正本にコアの業務ルールと代表BDDが無く反証の対象が存在しなければ、未決と回答責任者を示し、正本を初めて作る入口（discovery）が該当すると報告して止まる |
 | コアの範囲 | 既存資料の線引きから一つに読める | その範囲を`core_scope`にする。線引きが曖昧なら、資料の代表BDDが示す範囲を仮説として`core_scope`に置き、根拠を未決に書く |
 | 反証の対象 | 既存資料でコアと線引きされた範囲の事前状態、業務イベント、条件、誰が行えるか、業務判断、結果、次状態、後続イベントである | 反証する。支援・汎用、画面、API、DTO、DB、通信、運用は、コアの判断を変える境界でない限り掘り下げず行き先だけを残す |
 | 反証で見つかった違い | 既存理解で説明できる / 確認済みの修正が要る / 仮説つきの未決 / コアの外、のどれかに分けられる | 確認済みの修正を用語、業務ルール、状態、アクター、誰が行えるか、BDDへ戻す。未決は最も筋の良い仮説と根拠を添えて未回答の問いへ置き、仮説に依存するBDDは仮説であることをその箇所に明示する |
@@ -34,9 +34,9 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 
 ## 手順
 
-1. **challenge（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」と[QA観点の適用](references/qa-probes.md)、[重要なシナリオを見つけるQA観点](references/important-scenarios.md)で、既存資料のどの主張を反証しているかを明らかにし、答えで本文の変更が一つに決まる問いを成果を左右する順に選んで推奨と理由を添え、`context`と`questions`に渡す。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・既存資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは更新を完成できない場合だけ行う。
+1. **challenge（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」と[QA観点の適用](references/qa-probes.md)、`write-bdd`の重要なシナリオを見つけるQA観点で、既存資料のどの主張を反証しているかを明らかにし、答えで本文の変更が一つに決まる問いを成果を左右する順に選んで推奨と理由を添え、`context`と`questions`に渡す。呼び方は`write-bdd`の入れ子の段取りを呼ぶ規律に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・既存資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは更新を完成できない場合だけ行う。
 2. **ground。** 既存正本、依頼、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持し、既存資料のコアの範囲を`core_scope`にする。
-3. **revise。** [シナリオの書き方](references/writing.md)、[Givenの選び方](references/given.md)、[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)に従い、複数主体や知識差が結果を変える場合だけ[登場人物と情報差](references/actors.md)を読む。確認済みの発見を既存の用語、業務ルール、状態、アクター、誰が行えるか、BDDへ対応を保って戻し、`open_questions`と仮置きした推奨を本文の該当箇所に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。変更するBDDごとに条件マトリクスを作り、BDD草案（Gherkin）、条件マトリクス、改訂本文を同じ文脈で完成させる。更新先は入力された既存資料と同じpathであり、これを`requested_output_path`にする。
+3. **revise。** [シナリオの書き方](references/writing.md)、[Givenの選び方](references/given.md)、`write-bdd`のBDDの前提・トリガー・失敗理由に従い、複数主体や知識差が結果を変える場合だけ[登場人物と情報差](references/actors.md)を読む。確認済みの発見を既存の用語、業務ルール、状態、アクター、誰が行えるか、BDDへ対応を保って戻し、`open_questions`と仮置きした推奨を本文の該当箇所に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。変更するBDDごとに条件マトリクスを作り、BDD草案（Gherkin）、条件マトリクス、改訂本文を同じ文脈で完成させる。更新先は入力された既存資料と同じpathであり、これを`requested_output_path`にする。
 4. **validate（`scripts/scenario.py`）。** BDD草案（Gherkin本文）をそのまま標準入力で、条件マトリクスを`--matrix-json`引数のJSON文字列で`python3 scripts/scenario.py check`へ渡す。pathはこのSKILLと同じdirectoryを基準にし、fileは介さない。stdoutにJSONを1行ずつ返し、終了codeは0が違反なし、1が違反あり（各行が`line` / `kind` / `detail` / `howto`）、2が入力を読めない（標準入力が空、`--matrix-json`がJSONでないかobjectでない）。0以外なら更新へ進まず、診断に従って`revise`へ戻る。
 
    ```bash
