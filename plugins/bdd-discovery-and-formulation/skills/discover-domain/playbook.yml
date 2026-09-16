@@ -10,7 +10,7 @@ requires:
 steps:
   - id: settle
     playbook: grill
-    purpose: 入力だけでは不明または深掘りが必要な業務の事実、役割、決まり、各コマンドとクエリを誰が行えるかを利用者へ1問ずつ確かめ、決定と未決を残す
+    purpose: 入力だけでは不明で正本の骨格を左右する業務の事実、役割、決まり、誰が行えるかを最大6問に厳選して利用者へ確かめ、決定と未決を残す
     needs: [user_input, referenced_artifacts]
     provides: [decisions, open_questions]
 

@@ -10,7 +10,7 @@ requires:
 steps:
   - id: settle
     playbook: grill
-    purpose: 入力だけでは不明または深掘りが必要な、業務イベント、残す事実、履歴、保持、物理削除の条件を利用者へ1問ずつ確かめる
+    purpose: 入力だけでは不明で記録する事実・履歴・保持・削除の骨格を左右する業務イベントと条件を最大6問に厳選して利用者へ確かめる
     needs: [user_input, referenced_artifacts]
     provides: [decisions, open_questions]
 

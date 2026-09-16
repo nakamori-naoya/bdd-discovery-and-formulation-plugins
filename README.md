@@ -145,9 +145,9 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 
 内部skillはmarketplaceの個別インストール対象にせず、公開入口の`playbook.yml`が`skill:`工程で呼ぶ。1つの公開入口だけが使っていた判断（コア・支援・汎用の線引き、RDB物理設計）はその公開入口へ統合した。
 
-各公開入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`SKILL.md`が目的・入力・判断基準・手順・停止条件・出力を持ち、`references/execution-guidance.md`が背景・前提と各工程実行時の付加的な指示を持つ。入口が使うtool（`scripts/scenario.py`、`scripts/scenario_matrix.py`、`scripts/actor-coverage.py`、`scripts/update-guard.py`、`scripts/rdb.py`）は、入口directoryを基準にした相対pathで示し、入力・出力・終了code・失敗時の扱いをSKILL.mdが宣言する。設定fileは持たず、保存先、対象RDB、論理モデリングの手法は依頼と対話から決める。
+各公開入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`SKILL.md`が目的・入力・判断基準・手順・停止条件・出力を持ち、`references/execution-guidance.md`が背景・前提と各工程実行時の付加的な指示を持つ。入口が使うtool（`scripts/scenario.py`、`scripts/scenario_matrix.py`、`scripts/actor-coverage.py`、`scripts/update-guard.py`、`scripts/rdb.py`）は、入口directoryを基準にした相対pathで示し、入力・出力・終了code・失敗時の扱いをSKILL.mdの手順が1か所で宣言する。agentが作った本文（条件マトリクス、BDD草案、場面草案、完成本文、物理設計本文）はそのまま標準入力で渡し、条件マトリクスを併せて渡すtoolは`--matrix-json`引数で受け、保存済みの正本だけをpath引数で渡す。検査のためだけの一時fileや後片付け工程は無い。停止条件は「止まる（必須入力の欠落、契約に反する入力、toolの失敗、保存先の不確定）」と「仮説を明示して進む（判断の揺れ、資料の不足）」に分かれる。設定fileは持たず、保存先、対象RDB、論理モデリングの手法は依頼と対話から決める。
 
-外部の段取り（`grill`、`write-doc`）は、`references/nested-playbook.md`に書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`grill/grill`版1は契約objectを公開入口へ直接渡し、`decisions`と`open_questions`を持つ結果objectを直接受け取る。
+外部の段取り（`grill`、`write-doc`）は、`references/nested-playbook.md`に書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`grill/grill`版1は契約objectを公開入口へ直接渡し、`decisions`と`open_questions`を持つ結果objectを直接受け取る。渡す`questions`は成果を左右するものに厳選した最大6問で、超える論点は推奨を仮置きした未決として成果物へ載せる。
 
 ハーネスが作る資料は、冒頭を読み手の既知の語で書いた本文段落から始め、型や確認日のようなメタ情報の一覧を置かない。中心の問い、扱う理由、役割×目的の一覧、Journeyから外した事項の送り先のような作業記録は報告に載せ、正本へ写さない。保存先と名前は利用者の既存資料構成に従い、日本語のdirectory名・file名を許す。
 
@@ -166,7 +166,7 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 bash scripts/validate.sh
 ```
 
-`validate-structure.sh`は、両marketplaceと両runtime manifestのidentity、公開入口6つと内部skill4つの集合、`playbook.yml`の外部依存宣言と`script:` / `skill:`参照の実在、共有複製のbyte一致、禁止参照形の不在を検査し、各tool（条件マトリクス、Gherkin検査、誰が行えるかの網羅、ユーザー目的達成BDD、同一パス更新、物理設計検査）を正例・反例・境界例で実行する。続けて共有保守tool（`test-hardening.py`、`sync-runtime.py --check`、`validate-distribution.py`）と、兄弟checkout（`../grill-plugins/plugins/grill`、`../write-doc-plugins/plugins/write-doc`）の実配布物に対する消費側lint（`lint-consumer-contract.py`）を両runtimeで実行する。実配布物が見つからなければ落ちる。
+`validate-structure.sh`は、両marketplaceと両runtime manifestのidentity、公開入口6つと内部skill4つの集合、`playbook.yml`の外部依存宣言と`script:` / `skill:`参照の実在、共有複製のbyte一致、禁止参照形の不在を検査し、各tool（条件マトリクス、Gherkin検査、誰が行えるかの網羅、ユーザー目的達成BDD、同一パス更新、物理設計検査）の`self-test`（旧引数のargparse拒否を含む）と、SKILL.mdの手順と同じ形（本文はstdin、条件マトリクスは`--matrix-json`）での正例・反例・境界例を実行する。続けて共有保守tool（`test-hardening.py`、`sync-runtime.py --check`、`validate-distribution.py`）と、兄弟checkout（`../grill-plugins/plugins/grill`、`../write-doc-plugins/plugins/write-doc`）の実配布物に対する消費側lint（`lint-consumer-contract.py`）を両runtimeで実行する。実配布物が見つからなければ落ちる。
 
 workspace rootの`bash scripts/validate.sh <このrepositoryの絶対path>`が配置・manifest・隣接playbook.yml・禁止参照形の構造契約を検査する。構造検査の成功は、SKILL本文の判断規律や生成された資料の業務上の正しさを保証しない。
 

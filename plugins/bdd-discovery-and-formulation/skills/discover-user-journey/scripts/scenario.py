@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """ユーザー目的達成BDDの機械判定できる構造だけを検査する。
 
-  scenario.py check --file <場面草案Markdown> --matrix <条件マトリクスJSON>
+  scenario.py check --matrix-json '<条件マトリクスJSON>'   < <場面草案Markdown>
+  scenario.py self-test
 
+場面草案（Markdown本文）はそのまま標準入力で、条件マトリクスは --matrix-json 引数のJSON文字列で受ける。fileは介さない。
+標準入力が空、--matrix-json がJSONでない、objectでない場合は exit 2。
 stdoutへJSONを1行ずつ返す。exit 0 = 違反なし / 1 = 違反あり（各行がline, kind, detail, howto） / 2 = 入力を読めない。
 検査するのは場面の連番、Given / When / Thenの有無と順序、場面間の接続、失敗場面のNOTE、
 条件マトリクスとの対応だけである。冒頭の段落が誰の何の目的かを運ぶかは意味評価に残す。
@@ -16,7 +19,8 @@ keyword の後がコロンでも空白でも同じ step として読む。
 import argparse
 import json
 import re
-from pathlib import Path
+import subprocess
+import sys
 
 from scenario_matrix import validate as validate_matrix
 
@@ -150,23 +154,22 @@ def check(text, matrix):
     return problems, len(scenes)
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    sub = parser.add_subparsers(dest="command", required=True)
-    check_parser = sub.add_parser("check")
-    check_parser.add_argument("--file", required=True)
-    check_parser.add_argument("--matrix", required=True)
-    args = parser.parse_args()
-
+def read_inputs(matrix_json):
+    """標準入力の場面草案と --matrix-json の条件マトリクスを読む。読めなければ exit 2。"""
+    draft = sys.stdin.read()
+    if not draft.strip():
+        fail("標準入力が空。場面草案（Markdown本文）を標準入力で渡す")
     try:
-        text = Path(args.file).read_text(encoding="utf-8")
-    except OSError as exc:
-        fail(f"story draftを読めない: {exc}")
+        matrix = json.loads(matrix_json)
+    except json.JSONDecodeError as exc:
+        fail(f"--matrix-json がJSONではない: {exc}")
+    if not isinstance(matrix, dict):
+        fail("--matrix-json は条件マトリクスobjectでなければならない")
+    return draft, matrix
 
-    try:
-        matrix = json.loads(Path(args.matrix).read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        fail(f"--matrixを読めない: {exc}")
+
+def cmd_check(args):
+    text, matrix = read_inputs(args.matrix_json)
     matrix_problems = validate_matrix(matrix)
     if matrix_problems:
         for problem in matrix_problems:
@@ -178,6 +181,66 @@ def main():
     if problems:
         fail(f"{len(problems)}件の違反", 1)
     print(json.dumps({"check": "clean", "focus": "user-journey", "scenes": scene_count}, ensure_ascii=False))
+
+
+def self_test():
+    draft = (
+        "# 予約を完了する\n\n"
+        "## 場面 1: 希望を伝える\n\n```gherkin\n"
+        "Given: 予約者が希望条件を決めている\n"
+        "When: 予約者が希望を伝える\n"
+        "Then: 希望に合う候補が示される\n```\n\n"
+        "**接続**: 示された候補を選べる状態になる\n\n"
+        "## 場面 2: 停止中の予約者は成立しない\n\n```gherkin\n"
+        "Given: 予約者が候補を選べる\n"
+        "  And: 予約者は仮押さえ停止中である\n"
+        "When: 予約者が候補を選ぶ\n"
+        "Then: 予約は成立しない\n"
+        "  NOTE: Rule: 予約成立規則\n"
+        "    Reason: 停止中顧客は新しい利用枠を確保できないため\n```\n"
+    )
+    matrix = {"scenarios": [
+        {"name": "希望を伝える", "kind": "success", "expected": "success", "rule": "予約成立規則",
+         "trigger": {"kind": "action", "text": "予約者が希望を伝える"},
+         "premises": [{"text": "予約者が希望条件を決めている", "state": "satisfied", "target": False, "source": "予約資料"}]},
+        {"name": "停止中の予約者は成立しない", "kind": "single_failure", "expected": "failure", "rule": "予約成立規則",
+         "trigger": {"kind": "action", "text": "予約者が候補を選ぶ"},
+         "premises": [{"text": "予約者が候補を選べる", "state": "satisfied", "target": False, "source": "予約資料"},
+                      {"text": "予約者は仮押さえ停止中である", "state": "unsatisfied", "target": True, "source": "予約成立規則"}],
+         "note": {"rule": "予約成立規則", "reason": "停止中顧客は新しい利用枠を確保できないため"}},
+    ]}
+    problems, scenes = check(draft, matrix)
+    assert problems == [] and scenes == 2, "正例: 2場面・接続・NOTEが一致"
+    no_connection = draft.replace("**接続**: 示された候補を選べる状態になる\n", "")
+    assert any(p["kind"] == "場面の接続" for p in check(no_connection, matrix)[0]), "反例: 接続欠落"
+    wrong_reason = draft.replace("停止中顧客は新しい利用枠を確保できないため", "違う理由")
+    assert any(p["kind"] == "NOTE" for p in check(wrong_reason, matrix)[0]), "反例: NOTEのReason不一致"
+
+    def run(stdin_text, *argv):
+        return subprocess.run([sys.executable, __file__, "check", *argv], input=stdin_text, text=True, capture_output=True)
+
+    matrix_arg = json.dumps(matrix, ensure_ascii=False)
+    assert run("", "--matrix-json", matrix_arg).returncode == 2, "境界例: 空stdinはexit 2"
+    assert run(draft, "--matrix-json", "{broken").returncode == 2, "境界例: 不正JSONはexit 2"
+    assert run(draft, "--matrix-json", "[]").returncode == 2, "境界例: objectでないマトリクスはexit 2"
+    assert run(draft).returncode == 2, "境界例: --matrix-json 欠落はargparseが拒否"
+    assert run(draft, "--file", "x", "--matrix", "y").returncode == 2, "境界例: 旧引数 --file / --matrix はargparseが拒否"
+    assert run(draft, "--matrix-json", matrix_arg).returncode == 0, "正例: stdin本文＋引数マトリクスで通る"
+    assert run(no_connection, "--matrix-json", matrix_arg).returncode == 1, "反例: 違反はexit 1"
+    print(json.dumps({"self_test": "passed", "cases": 10}, ensure_ascii=False))
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    sub = parser.add_subparsers(dest="command", required=True)
+    check = sub.add_parser("check")
+    check.add_argument("--matrix-json", required=True, help="条件マトリクスJSON文字列")
+    sub.add_parser("self-test")
+    args = parser.parse_args()
+    if args.command == "self-test":
+        self_test()
+        return
+    cmd_check(args)
 
 
 if __name__ == "__main__":

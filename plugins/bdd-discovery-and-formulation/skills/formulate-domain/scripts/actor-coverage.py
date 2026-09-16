@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """domain-rule資料の「コマンドとクエリ」表と「誰が行えるか」表の第1列が一致するかを検査する。
 
-  actor-coverage.py check --file <domain-rule Markdownの絶対path>
+  actor-coverage.py check   < <domain-rule本文Markdown>
   actor-coverage.py self-test
 
 正本: 資料の `## コマンドとクエリ` 表と `# 誰が行えるか` 表（templateが定める見出しと第1列）。
-入力: 検査対象Markdownの絶対path。
+入力: agentが同じ文脈で作った完成本文（Markdown）を標準入力で受ける。fileは介さない。
 正規化: 2つの見出し配下のMarkdown表を読み、第1列の文字列を前後空白除去して集合にする。
 合格述語: 両表が存在し空でなく、第1列集合が両方向で一致する。
 失敗時の診断: 片方にしか無い行い名の一覧（stdoutへJSON 1行ずつ）。
-exit 0 = 一致 / 1 = 不一致または表が無い / 2 = 入力を読めない。
+exit 0 = 一致 / 1 = 不一致または表が無い / 2 = 入力を読めない（標準入力が空）。
 
 表記ゆれ（「投稿する」と「投稿を作成する」）は不一致として報告し、同義かどうかは意味評価へ返す。
 行える役割が正しいか、成立条件・常に守られること・誰が行えるか・拒むときの理由・BDDの5か所が
@@ -19,8 +19,8 @@ exit 0 = 一致 / 1 = 不一致または表が無い / 2 = 入力を読めない
 import argparse
 import json
 import re
+import subprocess
 import sys
-from pathlib import Path
 
 HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 COMMANDS_HEADING = "コマンドとクエリ"
@@ -105,11 +105,10 @@ def check(text):
     return problems
 
 
-def cmd_check(path):
-    try:
-        text = Path(path).read_text(encoding="utf-8")
-    except OSError as exc:
-        emit({"error": f"資料を読めない: {exc}"})
+def cmd_check():
+    text = sys.stdin.read()
+    if not text.strip():
+        emit({"error": "資料を読めない: 標準入力が空。完成本文を標準入力で渡す"})
         return 2
     problems = check(text)
     for problem in problems:
@@ -141,20 +140,28 @@ def self_test():
     assert problems and problems[0]["kind"] == "表", "反例: 表が空"
     fenced = good.replace("# 業務ルール\n", "# 業務ルール\n\n```text\n# 誰が行えるか\n| 別の行い |\n```\n")
     assert check(fenced) == [], "境界例: コードブロック内の見出しは数えない"
-    emit({"self_test": "passed", "cases": 5})
+
+    def run(stdin_text):
+        return subprocess.run([sys.executable, __file__, "check"], input=stdin_text, text=True, capture_output=True)
+
+    assert run("").returncode == 2, "境界例: 空stdinはexit 2"
+    assert run(good).returncode == 0, "正例: stdin経由で一致"
+    assert run(missing).returncode == 1, "反例: stdin経由で不一致はexit 1"
+    old_form = subprocess.run([sys.executable, __file__, "check", "--file", "x"], text=True, capture_output=True)
+    assert old_form.returncode == 2, "境界例: 旧引数 --file はargparseが拒否する"
+    emit({"self_test": "passed", "cases": 9})
     return 0
 
 
 def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
-    check_parser = sub.add_parser("check")
-    check_parser.add_argument("--file", required=True)
+    sub.add_parser("check")
     sub.add_parser("self-test")
     args = parser.parse_args()
     if args.command == "self-test":
         return self_test()
-    return cmd_check(args.file)
+    return cmd_check()
 
 
 if __name__ == "__main__":
