@@ -13,7 +13,7 @@ description: 業務で起きる事実（業務イベント）を時系列に洗�
 
 ## 判断基準
 
-[何を1件の事実として数えるか](references/grain.md)、[アクターとステークホルダー](references/actors-and-stakeholders.md)、[業務イベント](references/domain-events.md)、[概念の関係](references/concept-map.md)を読んでから始める。ここを読まずに始めると、粒度が途中で変わって並べ直せなくなる。
+[何を1件の事実として数えるか](references/grain.md)と、同梱の内部skill `write-bdd`の規律のうちアクターと利害関係者、業務イベント、概念の関係を読んでから始める。ここを読まずに始めると、粒度が途中で変わって並べ直せなくなる。
 
 | 観察対象 | 述語 | 行動 |
 |---|---|---|

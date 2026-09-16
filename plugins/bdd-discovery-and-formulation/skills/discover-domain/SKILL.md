@@ -7,7 +7,7 @@ description: コアドメインの業務知識と代表的な振る舞いを共�
 
 読み終えると、利用者が持つ業務知識から、作りを全部やめても残る決まりだけを、業務の言葉で書いたdomain-rule正本1本へ保存できる。正本は業務の人と開発者が同じ判断を説明するためのものであり、画面、保存、手順、テスト実行は別の資料が担う。探求が先で、記述は後である。何が起きるのかを知らないまま型を埋めると、型の穴を埋める作り話が入る。
 
-同じdirectoryの`playbook.yml`が工程順の正本である。このSKILLを読んだagentが、利用者の入力と明示された資料を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`skill:`の工程は同じpackageに同梱された同名skillの`SKILL.md`をこのagentが同じ文脈で読んで適用する工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。
+同じdirectoryの`playbook.yml`が工程順の正本である。このSKILLを読んだagentが、利用者の入力と明示された資料を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`skill:`の工程は同じpackageに同梱された同名skillの`SKILL.md`をこのagentが同じ文脈で読んで適用する工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。手順に入る前に同梱の内部skill `write-bdd`の`SKILL.md`を同じ文脈で読み、その規律（入力の根拠づけ、業務の言葉、`grill` / `write-doc`の呼び方、BDDの前提・トリガー・失敗理由と条件マトリクス）を全工程へ適用する。
 
 ## 入力
 
@@ -20,7 +20,7 @@ description: コアドメインの業務知識と代表的な振る舞いを共�
 
 **保存先の決め方。** 依頼に資料構成が示されていれば、そのまま使う。示されていなければ、利用者の既存資料のdirectory階層と命名を読み、置き場と名前を提案として`settle`の問いの1つに含めて確かめる。正本の置き場は利用者の資料構成に属するので、仮置きで書かない。既定のpathを持たない。`output_directory`が存在しない、相対pathである、または同名fileがすでにある場合は、書かずに止まって利用者へ返す。同名fileが既存の正本なら、この入口では扱わず既存正本の反証（formulation）が該当すると報告する。
 
-[入力に根拠づける規律](references/input-grounding.md)に従い、利用者の発言、明示された資料、`settle`で確認した決定にない業務用語、業務イベント、役割、決まりを事実として作らない。受け取った事実は、誰が確かめたのかで確からしさが変わるので、確認済み・仮説・未確認の区別を保ったまま扱う。
+`write-bdd`の入力に根拠づける規律に従い、利用者の発言、明示された資料、`settle`で確認した決定にない業務用語、業務イベント、役割、決まりを事実として作らない。受け取った事実は、誰が確かめたのかで確からしさが変わるので、確認済み・仮説・未確認の区別を保ったまま扱う。
 
 ## 判断基準
 
@@ -38,11 +38,11 @@ description: コアドメインの業務知識と代表的な振る舞いを共�
 
 ## 手順
 
-1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって正本の骨格（コアの範囲、業務イベント、判断、誰が行えるか）が変わる問いを成果を左右する順に選び、それぞれに推奨と理由を添えて`context`と`questions`に渡す。保存先が依頼に無ければ、その提案を問いに含める。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは正本を完成できない場合だけ行う。
+1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって正本の骨格（コアの範囲、業務イベント、判断、誰が行えるか）が変わる問いを成果を左右する順に選び、それぞれに推奨と理由を添えて`context`と`questions`に渡す。保存先が依頼に無ければ、その提案を問いに含める。呼び方は`write-bdd`の入れ子の段取りを呼ぶ規律に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは正本を完成できない場合だけ行う。
 2. **ground。** 依頼、参照資料、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
 3. **explore。** 同梱skillの判断規律で、業務で起きた事実を時系列に洗い出し、引き金、担い手、前提、業務上の結果、確からしさを`events`と`actors`として保持する。
-4. **scope。** [業務の話の境界](references/boundary.md)、[ドメイン](references/domain.md)、[サブドメイン](references/subdomains.md)、[境界づけられたコンテキスト](references/bounded-contexts.md)、[概念の関係](references/concept-map.md)を読み、業務の話と実装の関心に線を引き、残ったものをコア・支援・汎用へ理由付きで分ける。該当が無い区分は「なし」と書く。スコープ外へ落としたものと理由を`implementation_excluded`として保持する。
-5. **record-behavior。** [振る舞い発見](references/behavior-discovery.md)、[アクターとステークホルダー](references/actors-and-stakeholders.md)、[業務ルール](references/domain-rules.md)、[ユビキタス言語](references/ubiquitous-language.md)、[共通理解を作る問い](references/questions.md)、[成果物の形](references/discovery-deliverable.md)、[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を適用し、コアの代表的な振る舞い断面、コマンドとクエリの一覧、誰が行えるかの表、代表BDD、条件マトリクス、完成本文を同じ文脈で作る。`open_questions`と仮置きした推奨は、本文の該当箇所に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。冒頭の段落は、誰が何をなぜ行う業務かを読み手の既知の語で文章として運ぶ。型の読み方の解説やメタ情報の一覧は本文に書かない。
+4. **scope。** [業務の話の境界](references/boundary.md)、[ドメイン](references/domain.md)、[サブドメイン](references/subdomains.md)、[境界づけられたコンテキスト](references/bounded-contexts.md)と、`write-bdd`の概念の関係を読み、業務の話と実装の関心に線を引き、残ったものをコア・支援・汎用へ理由付きで分ける。該当が無い区分は「なし」と書く。スコープ外へ落としたものと理由を`implementation_excluded`として保持する。
+5. **record-behavior。** [振る舞い発見](references/behavior-discovery.md)、[業務ルール](references/domain-rules.md)、[共通理解を作る問い](references/questions.md)、[成果物の形](references/discovery-deliverable.md)と、`write-bdd`のアクターと利害関係者、ユビキタス言語、BDDの前提・トリガー・失敗理由を適用し、コアの代表的な振る舞い断面、コマンドとクエリの一覧、誰が行えるかの表、代表BDD、条件マトリクス、完成本文を同じ文脈で作る。`open_questions`と仮置きした推奨は、本文の該当箇所に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。冒頭の段落は、誰が何をなぜ行う業務かを読み手の既知の語で文章として運ぶ。型の読み方の解説やメタ情報の一覧は本文に書かない。
 6. **validate（`scripts/scenario_matrix.py`）。** 条件マトリクスJSONを標準入力で`python3 scripts/scenario_matrix.py check`へ渡す。pathはこのSKILLと同じdirectoryを基準にし、fileは介さない。stdoutにJSONを1行ずつ返し、終了codeは0が違反なし、1が違反あり（各行が`path` / `detail` / `howto`）、2が入力を読めない（空、不正JSON、objectでない）。0以外なら資料化へ進まず、診断に従って`record-behavior`へ戻る。
 
    ```bash

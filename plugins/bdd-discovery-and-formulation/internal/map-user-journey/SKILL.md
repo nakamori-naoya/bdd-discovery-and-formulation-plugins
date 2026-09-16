@@ -13,7 +13,7 @@ description: 1人の主たるユーザーが1つの目的を達成するまで�
 
 ## 判断基準
 
-[User Journey](references/user-journey.md)と[何ではないか](references/journey-boundary.md)を読んでから判定する。
+[User Journey](references/user-journey.md)、[何ではないか](references/journey-boundary.md)、[Journeyを判定し接続する判断規律](references/journey-judgment.md)、[Journeyの構造](references/journey-structure.md)を読んでから判定する。mapを受け取った入口が場面をBDDへ写すときの文章の規律は[場面のBDD](references/scenario-writing.md)が持ち、同じagentがこのskillを適用した文脈で続けて使う。
 
 | 観察対象 | 述語 | 行動 |
 |---|---|---|
