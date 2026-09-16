@@ -1,7 +1,7 @@
 version: 2
 name: formulate-user-journey
 description: 既存のユーザー目的達成BDDを反証し、確認済みの理解と未決を同じ正本へ戻して深化させる
-inputs: [user_input, referenced_artifacts, existing_user_journey_bdd_path]
+inputs: [user_input, references, existing_user_journey_bdd_path]
 
 requires:
   - {plugin: grill, marketplace: grill}
@@ -10,8 +10,8 @@ requires:
 steps:
   - id: challenge
     playbook: grill
-    purpose: 既存正本を根拠に目的、両端、接続、分岐、中断再開、役割移譲、完了条件を問い、答えで本文の変更が一つに決まる不明点を最大6問に厳選して確認する
-    needs: [user_input, referenced_artifacts, existing_user_journey_bdd_path]
+    purpose: 既存正本を根拠に目的、両端、接続、分岐、中断再開、役割移譲、完了条件を問い、答えで本文の変更が一つに決まる不明点を成果を左右する順に厳選して確認する
+    needs: [user_input, references, existing_user_journey_bdd_path]
     provides: [decisions, open_questions]
 
   - id: ground
@@ -49,5 +49,5 @@ steps:
     purpose: 同じagentが保持した検査済みの改訂本文をtext materialとして渡し、既存正本と同じpathへ差し替える
     input:
       document_type: user-journey-bdd
-    needs: [final_markdown, validation_report, update_target]
+    needs: [final_markdown, validation_report, update_target, references]
     provides: [updated_user_journey_bdd_path]

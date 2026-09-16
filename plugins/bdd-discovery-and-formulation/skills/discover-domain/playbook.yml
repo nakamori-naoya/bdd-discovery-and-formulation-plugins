@@ -1,7 +1,7 @@
 version: 2
 name: discover-domain
 description: 業務で起きる事実から、コアの業務ルール、誰が行えるか、代表BDDを共通理解にして1本の正本にする
-inputs: [user_input, referenced_artifacts, output_directory, name]
+inputs: [user_input, references, output_directory, name]
 
 requires:
   - {plugin: grill, marketplace: grill}
@@ -10,8 +10,8 @@ requires:
 steps:
   - id: settle
     playbook: grill
-    purpose: 入力だけでは不明で正本の骨格を左右する業務の事実、役割、決まり、誰が行えるかを最大6問に厳選して利用者へ確かめ、決定と未決を残す
-    needs: [user_input, referenced_artifacts]
+    purpose: 入力だけでは不明で正本の骨格を左右する業務の事実、役割、決まり、誰が行えるかを成果を左右する順に厳選して利用者へ確かめ、決定と未決を残す
+    needs: [user_input, references]
     provides: [decisions, open_questions]
 
   - id: ground
@@ -55,5 +55,5 @@ steps:
     purpose: 同じagentが保持した確認済みの理解と検査済みBDDをtext materialとして渡し、domain-rule正本を1本保存する
     input:
       document_type: domain-rule
-    needs: [final_markdown, validation_report, actor_coverage_report, output_directory, name]
+    needs: [final_markdown, validation_report, actor_coverage_report, output_directory, name, references]
     provides: [domain_rule_path]

@@ -14,7 +14,7 @@ description: 業務シナリオと業務イベントから、データの作成�
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 依頼文。題材、既知の業務シナリオ、論理モデリングの手法の指定 | 題材が読めなければ`settle`の問いにする。題材そのものが決まらなければ止まる |
-| `referenced_artifacts` | 利用者が明示した既存資料の絶対path（業務知識、Journey、既存の業務シナリオ） | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
+| `references` | 任意。追加で従う資料の絶対path配列（業務知識、Journey、既存の業務シナリオ）。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `modeling_method` | 論理構造への配置方法。同梱の`fact-recording` / `normalized` / `dimensional`のID、または利用者の手法fileの絶対path。IDに対応する手法fileは論理モデルの工程で適用する同梱skillの`references/methods/`が持つ | 依頼に無ければ記録対象・監査要件・分析目的から文脈で決める。文脈でも決まらなければ`settle`の問いにし、それでも決まらなければ最も筋の良い手法を仮説として選び、決め方（依頼指定／文脈推定／確認済み／仮説）を報告と未決に書く。指した手法fileが無ければ止まる。既定値を持たない |
 | `output_directory` | 正本を置く既存の書き込み可能な絶対directory | 下の「保存先の決め方」に従う |
 | `name` | path要素を含まない`.md`file名。日本語名を許す | 同上 |
@@ -39,7 +39,7 @@ description: 業務シナリオと業務イベントから、データの作成�
 
 ## 手順
 
-1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって記録する事実・履歴・保持・削除の骨格が変わる問いを**最大6問**に厳選し、推奨と理由を添えて`context`と`questions`に渡す。保存先や`modeling_method`が依頼と文脈から決まらなければ、その提案を6問に含める。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。6問を超える論点は問わず、推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは資料を完成できない場合だけ行う。
+1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって記録する事実・履歴・保持・削除の骨格が変わる問いを成果を左右する順に選び、推奨と理由を添えて`context`と`questions`に渡す。保存先や`modeling_method`が依頼と文脈から決まらなければ、その提案を問いに含める。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは資料を完成できない場合だけ行う。
 2. **ground。** 依頼、参照資料、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
 3. **explore。** 同梱skillの判断規律で、永続化の必要を生む業務イベントと関係する役割を時系列に洗い出し、`events`と`actors`として保持する。
 4. **scenarios。** 同梱skillの判断規律で、作成・更新・削除に関係する業務断面を、アクター、事前状態、業務イベント、条件、判断、結果、次状態、残す事実、履歴、保持理由を持つ永続化シナリオにし、3操作の検討状況（`persistence_coverage`）と条件マトリクスを作る。[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)、[この入口の焦点](references/focus.md)、[永続化から論理モデルへ写す判断規律](references/modeling-judgment.md)を適用する。
@@ -52,7 +52,7 @@ description: 業務シナリオと業務イベントから、データの作成�
    ```
 
 6. **logical-model。** 同梱skillの判断規律と`modeling_method`で選んだ手法に従い、検査済みシナリオだけから記録する事実と論理構造（論理テーブル、列と値域、業務上のキーと制約、関係と多重度、上書きする事実と履歴を残す事実の区別）を設計し、完成本文を作る。各BDDのBeforeとAfterへ全論理テーブルを同じ順序で置き、0件は「レコードなし」、変化しないものは「変更なし」と明記する。BDDは本文の末尾に置く。`open_questions`と仮置きした推奨は、該当するBDDと要素に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。冒頭の段落は、誰が何を判断・説明するためにどの事実を残すのかを読み手の既知の語で文章として運ぶ。
-7. **document（`write-doc`）。** 完成本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-logical-data-modeling`を`document_type`に、確認済みの`output_directory`と`name`をそのまま渡す。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`logical_document_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
+7. **document（`write-doc`）。** 完成本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-logical-data-modeling`を`document_type`に、確認済みの`output_directory`と`name`をそのまま渡す。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`logical_document_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
 
 ## 停止条件
 
@@ -60,7 +60,7 @@ description: 業務シナリオと業務イベントから、データの作成�
 
 - 題材、または記録の必要を生む業務イベントが一つも読めず、`settle`でも決まらない（何の永続化を発見するのかが無い）
 - `modeling_method`が指した手法fileが無い、または利用者の手法fileが同梱の3本と同じ節を持たない
-- `referenced_artifacts`に相対path、読めないpath、symlinkがある
+- `references`に相対path、読めないpath、symlinkがある
 - `grill`が`completed`以外を返した、または`decisions` / `open_questions`が配列でない
 - `scenario_matrix.py`が0以外で終了し、`scenarios`へ戻しても解消しない
 - 保存先が確認できない、`output_directory`が無いか相対pathである、同名fileがある、`write-doc`が`completed`以外を返した、または返った`path`が保存先と一致しない
@@ -70,7 +70,7 @@ description: 業務シナリオと業務イベントから、データの作成�
 - `modeling_method`が依頼・文脈・`settle`のどれでも決まらない。記録対象・監査要件・分析目的から最も筋の良い手法を仮説として選び、決め方を報告する
 - 3操作のどれかの扱い、業務上の取消と物理削除の区別、保持理由、履歴の要否が入力から決まらない。業務の筋から仮説を置く
 - 永続化シナリオに未確認（`assumed` / `unknown`）が残る。仮説として論理モデルへ写し、確からしさと確認相手を未決に書く
-- 6問を超えて問いたい論点が残る。推奨を仮置きした未決として資料に載せ、利用者が資料を見てから確かめる
+- grillの上限で問われなかった論点が残る。`open_questions`の推奨を仮置きした未決として資料に載せ、利用者が資料を見てから確かめる
 
 ## 報告
 
