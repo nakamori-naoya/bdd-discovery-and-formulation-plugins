@@ -10,7 +10,7 @@ requires:
 steps:
   - id: settle
     playbook: grill
-    purpose: 目的を持って始める役割と各役割の目的、主たるユーザー、開始地点、最終地点、完了条件、途中で関わる役割について、入力から分からない点だけを1問ずつ確かめる
+    purpose: 目的を持って始める役割と各役割の目的、主たるユーザー、開始地点、最終地点、完了条件、途中で関わる役割のうち、入力から分からず正本の骨格を左右する点を最大6問に厳選して確かめる
     needs: [user_input, referenced_artifacts]
     provides: [decisions, open_questions]
 
