@@ -1,0 +1,53 @@
+version: 2
+name: discover-data-model
+description: 業務イベントから永続化の作成・更新・削除を発見し、BDDを含むRDB論理データモデル資料にする
+inputs: [user_input, referenced_artifacts, modeling_method, output_directory, name]
+
+requires:
+  - {plugin: grill, marketplace: grill}
+  - {plugin: write-doc, marketplace: write-doc}
+
+steps:
+  - id: settle
+    playbook: grill
+    purpose: 入力だけでは不明または深掘りが必要な、業務イベント、残す事実、履歴、保持、物理削除の条件を利用者へ1問ずつ確かめる
+    needs: [user_input, referenced_artifacts]
+    provides: [decisions, open_questions]
+
+  - id: ground
+    agent_work: invoking_agent
+    purpose: 同じagentが依頼、参照資料、決定、未決を根拠・仮説・未確認へ区別して保持する
+    needs: [decisions, open_questions]
+    provides: [grounded_input]
+
+  - id: explore
+    skill: explore-events
+    purpose: 同じagentが同梱skillの判断規律で、永続化の必要を生む業務イベントと関係する役割を時系列に洗い出す
+    needs: [grounded_input]
+    provides: [events, actors]
+
+  - id: scenarios
+    skill: write-persistence-scenarios
+    purpose: 同じagentが同梱skillの判断規律で、作成・更新・削除に関係する業務断面を永続化シナリオ、3操作の検討状況、条件マトリクスへ構成する
+    needs: [events, actors, grounded_input]
+    provides: [persistence_scenarios, persistence_coverage, condition_matrix]
+
+  - id: validate-scenarios
+    script: scripts/scenario_matrix.py
+    purpose: 条件マトリクスの構造契約を検査し、意味品質は採点しない
+    needs: [condition_matrix]
+    provides: [validation_report]
+
+  - id: logical-model
+    skill: design-data-model
+    purpose: 同じagentが同梱skillの判断規律と選んだ手法で、検査済みシナリオから記録する事実とRDB論理構造を設計し完成本文を作る
+    needs: [persistence_scenarios, persistence_coverage, condition_matrix, validation_report, modeling_method, grounded_input]
+    provides: [logical_data_model, final_markdown]
+
+  - id: document
+    playbook: write-doc
+    purpose: 同じagentが保持した論理モデルとBDDをtext materialとして渡し、rdb-logical-data-modelingの型で1本保存する
+    input:
+      document_type: rdb-logical-data-modeling
+    needs: [final_markdown, validation_report, output_directory, name]
+    provides: [logical_document_path]

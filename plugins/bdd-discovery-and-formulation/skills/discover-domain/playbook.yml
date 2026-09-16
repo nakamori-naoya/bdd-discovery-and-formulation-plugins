@@ -1,0 +1,59 @@
+version: 2
+name: discover-domain
+description: 業務で起きる事実から、コアの業務ルール、誰が行えるか、代表BDDを共通理解にして1本の正本にする
+inputs: [user_input, referenced_artifacts, output_directory, name]
+
+requires:
+  - {plugin: grill, marketplace: grill}
+  - {plugin: write-doc, marketplace: write-doc}
+
+steps:
+  - id: settle
+    playbook: grill
+    purpose: 入力だけでは不明または深掘りが必要な業務の事実、役割、決まり、各コマンドとクエリを誰が行えるかを利用者へ1問ずつ確かめ、決定と未決を残す
+    needs: [user_input, referenced_artifacts]
+    provides: [decisions, open_questions]
+
+  - id: ground
+    agent_work: invoking_agent
+    purpose: 同じagentが依頼、参照資料、決定、未決を根拠・仮説・未確認へ区別して保持する
+    needs: [decisions, open_questions]
+    provides: [grounded_input]
+
+  - id: explore
+    skill: explore-events
+    purpose: 同じagentが同梱skillの判断規律で、根拠から業務イベントと関係する役割を時系列に洗い出す
+    needs: [grounded_input]
+    provides: [events, actors]
+
+  - id: scope
+    agent_work: invoking_agent
+    purpose: 同じagentが業務の話に線を引き、コア・支援・汎用へ理由付きで分けて実装の関心を除く
+    needs: [events, grounded_input]
+    provides: [core_scope, implementation_excluded]
+
+  - id: record-behavior
+    agent_work: invoking_agent
+    purpose: 同じagentがコアの代表的な振る舞いを事前状態・業務イベント・誰が行えるか・判断・次状態のBDDと条件マトリクスへ構成し、完成本文を作る
+    needs: [events, actors, core_scope, grounded_input]
+    provides: [behavior_map, representative_bdd, condition_matrix, final_markdown]
+
+  - id: validate
+    script: scripts/scenario_matrix.py
+    purpose: 条件マトリクスの構造契約を検査し、意味品質は採点しない
+    needs: [condition_matrix]
+    provides: [validation_report]
+
+  - id: validate-actors
+    script: scripts/actor-coverage.py
+    purpose: コマンドとクエリの一覧と誰が行えるかの表の第1列が一致することを検査し、役割の正しさは採点しない
+    needs: [final_markdown]
+    provides: [actor_coverage_report]
+
+  - id: document
+    playbook: write-doc
+    purpose: 同じagentが保持した確認済みの理解と検査済みBDDをtext materialとして渡し、domain-rule正本を1本保存する
+    input:
+      document_type: domain-rule
+    needs: [final_markdown, validation_report, actor_coverage_report, output_directory, name]
+    provides: [domain_rule_path]

@@ -1,0 +1,53 @@
+version: 2
+name: formulate-domain
+description: コアドメインの既存資料をQA観点で反証し、新しい理解・誰が行えるか・BDD・未決を同じ資料へ戻して深化させる
+inputs: [user_input, referenced_artifacts, existing_domain_rule_path]
+
+requires:
+  - {plugin: grill, marketplace: grill}
+  - {plugin: write-doc, marketplace: write-doc}
+
+steps:
+  - id: challenge
+    playbook: grill
+    purpose: 既存資料を根拠にコアドメインをQA観点で問い、不明点と深掘りが必要な点を利用者へ1問ずつ確認して修正と未決を分ける
+    needs: [user_input, referenced_artifacts, existing_domain_rule_path]
+    provides: [decisions, open_questions]
+
+  - id: ground
+    agent_work: invoking_agent
+    purpose: 同じagentが既存正本、依頼、決定、未決を根拠・仮説・未確認へ区別して保持し、コアの範囲を確定する
+    needs: [existing_domain_rule_path, decisions, open_questions]
+    provides: [grounded_input, core_scope]
+
+  - id: revise
+    agent_work: invoking_agent
+    purpose: 同じagentが確認済みの発見を業務ルール・状態・誰が行えるか・BDDへ戻し、改訂本文と検査用BDD・条件マトリクスを作る。更新先は既存資料と同じpathである
+    needs: [existing_domain_rule_path, core_scope, grounded_input]
+    provides: [final_markdown, scenario_draft, condition_matrix, requested_output_path]
+
+  - id: validate
+    script: scripts/scenario.py
+    purpose: BDDと条件マトリクスの構造契約を検査し、意味品質は採点しない
+    needs: [scenario_draft, condition_matrix]
+    provides: [validation_report]
+
+  - id: validate-actors
+    script: scripts/actor-coverage.py
+    purpose: コマンドとクエリの一覧と誰が行えるかの表の第1列が一致することを検査し、役割の正しさは採点しない
+    needs: [final_markdown]
+    provides: [actor_coverage_report]
+
+  - id: guard-update
+    script: scripts/update-guard.py
+    purpose: 更新先が入力された既存正本と同じパスであることを検査する
+    needs: [existing_domain_rule_path, requested_output_path]
+    provides: [update_target]
+
+  - id: document
+    playbook: write-doc
+    purpose: 同じagentが保持した確認済みの理解と検査済みBDDをtext materialとして渡し、既存domain-ruleと同じパスへ差し替える
+    input:
+      document_type: domain-rule
+    needs: [final_markdown, validation_report, actor_coverage_report, update_target]
+    provides: [updated_domain_rule_path]

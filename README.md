@@ -1,6 +1,6 @@
 # BDD Discovery and Formulation
 
-BDDを使ってドメイン理解とRDBデータモデリングを探索・反証し、User Journeyを線引きしてユーザー目的達成BDDを発見・深化する、Claude Code/Codex両対応のmarketplaceである。
+BDDを使ってドメイン理解とRDBデータモデリングを探索・反証し、User Journeyを線引きしてユーザー目的達成BDDを発見・深化する、Claude Code/Codex両対応のmarketplaceである。公開入口は6つで、1つのpackage `bdd-discovery-and-formulation` に同梱する。
 
 ## BDDを使う場面
 
@@ -16,7 +16,7 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 ## 公開入口を選ぶ
 
-次の入口から依頼します。内部のスキルや処理は、入口が必要に応じて呼び出します。
+次の入口から依頼します。内部skillは入口の`playbook.yml`が必要な工程で呼び出します。保存先は依頼で示すか、示されなければ入口が既存資料の構成を読んで一度だけ提案します。
 
 | 今の状況 | 公開入口 | 得られるもの |
 |---|---|---|
@@ -25,7 +25,7 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 | ユーザー目的達成BDDの正本を初めて作る | `discover-user-journey` | 複数場面を接続した最初のユーザー目的達成BDD正本 |
 | 既存のユーザー目的達成BDDを反証する | `formulate-user-journey` | 分岐・中断再開・役割移譲を戻した同一パスの正本 |
 | 永続化の発見から論理設計まで初めて通す | `discover-data-model` | 検査済みBDD付きRDB論理設計 |
-| 既存のBDD付き論理設計を反証し、物理設計まで進める | `formulate-data-model` | 更新済み論理設計と対象RDBの物理設計 |
+| 既存のBDD付き論理設計を反証し、物理設計まで進める | `formulate-data-model` | 更新済み論理設計と、依頼で指定したRDB製品・版の物理設計 |
 
 ## 代表的なユースケース
 
@@ -67,7 +67,7 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 インストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`です。外部の工程を実行するため、`grill@grill`、`write-doc@write-doc`も必要です。下のコマンドには、それらも含めています。
 
-内部のスキルは同梱されています。個別にインストールせず、公開入口から利用してください。
+内部skillは同梱されています。個別にインストールせず、公開入口から利用してください。
 
 ### Codex
 
@@ -134,13 +134,22 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 
 ## 公開インストール単位と内包する機能
 
-利用者がインストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`だけである。6つのplaybookと、その実行に使う`domain-events`、`core-domain`、`user-journey`、`persistence-scenarios`、`data-model`、`rdb-design`は同じpackageへ内包する。内部機能をmarketplaceの個別インストール対象にはしない。中間生成物の後片付けは、各playbookが自分の`scripts/cleanup.py`で行う。外部packageの後片付け機能へ委譲しない。
+利用者がインストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`だけである。packageは`plugins/bdd-discovery-and-formulation/`にあり、公開入口6つを`skills/<entry>/`に、2つ以上の公開入口が共有する判断規律を内部skillとして`internal/<name>/`に持つ。
 
-`user-journey`はUser Journeyの該当・非該当を判定する。`discover-user-journey`は最初の正本を作り、`formulate-user-journey`は既存正本を同じパスへ深化する。いずれもユースケース、UX Journey map、domain-rule、data model、画面・API・テスト実行環境を混ぜない。
+| 内部skill | 共有する公開入口 | 担う判断 |
+|---|---|---|
+| `explore-events` | discover-domain、discover-data-model | 業務で起きた事実を時系列に洗い出す |
+| `map-user-journey` | discover-user-journey、formulate-user-journey | 何がJourneyで何がJourneyでないかを判定し、両端と場面を決める |
+| `write-persistence-scenarios` | discover-data-model、formulate-data-model | 作成・更新・削除に関係する断面を永続化シナリオにする |
+| `design-data-model` | discover-data-model、formulate-data-model | 記録すべき事実を先に決め、BDD付きの論理設計本文を作る。手法は`fact-recording` / `normalized` / `dimensional`、または利用者の手法file |
 
-各入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`references/execution-guidance.md`が背景・前提・目的と各工程実行時の付加的な指示を持つ。`grill`へdomainやdata model固有の文脈を与えるのは後者であり、相手へ観点を持ち込まない。
+内部skillはmarketplaceの個別インストール対象にせず、公開入口の`playbook.yml`が`skill:`工程で呼ぶ。1つの公開入口だけが使っていた判断（コア・支援・汎用の線引き、RDB物理設計）はその公開入口へ統合した。
 
-外部の段取り（`grill`、`write-doc`）は、`references/nested-playbook.md`に書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。入力YAMLや出力YAMLは作らず、返された`status`と`path`または`reason`を直接受け取る。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`output_format: markdown`はBDD側の成果物条件として保持するが、write-docへの入力には含めない。`grill/grill`版1は契約objectを公開入口へ直接渡し、利用者が最終記録の保存も求めた場合だけ`output_to`を指定する。完了時は保存の有無にかかわらず、`decisions`と`open_questions`を持つ結果objectを直接受け取る。両配列の`[]`は合法であるが、回答または一覧全体と対話終了の明示合意を待っている間は後続へ進まない。どちらも相手の設定解決は行わず、両者の結果形式を混用しない。相手の内部の部品、工程、保存処理、参考資料、設定へは触れない。
+各公開入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`SKILL.md`が目的・入力・判断基準・手順・停止条件・出力を持ち、`references/execution-guidance.md`が背景・前提と各工程実行時の付加的な指示を持つ。入口が使うtool（`scripts/scenario.py`、`scripts/scenario_matrix.py`、`scripts/actor-coverage.py`、`scripts/update-guard.py`、`scripts/rdb.py`）は、入口directoryを基準にした相対pathで示し、入力・出力・終了code・失敗時の扱いをSKILL.mdが宣言する。設定fileは持たず、保存先、対象RDB、論理モデリングの手法は依頼と対話から決める。
+
+外部の段取り（`grill`、`write-doc`）は、`references/nested-playbook.md`に書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`grill/grill`版1は契約objectを公開入口へ直接渡し、`decisions`と`open_questions`を持つ結果objectを直接受け取る。
+
+ハーネスが作る資料は、冒頭を読み手の既知の語で書いた本文段落から始め、型や確認日のようなメタ情報の一覧を置かない。中心の問い、扱う理由、役割×目的の一覧、Journeyから外した事項の送り先のような作業記録は報告に載せ、正本へ写さない。保存先と名前は利用者の既存資料構成に従い、日本語のdirectory名・file名を許す。
 
 ## インストール済みである必要があるplugin
 
@@ -151,66 +160,32 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 
 公開入口は同じagentの利用可能Skill一覧と`requires`を照合する。契約IDと版が異なる、または必要な公開Skillが無い場合は停止する。consumerが依存先のroot、cache、設定、内部pathを探さない。
 
-## 設定の上書きと優先順位
-
-設定を持つpluginは、優先順位が最も高い1ファイルだけを選ぶ。複数層をマージしないため、上書きするYAMLには同梱設定と同じ必須項目をすべて含める。必須項目の不足、未知のキー、許可されていない値があれば実行を停止する。
-
-skillの静的設定は、上から順に優先する。
-
-1. scope: `<scope>/<plugin-name>.config.yml`。呼び出し元がscopeを渡した実行だけで使う
-2. local: `<repo>/.harness-plugins/<plugin-name>.local.yml`。端末固有で、通常はcommitしない
-3. repository: `<repo>/.harness-plugins/<plugin-name>.config.yml`
-4. personal: `$XDG_CONFIG_HOME/harness-plugins/<plugin-name>.config.yml`（未設定時は `~/.config/harness-plugins/<plugin-name>.config.yml`）
-5. bundled defaults: plugin同梱の既定設定
-
-playbookの静的設定は、scope、repository、personal、同梱 `playbook.yml` の順で優先する。playbookにはlocal層がない。入口playbook自身は通常のrepository設定を使い、下段のpluginへscopeを渡す。単体呼び出しではscopeを読まない。
-
-skillでは、同梱設定の `prompt_parameters` に宣言されたpathだけ、依頼で明示された値を `--override=<path>=<value>` として最終上書きできる。宣言されていないpathを任意に上書きすることはできない。
-
-たとえば入口は `<repo>/.harness-plugins/domain-bdd-discovery.config.yml` に置く。scopeは同梱工程の設定へ使い、直接入力を受け取る外部の`grill`と`write-doc`には渡さない。
-
 ## 検証
 
 ```bash
 bash scripts/validate.sh
 ```
 
-構造、旧cleanup配布物がないこと、両runtimeのcache・repository・明示dev-mapによる依存解決、契約の未宣言、依存欠落、manifest版違い、runtime不明、bare依存名の拒否を検査する。
+`validate-structure.sh`は、両marketplaceと両runtime manifestのidentity、公開入口6つと内部skill4つの集合、`playbook.yml`の外部依存宣言と`script:` / `skill:`参照の実在、共有複製のbyte一致、禁止参照形の不在を検査し、各tool（条件マトリクス、Gherkin検査、誰が行えるかの網羅、ユーザー目的達成BDD、同一パス更新、物理設計検査）を正例・反例・境界例で実行する。続けて共有保守tool（`test-hardening.py`、`sync-runtime.py --check`、`validate-distribution.py`）と、兄弟checkout（`../grill-plugins/plugins/grill`、`../write-doc-plugins/plugins/write-doc`）の実配布物に対する消費側lint（`lint-consumer-contract.py`）を両runtimeで実行する。実配布物が見つからなければ落ちる。
 
-さらに、fixtureだけで緑になる状態を許さないために、**実際に配布されている依存先package**（兄弟checkoutの`../grill-plugins/plugins`と`../write-doc-plugins/plugins`）に対する解決と、消費側lintを両runtimeで実行する。実配布物が見つからなければこの検査は落ちる。契約ID→package rootのJSONを`HARNESS_PLUGIN_REAL_ROOTS`で渡すこともできる。
+workspace rootの`bash scripts/validate.sh <このrepositoryの絶対path>`が配置・manifest・隣接playbook.yml・禁止参照形の構造契約を検査する。構造検査の成功は、SKILL本文の判断規律や生成された資料の業務上の正しさを保証しない。
 
 install cacheは編集せず、このrepositoryを正本として変更する。
 
-## repository保守用runtime
+## repository保守用tool
 
-以下はsource repository自体の配布検証と保守の説明であり、公開Skillが`grill`または`write-doc`を呼ぶ手順ではない。consumerはこのruntimeを介さず、公開契約objectと直接結果だけを扱う。
+以下はsource repository自体の配布検証と保守の説明であり、公開入口が`grill`または`write-doc`を呼ぶ手順ではない。公開入口は設定解決runtimeを持たず、公開契約objectと直接結果だけを扱う。
 
-設定はprepareが返すrun専用の絶対pathで引き継ぐ。別shellで同じpathを明示し、完了・失敗停止の最後に同梱run-configのcleanupを呼ぶ。中断後は保存したpathを使い、既にcleanup済みなら設定を再解決する。
+共通実装の開発時正本はProduct Planning repositoryの`shared/runtime-source`にある。更新時はそのsource checkoutを取得し、[生成CLI](scripts/sync-runtime.py)へ`--source <取得した正本directory>`を渡す。`--check`は生成差分と[生成履歴](shared/runtime-manifest.json)のversion・内容hash・対象集合を検査する。同期対象は`.github/workflows/validate.yml`と`scripts/`配下の保守toolであり、配布物（`plugins/`）には複製を置かない。
 
-依存の配布versionは固定しない。`grill/grill`は契約版1、`write-doc/write-doc`は契約版2を要求し、差し替え先も同じ契約IDと版の実装宣言を必要とする。古いwrite-doc契約へ自動で戻さない。installed cacheでは安定版の最大SemVerを選び、prereleaseは`HARNESS_PLUGIN_ALLOW_PRERELEASE=1`を明示した場合だけ候補にする。解決したversion、内容hash、契約版を記録し、工程直前に内容変更を拒否する。
+[doctor](scripts/doctor.py)は`python3 scripts/doctor.py --repo <対象project>`でCLI構文、両runtime公開入口、依存の解決元を読み取り専用で診断する。[release CLI](scripts/release.py)は`--plugin --version --notes --breaking --migration --checks`で更新計画を返し、`--apply`で両manifestとcatalogの整合を確認して一括更新し、releases配下へ記録を残す。[意味評価fixture](evals/scenarios.json)を[評価runner](scripts/evaluate-skills.py)へ渡すと、モデル名、入力、出力、SKILL hash、判定の引用と理由を保存する。criterionの真偽は意味評価の記録であり、CLIの合否にはしない。
 
-[doctor](scripts/doctor.py)は`python3 scripts/doctor.py --repo <対象project>`でCLI構文、両runtime公開入口、依存、設定の解決元を読み取り専用で診断する。`--distribution-only`は依存・project設定を検査しない限定診断であり、full診断の代用にはしない。
+CIは同ownerの依存repositoryを兄弟directoryへcheckoutしてからvalidate.shを走らせる。兄弟のrefは既定でmainである。PR headと同名のbranchを採るのは、(1)実行が`pull_request`であり、(2)PR headが同一repository（forkではない）で、(3)同ownerの兄弟repoにその名前のbranchが実在する、の3つが揃うときだけで、選んだrefと理由はログへ出る。code scanningの`actions/untrusted-checkout/medium`はこの根拠により`won't fix`として扱う。
 
-doctorのfull診断は、依存を**実配布物**に対して解く。依存先は`HARNESS_PLUGIN_REAL_ROOTS`（契約ID→package rootのJSON）か、兄弟checkout `../<marketplace>-plugins/plugins`（親directoryは`HARNESS_PLUGIN_SIBLING_ROOT`で差し替える）から探し、どちらでも見つからなければfixtureへ倒さず理由付きでNGにする。同梱既定に実値を置かない`prompt_parameters`（`required: true`で`default`が無いもの）を持つskillは、上書きが無ければ必ず落ちるので実行せず、`skipped: requires-override`と必要なパラメータ名を出す。これは配布物の不具合ではないのでNGにしない。
+### 破壊的変更
 
-依存参照の検査はresolverとlintが同じ関数で行う。外部依存の実行は`${.deps.<論理名>.entry}`の公開入口だけを使い、相手の設定解決scriptは呼ばない。内部パスを組み立てる禁止形は`external-dependency-path`で落ちる。内部依存（同一package）の`${.deps.<内部名>.skills.<名前>}`は、解決結果に実在するskill名だけを許し、綴り違いや名前の無い形は`internal-skill-unknown`で落ちる。`--explain`の依存行は`[外部] <論理名> → <marketplace>/<plugin> <version> [runtime/source_kind]: <root>`の形で、束縛で実体が変わったときだけ行末に`← <層>`が付く。
-
-CIは同ownerの依存repositoryを兄弟directoryへcheckoutしてからvalidate.shを走らせる。**兄弟のrefは既定でmainである。** PR headと同名のbranchを採るのは、(1)実行が`pull_request`であり、(2)PR headが同一repository（forkではない）で、(3)同ownerの兄弟repoにその名前のbranchが実在する、の3つが揃うときだけで、選んだrefと理由はログへ出る。forkのPR作者はownerの兄弟repoにbranchを作れないため、PRから兄弟checkoutの内容を差し替える経路は無い。code scanningの`actions/untrusted-checkout/medium`はこの根拠により`won't fix`として扱う。
-
-共通実装の開発時正本はProduct Planning repositoryの`shared/runtime-source`にある。更新時はそのsource checkoutを取得し、[生成CLI](scripts/sync-runtime.py)へ`--source <取得した正本directory>`を渡す。`--check`は生成差分と[生成履歴](shared/runtime-manifest.json)のversion・内容hash・対象集合を検査する。正本checkoutなしのCIでも同梱物のhashと対象集合を検査できる。実行時に別repositoryや生成CLIは不要である。変更は正本へ加え、同じ生成コマンドを各source repositoryへ適用する。
-
-[release CLI](scripts/release.py)は`--plugin --version --notes --breaking --migration --checks`で更新計画を返す。`--checks`にはcodex/claudeの実検証結果、または未検証と理由を明示する。`--apply`で両manifestとcatalogの整合を確認して一括更新し、releases配下へ変更内容・移行・検証結果のJSON記録を残す。依存宣言は変更しない。
-
-[意味評価fixture](evals/scenarios.json)を[評価runner](scripts/evaluate-skills.py)へ渡し、異なる生成modelとjudge modelを指定する。モデル名、実model利用、適用設定、入力、出力、SKILL hash、判定の引用と理由を保存する。criterionの真偽は意味評価の記録であり、CLIの合否にはしない。CLIの非zero終了はadapter失敗、不正な応答、根拠不整合など記録を完了できない操作失敗を示す。人またはエージェントが記録を読み、根拠付きで評価する。これはツール無効の次応答を対象とした代表caseであり、実ツールを使った全工程E2Eや全行動の保証ではない。保存・CLI・再開の検証は[振る舞い回帰試験](scripts/test-hardening.py)と既存validateが担う。実モデル未実行のfixtureを合格扱いにしない。
-
-### explainの読み方
-
-`scripts/prepare.sh`は`--explain`を引数に取らない。**explainは常にstderrへ出る。** stdoutは解決済みYAMLの絶対path1行だけなので、解決の内訳（選んだ設定層、依存の実体、束縛の出どころ、静的に解けた工程入力）はstderrで読む。`--explain`のような未知optionを渡すとusageを表示してexit 2で止まる。
-
-### 破壊的変更の移行
-
-重複した薄いSKILL入口を廃止した。利用者は公開manifestに列挙された入口を使い、旧入口pathを保存した独自ランチャーは新しい宣言へ切り替える。設定のEXIT trapは廃止し、返されたrun pathを明示して完了・停止時にcleanupする。旧式の一時pathやshell変数だけを再利用しない。
+公開入口を`plugins/bdd-discovery-and-formulation/skills/<entry>/`へ、内部skillを`internal/<name>/`へ移し、入口ごとのnested manifest、設定file（`<repo>/.harness-plugins/<entry>.config.yml`と同梱既定）、`prepare.sh` / `resolve.sh`による設定解決、`${.…}`マクロ、台帳scriptを廃止した。旧pathや設定fileを前提にした独自ランチャーは、公開manifestに列挙された入口と、SKILL.mdが宣言する入力へ切り替える。
 
 ### 開発CLIの入力境界
 
-`doctor`、`release`、`sync-runtime`、意味評価runnerは、操作者が明示したローカルsource、出力先、adapter argvを扱う開発CLIである。外部から受け取った文書やモデル出力をCLI引数へ自動変換しない。doctorのfull modeは選んだrepositoryのresolverを実行するため、信頼するsource checkoutを対象にする。doctorは配布treeのsymlinkを読取・実行前に拒否し、sync-runtimeは生成先と正本treeのsymlinkをcopy前に拒否する。評価の会話・fixture・モデル出力はadapterへstdinデータとして渡し、実行argvに混ぜない。
+`doctor`、`release`、`sync-runtime`、意味評価runnerは、操作者が明示したローカルsource、出力先、adapter argvを扱う開発CLIである。外部から受け取った文書やモデル出力をCLI引数へ自動変換しない。doctorは配布treeのsymlinkを読取・実行前に拒否し、sync-runtimeは生成先と正本treeのsymlinkをcopy前に拒否する。評価の会話・fixture・モデル出力はadapterへstdinデータとして渡し、実行argvに混ぜない。
