@@ -14,7 +14,7 @@ description: 既存のBDD付きRDB論理設計をQA観点で深化させ、同�
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 依頼文。どの永続化の主張を深めたいか、新しく分かったこと | 反証の焦点が読めなければ`challenge-persistence`の問いにする。決まらなければ作成・更新・削除のBDD全体を対象に仮置きして進む |
-| `referenced_artifacts` | 利用者が明示した既存資料の絶対path | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
+| `references` | 任意。追加で従う資料の絶対path配列。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `existing_logical_document_path` | 更新する既存の`rdb-logical-data-modeling`資料の絶対path。symlinkではない既存file | 無い、複数ある、別pathへの出力を求められた、BDDと論理テーブル定義のどちらかが資料に無い場合は止まる |
 | `modeling_method` | 論理構造への配置方法。同梱の`fact-recording` / `normalized` / `dimensional`のID、または利用者の手法fileの絶対path。IDに対応する手法fileは論理モデルの工程で適用する同梱skillの`references/methods/`が持つ | 既存資料に手法が書かれていればそれを使う。無ければ依頼、文脈、`challenge-persistence`の順で決め、それでも決まらなければ既存資料の構造から最も筋の良い手法を仮説として選び、決め方を報告と未決に書く。指した手法fileが無ければ止まる。既定値を持たない |
 | `database_product` | 物理設計の対象RDB製品名（一つ） | 無ければ`challenge-persistence`の問いにする。決まらなければ論理資料の更新まで完了し、物理設計を始めずに止まる。既定値を持たない |
@@ -39,13 +39,13 @@ description: 既存のBDD付きRDB論理設計をQA観点で深化させ、同�
 
 ## 手順
 
-1. **challenge-persistence（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」、[工程間の契約](references/contract.md)、[重要なシナリオを見つけるQA観点](references/important-scenarios.md)で、既存論理資料のどの永続化上の主張を反証しているかを明らかにし、答えで残す事実・履歴・業務制約または物理設計の前提（製品と版、保存先）が変わる問いを**最大6問**に厳選して推奨と理由を添え、`context`と`questions`に渡す。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。6問を超える論点は問わず、推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・既存資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは資料を完成できない場合だけ行う。
+1. **challenge-persistence（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」、[工程間の契約](references/contract.md)、[重要なシナリオを見つけるQA観点](references/important-scenarios.md)で、既存論理資料のどの永続化上の主張を反証しているかを明らかにし、答えで残す事実・履歴・業務制約または物理設計の前提（製品と版、保存先）が変わる問いを成果を左右する順に選んで推奨と理由を添え、`context`と`questions`に渡す。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・既存資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは資料を完成できない場合だけ行う。
 2. **ground。** 既存論理資料、依頼、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
 3. **deepen-scenarios。** 同梱skillの判断規律と[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)に従い、作成・更新・削除、履歴、保持、失敗時保証の不足を永続化シナリオ、3操作の検討状況、条件マトリクスへ深化させる。
 4. **validate-scenarios（`scripts/scenario_matrix.py`）。** 条件マトリクスJSONを標準入力で`python3 scripts/scenario_matrix.py check`へ渡す。pathはこのSKILLと同じdirectoryを基準にし、fileは介さない。stdoutにJSONを1行ずつ返し、終了codeは0が違反なし、1が違反あり（各行が`path` / `detail` / `howto`）、2が入力を読めない（空、不正JSON、objectでない）。0以外なら先へ進まず`deepen-scenarios`へ戻る。
 5. **revise-logical-model。** 同梱skillの判断規律と`modeling_method`で選んだ手法に従い、確認済みの発見を論理構造とBDDへ戻し、`open_questions`と仮置きした推奨を該当するBDD・要素に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べ、BeforeとAfterで全テーブルを同じ順序に置いた改訂本文を作る。更新先は既存論理資料と同じpathであり、これを`requested_output_path`にする。
 6. **guard-logical-update（`scripts/update-guard.py`）。** `python3 scripts/update-guard.py check --existing <既存論理資料の絶対path> --output <requested_output_path>`を実行する。引数は2つのpathだけで本文は渡さない。既存fileがsymlinkでない通常fileで、両pathが同じ実体を指すときだけ終了code 0で`{"update_target": <絶対path>}`をstdoutへ返す。それ以外は終了code 1で`{"error": <診断>}`を返すので、既存資料を変えずに止まる。
-7. **update-logical-document（`write-doc`）。** 改訂本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-logical-data-modeling`を`document_type`に、`update_target`をそのまま渡す。新規作成用の`output_directory`と`name`は渡さない。返った結果の`status`が`completed`で、`path`が`update_target`と一致することを確かめ、その`path`を`updated_logical_document_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まり、物理設計を始めない。
+7. **update-logical-document（`write-doc`）。** 改訂本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-logical-data-modeling`を`document_type`に、`update_target`をそのまま渡す。新規作成用の`output_directory`と`name`は渡さない。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が`update_target`と一致することを確かめ、その`path`を`updated_logical_document_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まり、物理設計を始めない。
 8. **design-physical。** [RDB物理設計へ写す判断規律](references/physical-design-judgment.md)、[RDB設計の契約](references/design-contract.md)、[関係データモデリングの原則](references/relational-data-modeling-principles.md)、[NULL回避](references/null-avoidance.md)、[関係データのライフサイクル](references/relational-data-lifecycle.md)、[トランザクション分離](references/transaction-isolation.md)を適用する。保存成功した`updated_logical_document_path`だけを入力にし、次の順に進める。
    - `python3 scripts/rdb.py fingerprint --model-file <更新済み論理資料の絶対path>`で論理構造の指紋を得る。引数は保存済み正本のpathだけである。終了code 0でstdoutに`digest`を返し、1なら論理テーブル定義を読めないので論理資料へ戻り、2なら正本を読めない。指紋は物理資料の「対象と論理設計」に`- 論理構造の指紋: sha256:<digest>`として書く
    - 業務で典型的かつ重要なReadを記録してからindexを決める
@@ -72,7 +72,7 @@ description: 既存のBDD付きRDB論理設計をQA観点で深化させ、同�
    EOF
    ```
 
-10. **document-physical（`write-doc`）。** 物理設計本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-physical-design`を`document_type`に、確認済みの`physical_output_directory`と`physical_name`をそのまま渡す。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`physical_rdb_design_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
+10. **document-physical（`write-doc`）。** 物理設計本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-physical-design`を`document_type`に、確認済みの`physical_output_directory`と`physical_name`をそのまま渡す。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`physical_rdb_design_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
 
 ## 停止条件
 
@@ -81,7 +81,7 @@ description: 既存のBDD付きRDB論理設計をQA観点で深化させ、同�
 - 既存論理資料のpathが無い、symlinkである、複数ある、別pathへの出力を求められた、またはBDDと論理テーブル定義のどちらかが資料に無い
 - 既存資料に代表的な永続化のBDDが無く、反証の対象が存在しない。未決と回答責任者を示し、論理資料を初めて作る入口が該当すると報告する
 - `modeling_method`が指した手法fileが無い、または利用者の手法fileが同梱の3本と同じ節を持たない
-- `referenced_artifacts`に相対path、読めないpath、symlinkがある
+- `references`に相対path、読めないpath、symlinkがある
 - `grill`が`completed`以外を返した、または`decisions` / `open_questions`が配列でない
 - `scenario_matrix.py` / `update-guard.py` / `rdb.py`のどれかが0以外で終了し、戻しても解消しない
 - 論理資料の更新が`completed`以外を返した、または`path`が`update_target`と一致しない。物理設計を始めない
@@ -94,7 +94,7 @@ description: 既存のBDD付きRDB論理設計をQA観点で深化させ、同�
 - 反証の焦点、`modeling_method`、保持理由、履歴の要否、取消と物理削除の区別が入力から一つに決まらない。既存資料と業務の筋から仮説を置く
 - 反証で見つかった違いに利用者の回答が無い。最も筋の良い解釈を仮説としてBDDと論理要素へ書き、未決へ問いを残す
 - Readの想定件数、SLO、鮮度が入力に無い。業務の筋から仮説の値を置き、測定で確かめる事項として未決に書く
-- 6問を超えて問いたい論点が残る。推奨を仮置きした未決として資料に載せ、利用者が資料を見てから確かめる
+- grillの上限で問われなかった論点が残る。`open_questions`の推奨を仮置きした未決として資料に載せ、利用者が資料を見てから確かめる
 
 ## 報告
 

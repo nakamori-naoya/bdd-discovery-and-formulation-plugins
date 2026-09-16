@@ -1,7 +1,7 @@
 version: 2
 name: discover-user-journey
 description: 1人の主たるユーザーが1つの目的を達成するまでを発見し、接続した場面のBDD正本として初めて作る
-inputs: [user_input, referenced_artifacts, output_directory, name]
+inputs: [user_input, references, output_directory, name]
 
 requires:
   - {plugin: grill, marketplace: grill}
@@ -10,8 +10,8 @@ requires:
 steps:
   - id: settle
     playbook: grill
-    purpose: 目的を持って始める役割と各役割の目的、主たるユーザー、開始地点、最終地点、完了条件、途中で関わる役割のうち、入力から分からず正本の骨格を左右する点を最大6問に厳選して確かめる
-    needs: [user_input, referenced_artifacts]
+    purpose: 目的を持って始める役割と各役割の目的、主たるユーザー、開始地点、最終地点、完了条件、途中で関わる役割のうち、入力から分からず正本の骨格を左右する点を成果を左右する順に厳選して確かめる
+    needs: [user_input, references]
     provides: [decisions, open_questions]
 
   - id: ground
@@ -49,5 +49,5 @@ steps:
     purpose: 同じagentが保持した検査済みの完成本文をtext materialとして渡し、Markdown正本を初めて1本保存する
     input:
       document_type: user-journey-bdd
-    needs: [final_markdown, validation_report, output_directory, name]
+    needs: [final_markdown, validation_report, output_directory, name, references]
     provides: [user_journey_bdd_path]

@@ -14,7 +14,7 @@ description: 1人の主たるユーザーが1つの目的を達成するまで�
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 依頼文。誰が何を達成したいか、既知の役割、資料の置き場の指定 | 主たるユーザーか目的が読めなければ`settle`の問いにする。決まらなければ止まる |
-| `referenced_artifacts` | 利用者が明示した既存資料の絶対path（業務知識、既存Journey、画面案など） | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
+| `references` | 任意。追加で従う資料の絶対path配列（業務知識、既存Journey、画面案など）。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `output_directory` | 正本を置く既存の書き込み可能な絶対directory | 下の「保存先の決め方」に従う |
 | `name` | path要素を含まない`.md`file名。日本語名を許す | 同上 |
 
@@ -41,7 +41,7 @@ description: 1人の主たるユーザーが1つの目的を達成するまで�
 
 ## 手順
 
-1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって正本の骨格（主たるユーザー、目的、両端、完了条件、場面の接続）が変わる問いを**最大6問**に厳選し、推奨と理由を添えて`context`と`questions`に渡す。最初の問いは「目的を持って始める役割はどれとどれか、各役割の目的は何か」である。保存先が依頼に無ければ、その提案を6問の1つに含める。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。6問を超える論点は問わず、推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは正本を完成できない場合だけ行う。
+1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって正本の骨格（主たるユーザー、目的、両端、完了条件、場面の接続）が変わる問いを成果を左右する順に選び、推奨と理由を添えて`context`と`questions`に渡す。最初の問いは「目的を持って始める役割はどれとどれか、各役割の目的は何か」である。保存先が依頼に無ければ、その提案を問いに含める。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは正本を完成できない場合だけ行う。
 2. **ground。** 依頼、参照資料、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
 3. **select-journey。** 役割×目的の一覧を作り、今回作る1本と残りの順番を`journey_set`として決める。
 4. **map-journey。** 同梱skillの判断規律で、Journeyに該当するかを判定し、主たるユーザー、目的、開始地点、最終地点、完了条件、場面、状態の受け渡し、既知の分岐を`journey_map`として同じ文脈に保持する。
@@ -64,7 +64,7 @@ description: 1人の主たるユーザーが1つの目的を達成するまで�
    EOF
    ````
 
-7. **document（`write-doc`）。** 完成本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`user-journey-bdd`を`document_type`に、確認済みの`output_directory`と`name`をそのまま渡す。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`user_journey_bdd_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
+7. **document（`write-doc`）。** 完成本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`user-journey-bdd`を`document_type`に、確認済みの`output_directory`と`name`をそのまま渡す。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`user_journey_bdd_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
 
 ## 停止条件
 
@@ -72,7 +72,7 @@ description: 1人の主たるユーザーが1つの目的を達成するまで�
 
 - 主たるユーザーと目的が入力からも`settle`からも決まらない（誰の何の達成を書くのかが無い）
 - 依頼がJourneyの問いではない。非該当理由と適切な成果物（ユースケース、UX Journey map、業務知識、データモデル）を返す
-- `referenced_artifacts`に相対path、読めないpath、symlinkがある
+- `references`に相対path、読めないpath、symlinkがある
 - `grill`が`completed`以外を返した、または`decisions` / `open_questions`が配列でない
 - `scenario.py`が0以外で終了し、`compose`へ戻しても解消しない
 - 保存先が確認できない、`output_directory`が無いか相対pathである、同名fileがある、`write-doc`が`completed`以外を返した、または返った`path`が保存先と一致しない
@@ -81,7 +81,7 @@ description: 1人の主たるユーザーが1つの目的を達成するまで�
 
 - 開始地点、最終地点、完了条件のどれかが根拠から一つに決まらない。依頼と資料から最も筋の良いものを仮説として置く
 - 場面間の接続、前提の値、途中で関わる役割、既知の分岐が入力に無い。仮説として書き、確認相手を未決に残す
-- 6問を超えて問いたい論点が残る。推奨を仮置きした未決として正本に載せ、利用者が正本を見てから確かめる
+- grillの上限で問われなかった論点が残る。`open_questions`の推奨を仮置きした未決として正本に載せ、利用者が正本を見てから確かめる
 
 既存のdomain-ruleやdata model資料は入力根拠として読むが変更せず、そこに不足が見つかれば未決として送り先を記録する。
 
