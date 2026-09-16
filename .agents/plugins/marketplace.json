@@ -8,7 +8,7 @@
       "name": "bdd-discovery-and-formulation",
       "source": {
         "source": "local",
-        "path": "./plugins"
+        "path": "./plugins/bdd-discovery-and-formulation"
       },
       "policy": {
         "installation": "AVAILABLE",

@@ -3,7 +3,7 @@
   "cases": [
     {
       "id": "representative-boundary",
-      "skill": "../plugins/playbooks/bdd/domain-bdd-discovery/SKILL.md",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-domain/SKILL.md",
       "messages": [
         {
           "role": "user",
