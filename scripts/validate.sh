@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Scenario: BDD marketplaceの全受入検査を一度に実行する
-# Given: BDD責務の12 pluginと完全修飾した外部依存契約がある
-# When: 構造、runtime、Codex manifest互換を順に検査する
+# Scenario: BDD packageの全受入検査を一度に実行する
+# Given: 6公開入口と4内部skillを持つ1 packageと、grill / write-docへの外部依存宣言がある
+# When: 構造、共有toolの同期、配布manifest、消費側lintを順に検査する
 # Then: 一つでも不具合があれば最終終了codeを非0にする
 set -uo pipefail
 
@@ -9,15 +9,18 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 # 継承した解決環境を捨てる。呼び出し元のdev-mapやtest-cacheが残っていると、
 # 負の試験が「別のところから解決できてしまう」形で黙って破れる。
-# 必要な検査は自分で設定して実行する。
 unset HARNESS_PLUGIN_DEV_ROOTS HARNESS_PLUGIN_CACHE_ROOT
 export -n HARNESS_PLUGIN_DEV_ROOTS HARNESS_PLUGIN_CACHE_ROOT 2>/dev/null || true
-
-python3 "$ROOT/scripts/test-hardening.py" || exit 1
-python3 "$ROOT/scripts/check-direct-consumer-entry.py" || exit 1
+TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/bdd-discovery-and-formulation-validate.XXXXXX") || exit 2
+trap 'rm -rf "$TMP_ROOT"' EXIT
 status=0
 
-# runtimeの複製が正本と一致していること。意図しない差分をここで止める。
+printf '\n=== validate-structure.sh ===\n'
+bash "$ROOT/scripts/validate-structure.sh" || status=1
+
+# 保守用の共有tool（正本はproduct-planning-plugins/shared/runtime-source）。
+printf '\n=== test-hardening.py ===\n'
+python3 "$ROOT/scripts/test-hardening.py" || status=1
 printf '\n=== sync-runtime.py --check ===\n'
 if [ -d "$ROOT/../product-planning-plugins/shared/runtime-source" ]; then
   python3 "$ROOT/scripts/sync-runtime.py" --repo "$ROOT" \
@@ -26,16 +29,25 @@ else
   printf 'FAIL: runtime正本 (../product-planning-plugins/shared/runtime-source) が無い\n'
   status=1
 fi
-
-for script in validate-distribution.py validate-structure.sh validate-runtime.sh validate-real-distribution.sh; do
-  printf '\n=== %s ===\n' "$script"
-  if [[ "$script" == *.py ]]; then
-    if ! python3 "$ROOT/scripts/$script" "$ROOT"; then status=1; fi
-  elif ! bash "$ROOT/scripts/$script"; then
-    status=1
-  fi
-done
-
+printf '\n=== validate-distribution.py ===\n'
+python3 "$ROOT/scripts/validate-distribution.py" "$ROOT" || status=1
 python3 "$ROOT/scripts/validate-distribution.py" --self-test "$ROOT" || status=1
+
+# 消費側lint: 依存先の実配布物（兄弟checkout）から検出語を作る。fixtureだけで緑にしない。
+printf '\n=== lint-consumer-contract.py ===\n'
+grill_root="$ROOT/../grill-plugins/plugins/grill"
+write_doc_root="$ROOT/../write-doc-plugins/plugins/write-doc"
+if [ -d "$grill_root" ] && [ -d "$write_doc_root" ]; then
+  dev_map="$TMP_ROOT/real-roots.json"
+  jq -n --arg grill "$(cd "$grill_root" && pwd -P)" --arg doc "$(cd "$write_doc_root" && pwd -P)" \
+    '{schema:1,dependencies:{"grill/grill":$grill,"write-doc/write-doc":$doc}}' > "$dev_map"
+  for runtime in codex claude; do
+    HARNESS_PLUGIN_DEV_ROOTS="$dev_map" python3 "$ROOT/scripts/lint-consumer-contract.py" \
+      --repo "$ROOT" --runtime "$runtime" || status=1
+  done
+else
+  printf 'FAIL: 依存先の実配布物（../grill-plugins/plugins/grill, ../write-doc-plugins/plugins/write-doc）が無い\n'
+  status=1
+fi
 
 exit "$status"

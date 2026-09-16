@@ -4,22 +4,15 @@
 
 ```bash
 bash scripts/validate.sh
+python3 /Users/naoya-nakamoriq/Documents/Github/harness-pluginsv2/scripts/validate-plugin-repository.py "$(pwd)"
 ```
 
-`validate-structure.sh`は、marketplaceに登録したBDD責務のpluginだけを配布し、旧cleanup配布物が残らないこと、両marketplaceと両runtime manifestのidentityが一致すること、外部依存がmarketplace名とplugin名だけで宣言されていること、shared resolverの配布コピーがbyte一致することを検査する。E2E資料については、ユーザーの目的・開始地点・最終地点・1つ以上のインタラクション場面を必須にし、長い複数場面も受理し、実装やテスト実行環境の関心を拒否する負の試験も行う。
+`validate-structure.sh`は、両marketplaceと両runtime manifestのidentityが一致すること、公開入口6つと内部skill4つの集合がmanifestとdirectoryで一致すること、`CONTRACT.md`を持たないpackageが`playbooks` / `implements`を宣言しないこと、runtime manifestがpackage rootにだけあること、各`SKILL.md`の`name`がdirectory名と一致すること、隣接`playbook.yml`が外部packageだけを`requires`へ宣言し`playbook:`工程でだけ呼ぶこと、`script:` / `skill:`参照が実在すること、`shared/quality-engineering`の複製がbyte一致すること、禁止参照形が配布物に無いことを検査する。
 
-`validate-runtime.sh`は、Codex/Claudeそれぞれのinstall済みcache fixtureから名前一致で依存を解決し、複数versionから最新を選ぶ正常系と、依存欠落・manifest名違い・runtime不明・bare依存名・version pinを必ず拒否する負の試験を実行する。
+続けて、各toolを正例・反例・境界例で実行する。条件マトリクス（暗黙前提の拒否）、domainのGherkin検査（量を品質gateにせず、複数Whenを拒否）、誰が行えるかの網羅（`actor-coverage.py self-test`）、ユーザー目的達成BDD（複数場面の受理、語彙責務を機械判定しない、接続欠落の拒否）、formulation 3入口の同一パス更新、物理設計検査（指紋、根拠台帳、論理構造の変化の拒否）である。
 
-加えて「外部pluginの公開面はplaybook 1枚だけ」という規則の負の試験を持つ。解決済みYAMLのstepsを書き換えて`--check-steps`へ渡し、次がすべて停止することを確かめる。
+`validate.sh`はさらに共有保守tool（`test-hardening.py`、`sync-runtime.py --check`、`validate-distribution.py`）と、兄弟checkoutの実配布物に対する消費側lint（`lint-consumer-contract.py`）を両runtimeで実行する。実配布物が見つからなければ落ちる。
 
-- 外部pluginの公開skillを`skill:`で呼ぶ形（`external-dependency-skill`）
-- 外部pluginの内部skillの名指し
-- 外部pluginのscriptを`script:` + `plugin:`で実行する形（`external-dependency-script`）
-- 公開面4点以外のpathを外部rootから組み立てる形（`external-dependency-path`）
-- `when`付きの非活性stepへ隠した違反
-- 契約が実装していない文書型（`binding-capability-unsupported`）
-- `implements`を宣言していない提供側
-
-`validate-real-distribution.sh`は、fixtureではなく**実際に配布されている依存先package**に対して6 playbook×両runtimeの解決を行い、消費側lint（`lint-consumer-contract.py`）を通す。依存先は兄弟checkout`../grill-plugins/plugins`・`../write-doc-plugins/plugins`、または`HARNESS_PLUGIN_REAL_ROOTS`で渡す契約ID→package rootのJSONから探す。見つからなければ落ちる。fixtureの乖離で緑になる状態を作らない。
+workspace rootの`validate-plugin-repository.py`は配置・manifest・隣接playbook.yml・禁止参照形の構造契約を検査する。構造検査の成功は、SKILL本文の判断規律や生成された資料の業務上の正しさを保証しない。それらは対象を読んで評価する。
 
 Codexの`plugin-creator` validatorはPyYAMLを含む隔離環境で`bash scripts/validate-plugin-creator.sh`として別途実行する。
