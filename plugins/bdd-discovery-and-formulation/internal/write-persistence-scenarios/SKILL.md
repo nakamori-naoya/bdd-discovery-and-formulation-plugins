@@ -13,7 +13,7 @@ description: 既存の業務シナリオと業務イベントから、データ�
 
 ## 判断基準
 
-[アクターとステークホルダー](references/actors-and-stakeholders.md)、[業務イベント](references/domain-events.md)、[ユビキタス言語](references/ubiquitous-language.md)、[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)を読んでから始める。
+同梱の内部skill `write-bdd`の規律のうちアクターと利害関係者、業務イベント、ユビキタス言語、BDDの前提・トリガー・失敗理由を読んでから始める。
 
 | 観察対象 | 述語 | 行動 |
 |---|---|---|

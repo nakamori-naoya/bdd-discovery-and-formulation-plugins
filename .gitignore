@@ -13,7 +13,6 @@ __pycache__/
 !/.harness-plugins/
 !/plugins/
 !/scripts/
-!/shared/
 !/AGENTS.md
 !/README.md
 !/VALIDATION.md
