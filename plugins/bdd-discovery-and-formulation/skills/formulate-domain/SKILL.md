@@ -14,7 +14,7 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 依頼文。どの決まりを深めたいか、新しく分かったこと | 反証の焦点が読めなければ`challenge`の問いにする。決まらなければ既存正本のコアの決まり全体を対象に仮置きして進む |
-| `referenced_artifacts` | 利用者が明示した既存資料の絶対path | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
+| `references` | 任意。追加で従う資料の絶対path配列。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `existing_domain_rule_path` | 更新する既存正本の絶対path。symlinkではない既存file | 無い、複数ある、別pathへの出力を求められた場合は止まる |
 
 [入力に根拠づける規律](references/input-grounding.md)に従い、利用者の発言、明示された資料、`challenge`で確認した決定だけを確定事項にする。既存資料も仮説を含み得るため、記載済みという理由だけで確定事項にしない。[この入口の焦点](references/focus.md)のとおり、反証の対象はコアに限る。
@@ -34,7 +34,7 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 
 ## 手順
 
-1. **challenge（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」と[QA観点の適用](references/qa-probes.md)、[重要なシナリオを見つけるQA観点](references/important-scenarios.md)で、既存資料のどの主張を反証しているかを明らかにし、答えで本文の変更が一つに決まる問いを**最大6問**に厳選して推奨と理由を添え、`context`と`questions`に渡す。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。6問を超える論点は問わず、推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・既存資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは更新を完成できない場合だけ行う。
+1. **challenge（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」と[QA観点の適用](references/qa-probes.md)、[重要なシナリオを見つけるQA観点](references/important-scenarios.md)で、既存資料のどの主張を反証しているかを明らかにし、答えで本文の変更が一つに決まる問いを成果を左右する順に選んで推奨と理由を添え、`context`と`questions`に渡す。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・既存資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは更新を完成できない場合だけ行う。
 2. **ground。** 既存正本、依頼、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持し、既存資料のコアの範囲を`core_scope`にする。
 3. **revise。** [シナリオの書き方](references/writing.md)、[Givenの選び方](references/given.md)、[BDDの前提・トリガー・失敗理由](references/scenario-premises.md)に従い、複数主体や知識差が結果を変える場合だけ[登場人物と情報差](references/actors.md)を読む。確認済みの発見を既存の用語、業務ルール、状態、アクター、誰が行えるか、BDDへ対応を保って戻し、`open_questions`と仮置きした推奨を本文の該当箇所に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。変更するBDDごとに条件マトリクスを作り、BDD草案（Gherkin）、条件マトリクス、改訂本文を同じ文脈で完成させる。更新先は入力された既存資料と同じpathであり、これを`requested_output_path`にする。
 4. **validate（`scripts/scenario.py`）。** BDD草案（Gherkin本文）をそのまま標準入力で、条件マトリクスを`--matrix-json`引数のJSON文字列で`python3 scripts/scenario.py check`へ渡す。pathはこのSKILLと同じdirectoryを基準にし、fileは介さない。stdoutにJSONを1行ずつ返し、終了codeは0が違反なし、1が違反あり（各行が`line` / `kind` / `detail` / `howto`）、2が入力を読めない（標準入力が空、`--matrix-json`がJSONでないかobjectでない）。0以外なら更新へ進まず、診断に従って`revise`へ戻る。
@@ -55,7 +55,7 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 
 5. **validate-actors（`scripts/actor-coverage.py`）。** 改訂本文（Markdown）を標準入力で`python3 scripts/actor-coverage.py check`へ渡す。本文の見出し`## コマンドとクエリ`と`# 誰が行えるか`の配下にある表の第1列（`業務上の行い`）が両方向で一致すれば終了code 0、片方にしか無い行い名があれば1で各行を`kind` / `detail` / `howto`として返し、標準入力が空なら2である。0以外なら`revise`へ戻る。表記ゆれとして報告された行が同義かどうかは、このagentが読んで判断し、第1列を揃える。この2つの見出しと第1列名は、`write-doc`の`domain-rule`型（公開契約の`document_type`）が定める本文の形であり、本文をその型で書くことがtoolの前提である。
 6. **guard-update（`scripts/update-guard.py`）。** `python3 scripts/update-guard.py check --existing <既存正本の絶対path> --output <requested_output_path>`を実行する。引数は2つのpathだけで本文は渡さない。既存fileがsymlinkでない通常fileで、両pathが同じ実体を指すときだけ終了code 0で`{"update_target": <絶対path>}`をstdoutへ返す。それ以外は終了code 1で`{"error": <診断>}`を返すので、既存正本を変えずに止まる。
-7. **document（`write-doc`）。** 改訂本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`domain-rule`を`document_type`に、`update_target`をそのまま渡す。新規作成用の`output_directory`と`name`は渡さない。返った結果の`status`が`completed`で、`path`が`update_target`と一致することを確かめ、その`path`を`updated_domain_rule_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
+7. **document（`write-doc`）。** 改訂本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`domain-rule`を`document_type`に、`update_target`をそのまま渡す。新規作成用の`output_directory`と`name`は渡さない。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が`update_target`と一致することを確かめ、その`path`を`updated_domain_rule_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
 
 ## 停止条件
 
@@ -63,7 +63,7 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 
 - 既存正本のpathが無い、symlinkである、複数ある、または別pathへの出力を求められた
 - 既存正本にコアの業務ルールと代表BDDが無く、反証の対象が存在しない。未決と回答責任者を示し、正本を初めて作る入口が該当すると報告する
-- `referenced_artifacts`に相対path、読めないpath、symlinkがある
+- `references`に相対path、読めないpath、symlinkがある
 - `grill`が`completed`以外を返した、または`decisions` / `open_questions`が配列でない
 - `scenario.py` / `actor-coverage.py` / `update-guard.py`が0以外で終了し、`revise`へ戻しても解消しない
 - `write-doc`が`completed`以外を返した、または`path`が`update_target`と一致しない
@@ -72,7 +72,7 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 
 - 反証の焦点やコアの範囲が入力から一つに決まらない。既存正本の代表BDDが示す範囲を仮説として置く
 - 反証で見つかった違いに利用者の回答が無い。既存理解と業務の筋から最も筋の良い解釈を仮説としてBDDへ書き、未決へ問いを残す
-- 6問を超えて問いたい論点が残る。推奨を仮置きした未決として正本に載せ、利用者が正本を見てから確かめる
+- grillの上限で問われなかった論点が残る。`open_questions`の推奨を仮置きした未決として正本に載せ、利用者が正本を見てから確かめる
 
 差し替え後もコア以外の記述を勝手に深化させない。
 

@@ -147,7 +147,7 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 
 各公開入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`SKILL.md`が目的・入力・判断基準・手順・停止条件・出力を持ち、`references/execution-guidance.md`が背景・前提と各工程実行時の付加的な指示を持つ。入口が使うtool（`scripts/scenario.py`、`scripts/scenario_matrix.py`、`scripts/actor-coverage.py`、`scripts/update-guard.py`、`scripts/rdb.py`）は、入口directoryを基準にした相対pathで示し、入力・出力・終了code・失敗時の扱いをSKILL.mdの手順が1か所で宣言する。agentが作った本文（条件マトリクス、BDD草案、場面草案、完成本文、物理設計本文）はそのまま標準入力で渡し、条件マトリクスを併せて渡すtoolは`--matrix-json`引数で受け、保存済みの正本だけをpath引数で渡す。検査のためだけの一時fileや後片付け工程は無い。停止条件は「止まる（必須入力の欠落、契約に反する入力、toolの失敗、保存先の不確定）」と「仮説を明示して進む（判断の揺れ、資料の不足）」に分かれる。設定fileは持たず、保存先、対象RDB、論理モデリングの手法は依頼と対話から決める。
 
-外部の段取り（`grill`、`write-doc`）は、`references/nested-playbook.md`に書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`grill/grill`版1は契約objectを公開入口へ直接渡し、`decisions`と`open_questions`を持つ結果objectを直接受け取る。渡す`questions`は成果を左右するものに厳選した最大6問で、超える論点は推奨を仮置きした未決として成果物へ載せる。
+外部の段取り（`grill`、`write-doc`）は、`references/nested-playbook.md`に書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`grill/grill`版1は契約objectを公開入口へ直接渡し、`decisions`と`open_questions`を持つ結果objectを直接受け取る。渡す`questions`は成果を左右する順に厳選し、対話の作法と問う数の上限は`grill`の公開契約に従う。上限で問われなかった論点は、返った`open_questions`の推奨を仮置きした未決として成果物へ載せる。各入口は任意入力`references`（追加で従う資料の絶対path配列）を持ち、手順の最初に読む。
 
 ハーネスが作る資料は、冒頭を読み手の既知の語で書いた本文段落から始め、型や確認日のようなメタ情報の一覧を置かない。中心の問い、扱う理由、役割×目的の一覧、Journeyから外した事項の送り先のような作業記録は報告に載せ、正本へ写さない。保存先と名前は利用者の既存資料構成に従い、日本語のdirectory名・file名を許す。
 

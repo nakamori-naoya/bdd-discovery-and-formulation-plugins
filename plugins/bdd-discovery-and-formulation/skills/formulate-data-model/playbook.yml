@@ -1,7 +1,7 @@
 version: 2
 name: formulate-data-model
 description: 既存のBDD付きRDB論理設計を永続化のQA観点で反証して同じ資料へ戻し、そのテーブル構造を変えずに対象RDBの物理設計を作る
-inputs: [user_input, referenced_artifacts, existing_logical_document_path, modeling_method, database_product, database_version, physical_output_directory, physical_name]
+inputs: [user_input, references, existing_logical_document_path, modeling_method, database_product, database_version, physical_output_directory, physical_name]
 
 requires:
   - {plugin: grill, marketplace: grill}
@@ -10,8 +10,8 @@ requires:
 steps:
   - id: challenge-persistence
     playbook: grill
-    purpose: 既存論理資料を根拠にQA観点で問い、答えで残す事実・履歴・業務制約または物理設計の前提が変わる問いを最大6問に厳選して利用者へ確認し、確認済みの発見と未決を分ける
-    needs: [user_input, referenced_artifacts, existing_logical_document_path]
+    purpose: 既存論理資料を根拠にQA観点で問い、答えで残す事実・履歴・業務制約または物理設計の前提が変わる問いを成果を左右する順に厳選して利用者へ確認し、確認済みの発見と未決を分ける
+    needs: [user_input, references, existing_logical_document_path]
     provides: [decisions, open_questions]
 
   - id: ground
@@ -49,7 +49,7 @@ steps:
     purpose: 同じagentが保持した深化済みBDDと論理モデルをtext materialとして渡し、既存資料と同じパスへ差し替える
     input:
       document_type: rdb-logical-data-modeling
-    needs: [final_markdown, validation_report, update_target]
+    needs: [final_markdown, validation_report, update_target, references]
     provides: [updated_logical_document_path]
 
   - id: design-physical
@@ -69,5 +69,5 @@ steps:
     purpose: 検査済みの物理設計本文をtext materialとして渡し、RDB物理設計資料を1本保存する
     input:
       document_type: rdb-physical-design
-    needs: [physical_final_markdown, physical_validation_report, physical_output_directory, physical_name]
+    needs: [physical_final_markdown, physical_validation_report, physical_output_directory, physical_name, references]
     provides: [physical_rdb_design_path]

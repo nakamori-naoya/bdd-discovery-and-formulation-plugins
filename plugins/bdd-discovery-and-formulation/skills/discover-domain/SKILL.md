@@ -14,7 +14,7 @@ description: コアドメインの業務知識と代表的な振る舞いを共�
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 依頼文。題材と、利用者がすでに知っていること | 題材が読めなければ`settle`の問いにする。題材そのものが決まらなければ止まる |
-| `referenced_artifacts` | 利用者が明示した既存資料の絶対path | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
+| `references` | 任意。追加で従う資料の絶対path配列。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `output_directory` | 正本を置く既存の書き込み可能な絶対directory | 下の「保存先の決め方」に従う |
 | `name` | path要素を含まない`.md`file名。日本語名を許す | 同上 |
 
@@ -38,7 +38,7 @@ description: コアドメインの業務知識と代表的な振る舞いを共�
 
 ## 手順
 
-1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって正本の骨格（コアの範囲、業務イベント、判断、誰が行えるか）が変わる問いを**最大6問**に厳選し、それぞれに推奨と理由を添えて`context`と`questions`に渡す。保存先が依頼に無ければ、その提案を6問の1つに含める。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。6問を超える論点は問わず、推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは正本を完成できない場合だけ行う。
+1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって正本の骨格（コアの範囲、業務イベント、判断、誰が行えるか）が変わる問いを成果を左右する順に選び、それぞれに推奨と理由を添えて`context`と`questions`に渡す。保存先が依頼に無ければ、その提案を問いに含める。呼び方は[入れ子の段取りを呼ぶ](references/nested-playbook.md)に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは正本を完成できない場合だけ行う。
 2. **ground。** 依頼、参照資料、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
 3. **explore。** 同梱skillの判断規律で、業務で起きた事実を時系列に洗い出し、引き金、担い手、前提、業務上の結果、確からしさを`events`と`actors`として保持する。
 4. **scope。** [業務の話の境界](references/boundary.md)、[ドメイン](references/domain.md)、[サブドメイン](references/subdomains.md)、[境界づけられたコンテキスト](references/bounded-contexts.md)、[概念の関係](references/concept-map.md)を読み、業務の話と実装の関心に線を引き、残ったものをコア・支援・汎用へ理由付きで分ける。該当が無い区分は「なし」と書く。スコープ外へ落としたものと理由を`implementation_excluded`として保持する。
@@ -52,14 +52,14 @@ description: コアドメインの業務知識と代表的な振る舞いを共�
    ```
 
 7. **validate-actors（`scripts/actor-coverage.py`）。** 完成本文（Markdown）を標準入力で`python3 scripts/actor-coverage.py check`へ渡す。本文の見出し`## コマンドとクエリ`と`# 誰が行えるか`の配下にある表の第1列（`業務上の行い`）が両方向で一致すれば終了code 0、片方にしか無い行い名があれば1で各行を`kind` / `detail` / `howto`として返し、標準入力が空なら2である。0以外なら`record-behavior`へ戻る。表記ゆれとして報告された行が同義かどうかは、このagentが読んで判断し、第1列を揃える。この2つの見出しと第1列名は、`write-doc`の`domain-rule`型（公開契約の`document_type`）が定める本文の形であり、本文をその型で書くことがtoolの前提である。
-8. **document（`write-doc`）。** 完成本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`domain-rule`を`document_type`に、確認済みの`output_directory`と`name`をそのまま渡す。`references`には[成果物の形](references/discovery-deliverable.md)の絶対pathを渡す。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`domain_rule_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
+8. **document（`write-doc`）。** 完成本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`domain-rule`を`document_type`に、確認済みの`output_directory`と`name`をそのまま渡す。`references`には[成果物の形](references/discovery-deliverable.md)の絶対pathと、入力の`references`を連結して渡す。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`domain_rule_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
 
 ## 停止条件
 
 **止まる。** 成果が無意味になる必須入力の欠落、公開契約に反する入力、toolの失敗、保存先の不確定である。止まるときは何も書かず、どこまで確定し、何が分かれば続けられるかを返す。
 
 - 題材が読めず、`settle`でも決まらない（何の業務知識を正本にするのかが無い）
-- `referenced_artifacts`に相対path、読めないpath、symlinkがある
+- `references`に相対path、読めないpath、symlinkがある
 - `grill`が`completed`以外を返した、または`decisions` / `open_questions`が配列でない
 - `scenario_matrix.py` / `actor-coverage.py`が0以外で終了し、`record-behavior`へ戻しても解消しない
 - 保存先が確認できない、`output_directory`が無いか相対pathである、同名fileがある、`write-doc`が`completed`以外を返した、または返った`path`が保存先と一致しない
@@ -68,7 +68,7 @@ description: コアドメインの業務知識と代表的な振る舞いを共�
 
 - 業務の話と実装の関心の線引き、コア・支援・汎用の区分に迷う。迷った側（実装の関心、支援・汎用）へ倒して仮置きし、理由を未決に書く
 - ある行いを誰が行えるか、用語の合意語、判断条件の一部が入力から決まらない。入力にある最も筋の良い候補を仮説として置く
-- 6問を超えて問いたい論点が残る。推奨を仮置きした未決として正本に載せ、利用者が正本を見てから確かめる
+- grillの上限で問われなかった論点が残る。`open_questions`の推奨を仮置きした未決として正本に載せ、利用者が正本を見てから確かめる
 
 ## 報告
 

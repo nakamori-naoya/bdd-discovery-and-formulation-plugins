@@ -1,7 +1,7 @@
 version: 2
 name: discover-data-model
 description: 業務イベントから永続化の作成・更新・削除を発見し、BDDを含むRDB論理データモデル資料にする
-inputs: [user_input, referenced_artifacts, modeling_method, output_directory, name]
+inputs: [user_input, references, modeling_method, output_directory, name]
 
 requires:
   - {plugin: grill, marketplace: grill}
@@ -10,8 +10,8 @@ requires:
 steps:
   - id: settle
     playbook: grill
-    purpose: 入力だけでは不明で記録する事実・履歴・保持・削除の骨格を左右する業務イベントと条件を最大6問に厳選して利用者へ確かめる
-    needs: [user_input, referenced_artifacts]
+    purpose: 入力だけでは不明で記録する事実・履歴・保持・削除の骨格を左右する業務イベントと条件を成果を左右する順に厳選して利用者へ確かめる
+    needs: [user_input, references]
     provides: [decisions, open_questions]
 
   - id: ground
@@ -49,5 +49,5 @@ steps:
     purpose: 同じagentが保持した論理モデルとBDDをtext materialとして渡し、rdb-logical-data-modelingの型で1本保存する
     input:
       document_type: rdb-logical-data-modeling
-    needs: [final_markdown, validation_report, output_directory, name]
+    needs: [final_markdown, validation_report, output_directory, name, references]
     provides: [logical_document_path]

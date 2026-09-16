@@ -10,21 +10,21 @@
 
 ## grill（契約 `grill/grill` 版1）
 
-公開入口の対話に従い、利用者の回答と、決定・未決の一覧および対話終了への明示合意を待つ。呼び出し元が回答や合意を代行しない。回答待ちを成功や失敗へ変換しない。
+対話の作法（問う数の上限、提示の仕方、終え方）はgrillの公開契約に従う。呼び出し元は問いの選定と結果の扱いだけを担い、回答待ちを成功や失敗へ変換しない。
 
 ### 渡す入力
 
 - `contract: grill/grill` と `version: 1`
 - `topic`：確認したい題材
 - `context`：`purpose`、`audience`、`boundary`
-- `questions`：`{id, question, recommendation}` の配列。成果を左右する問いに厳選し、1回の呼び出しで**最大6問**。超える論点は渡さず、推奨を仮置きした未決として自分の成果物へ書く。問いを相手に立ててもらう場合は空配列
-- `grounding`：任意の根拠資料の絶対パス配列
+- `questions`：`{id, question, recommendation}` の配列。調べれば分かる論点を除き、成果を左右する順に並べて渡す。上限で問われなかった問いは推奨付きの`open_questions`として返るので、渡す前に数を切り詰めない。問いを相手に立ててもらう場合は空配列
+- `references`：追加で従う資料の絶対パス配列。入口の`references`入力をそのまま渡す
 
 題材固有の観点は `context` と `questions` で渡す。空の `questions` は確認を省略する指示ではない。2回目の呼び出しは、利用者が求めた場合か、決定なしでは成果物を完成できない場合だけ行う。
 
 ### 受け取る結果
 
-直接返された結果objectを読み、`status: completed` の場合だけ続ける。`decisions` と `open_questions` はキーが存在する配列でなければならず、欠落、`null`、別の型は公開契約に反する結果として止まる。合法な空配列はそのまま受け入れる。`decisions` の各要素は `{id, question, answer, rationale}`、`open_questions` の各要素は `{id, question, state, reason}` を持ち、未決の `state` は `open` または `withdrawn` である。同じagentがこれらを利用者入力・明示資料と突き合わせて根拠づけられた入力を確定し、`open` の未決と自分が仮置きした推奨を成果物のドラフトへ仮説と分かる形で反映する。
+直接返された結果objectを読み、`status: completed` の場合だけ続ける。`decisions` と `open_questions` はキーが存在する配列でなければならず、欠落、`null`、別の型は公開契約に反する結果として止まる。合法な空配列はそのまま受け入れる。`decisions` の各要素は `{id, question, answer, rationale}`、`open_questions` の各要素は `{id, question, state, reason}` を持ち、未決の `state` は `open` または `withdrawn` である。同じagentがこれらを利用者入力・明示資料と突き合わせて根拠づけられた入力を確定し、`open` の未決は `reason` に書かれた推奨を仮置きし、成果物のドラフトの該当箇所と未決の節へ仮説と分かる形で反映する。
 
 ## write-doc（契約 `write-doc/write-doc` 版2）
 
@@ -37,7 +37,7 @@
 - ファイル素材：`{kind: file, path: /absolute/path/to/material.md}`
 - 本文素材：`{kind: text, content: "根拠となる本文"}`
 
-同じagentが組み立てた本文は `kind: text` で直接渡す。実在する素材ファイルを渡す場合だけ `kind: file` を使う。`document_type` にはこの工程で決めた型を渡し、`references` には追加で従う自分の資料の読み取り可能な絶対パスだけを渡す。
+同じagentが組み立てた本文は `kind: text` で直接渡す。実在する素材ファイルを渡す場合だけ `kind: file` を使う。`document_type` にはこの工程で決めた型を渡し、`references` には入口の `references` 入力をそのまま渡し、成果物の形など自分の資料を足す入口はそれを連結する（空なら空配列）。
 
 ### 保存先を明示する
 
