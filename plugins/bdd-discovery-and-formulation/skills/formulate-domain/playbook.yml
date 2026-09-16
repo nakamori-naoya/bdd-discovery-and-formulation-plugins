@@ -10,7 +10,7 @@ requires:
 steps:
   - id: challenge
     playbook: grill
-    purpose: 既存資料を根拠にコアドメインをQA観点で問い、不明点と深掘りが必要な点を利用者へ1問ずつ確認して修正と未決を分ける
+    purpose: 既存資料を根拠にコアドメインをQA観点で問い、答えで本文の変更が決まる問いを最大6問に厳選して利用者へ確認し、修正と未決を分ける
     needs: [user_input, referenced_artifacts, existing_domain_rule_path]
     provides: [decisions, open_questions]
 

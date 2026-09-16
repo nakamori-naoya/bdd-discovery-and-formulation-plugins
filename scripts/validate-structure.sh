@@ -2,8 +2,8 @@
 # Scenario: BDD packageが6公開入口と4内部skillだけを配布し、入口のtoolが正例・反例・境界例で決まった結果を返す
 #
 # 正本: 両marketplace、両runtime manifest、入口の playbook.yml、shared/quality-engineering と shared/consumer-contract の複製元。
-# 入力: このrepositoryの配布物と、ここで作る fixture。
-# 合格述語: identityと集合の一致、複製のbyte一致、外部依存の宣言形、各toolの exit code と診断。
+# 入力: このrepositoryの配布物と、ここで作る fixture（検査toolへは標準入力または正本pathで渡し、tool専用の一時fileは置かない）。
+# 合格述語: identityと集合の一致、複製のbyte一致、外部依存の宣言形、各toolの self-test と exit code と診断。
 # 意味評価として残す範囲: SKILL本文の判断規律、参照資料の内容、生成された資料の業務上の正しさ。
 set -uo pipefail
 
@@ -14,6 +14,8 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 passed=0 failed=0
 pass() { printf 'PASS: %s\n' "$1"; passed=$((passed + 1)); }
 fail() { printf 'FAIL: %s\n' "$1"; failed=$((failed + 1)); }
+# 反例の合格述語は「toolが違反として exit 1 を返す」だけにする。exit 2（入力を読めない）や 127（未定義の関数・変数）を拒否と誤認しない。
+rejects() { "$@" >/dev/null 2>&1; [ "$?" -eq 1 ]; }
 
 for cmd in jq yq python3 bash cmp find sort diff rg; do
   command -v "$cmd" >/dev/null 2>&1 && pass "command $cmd" || fail "command $cmd が無い"
@@ -132,6 +134,9 @@ done < <(find "$PACKAGE" -type f -name '*.md' ! -name SKILL.md ! -name execution
 [ "$same_name_failed" -eq 0 ] && pass "同名の reference（shared 複製を含む）はすべて byte 一致" || fail "同名 reference の差分"
 cmp -s "$PACKAGE/skills/discover-domain/scripts/actor-coverage.py" "$PACKAGE/skills/formulate-domain/scripts/actor-coverage.py" && pass "actor-coverage.py 2入口で同一" || fail "actor-coverage.py の差分"
 cmp -s "$PACKAGE/skills/discover-user-journey/scripts/scenario.py" "$PACKAGE/skills/formulate-user-journey/scripts/scenario.py" && pass "user-journey scenario.py 2入口で同一" || fail "user-journey scenario.py の差分"
+cmp -s "$PACKAGE/skills/formulate-domain/scripts/update-guard.py" "$PACKAGE/skills/formulate-user-journey/scripts/update-guard.py" \
+  && cmp -s "$PACKAGE/skills/formulate-domain/scripts/update-guard.py" "$PACKAGE/skills/formulate-data-model/scripts/update-guard.py" \
+  && pass "update-guard.py 3入口で同一" || fail "update-guard.py の差分"
 
 # 禁止参照形（root validatorと同じ4 token）が配布物に無い。README / docs は対象外。
 if rg -n -e '\$\{\.' -e '<!-- BEGIN shared:' -e 'CLAUDE_PLUGIN_ROOT' -e 'BUNDLE_ROOT' "$PACKAGE" >/dev/null; then
@@ -161,10 +166,11 @@ cat > "$matrix_good" <<'EOF'
   {"name":"組合せ","kind":"interaction","expected":"success","rule":"R","trigger":{"kind":"event","text":"同時に起きる"},"premises":[{"name":"A","text":"A","state":"satisfied","target":true,"source":"業務規則"},{"name":"B","text":"B","state":"satisfied","target":true,"source":"業務規則"}]}
 ]}
 EOF
-python3 "$matrix_validator" check --file "$matrix_good" >/dev/null && pass "条件マトリクス代表ケース" || fail "条件マトリクス代表ケース"
-matrix_bad="$TMP_ROOT/matrix-bad.json"
-sed 's/"state":"satisfied","target":false/"state":"unsatisfied","target":false/' "$matrix_good" > "$matrix_bad"
-python3 "$matrix_validator" check --file "$matrix_bad" >/dev/null 2>&1 && fail "条件マトリクスの暗黙前提を許可" || pass "条件マトリクスの暗黙前提を拒否"
+python3 "$matrix_validator" self-test >/dev/null && pass "scenario_matrix.py self-test（正例・反例・空stdin・不正JSON）" || fail "scenario_matrix.py self-test"
+python3 "$matrix_validator" check < "$matrix_good" >/dev/null && pass "条件マトリクス代表ケース（stdin）" || fail "条件マトリクス代表ケース"
+sed 's/"state":"satisfied","target":false/"state":"unsatisfied","target":false/' "$matrix_good" > "$TMP_ROOT/matrix-bad.json"
+rejects python3 "$matrix_validator" check < "$TMP_ROOT/matrix-bad.json" && pass "条件マトリクスの暗黙前提を拒否（exit 1）" || fail "条件マトリクスの暗黙前提を拒否できない"
+python3 "$matrix_validator" check </dev/null >/dev/null 2>&1; [ $? -eq 2 ] && pass "条件マトリクス: 空stdinはexit 2" || fail "条件マトリクス: 空stdinの終了code"
 
 # ── domain の Gherkin検査: 量を品質gateにせず、表現契約だけを拒否する ─────
 domain_formulation="$PACKAGE/skills/formulate-domain"
@@ -198,12 +204,14 @@ large_matrix="$TMP_ROOT/large-scenario-matrix.json"
 cat > "$large_matrix" <<'EOF'
 {"scenarios":[{"name":"必要な結果をすべて観測する","kind":"success","expected":"success","rule":"R","trigger":{"kind":"action","text":"判定する"},"premises":[{"name":"全条件","text":"<a> <b> <c> <d> <e> <f> <g> が前提である","state":"satisfied","target":false,"source":"業務規則"}]}]}
 EOF
-python3 "$domain_formulation/scripts/scenario.py" check --file "$large_scenario" --matrix "$large_matrix" >/dev/null \
+# fixtureはvalidate自身の一時directoryに置くが、toolへはSKILL.mdの手順と同じ形（本文はstdin、条件マトリクスは --matrix-json 引数）で渡す。
+python3 "$domain_formulation/scripts/scenario.py" self-test >/dev/null && pass "domain scenario.py self-test（正例・反例・空stdin・不正JSON・引数欠落・旧引数拒否）" || fail "domain scenario.py self-test"
+python3 "$domain_formulation/scripts/scenario.py" check --matrix-json "$(cat "$large_matrix")" < "$large_scenario" >/dev/null \
   && pass "step数とExamples行列数を品質gateにしない" || fail "量だけで正しいBDD構造を拒否"
 broken_scenario="$TMP_ROOT/broken-large-scenario.feature"
 sed 's/^  Then 結果1を観測する$/  When 結果1を観測する/' "$large_scenario" > "$broken_scenario"
-python3 "$domain_formulation/scripts/scenario.py" check --file "$broken_scenario" --matrix "$large_matrix" >/dev/null 2>&1 \
-  && fail "複数Whenを許可" || pass "一つのWhenという表現契約を拒否側で検証"
+rejects python3 "$domain_formulation/scripts/scenario.py" check --matrix-json "$(cat "$large_matrix")" < "$broken_scenario" \
+  && pass "一つのWhenという表現契約を拒否側で検証（exit 1）" || fail "複数Whenを拒否できない"
 
 # ── 誰が行えるかの網羅（actor-coverage.py）: self-test（正例・反例・境界例） ──
 python3 "$PACKAGE/skills/discover-domain/scripts/actor-coverage.py" self-test >/dev/null \
@@ -248,44 +256,44 @@ cat > "$good_matrix" <<'EOF'
   {"name":"停止中の予約者は成立しない","kind":"single_failure","expected":"failure","rule":"予約成立規則","source":"[業務知識](../domain/予約.md#予約成立規則)","trigger":{"kind":"action","text":"予約者が候補を選ぶ"},"premises":[{"name":"候補を選べる","text":"予約者が候補を選べる","state":"satisfied","target":false,"source":"予約資料"},{"name":"停止中","text":"予約者は仮押さえ停止中である","state":"unsatisfied","target":true,"source":"予約成立規則"}],"note":{"rule":"予約成立規則","source":"[業務知識](../domain/予約.md#予約成立規則)","reason":"停止中顧客は新しい利用枠を確保できないため"}}
 ]}
 EOF
-python3 "$journey_discovery/scripts/scenario.py" check --file "$good_story" --matrix "$good_matrix" >/dev/null \
+python3 "$journey_discovery/scripts/scenario.py" self-test >/dev/null && pass "user-journey scenario.py self-test（正例・反例・空stdin・不正JSON・引数欠落・旧引数拒否）" || fail "user-journey scenario.py self-test"
+journey_check() { python3 "$journey_discovery/scripts/scenario.py" check --matrix-json "$(cat "$2")" < "$1"; }
+journey_check "$good_story" "$good_matrix" >/dev/null \
   && pass "ユーザー目的達成BDDをtemplate記法（Given: / NOTE: Rule:）で受理" || fail "ユーザー目的達成BDD正常系（template記法）"
 nocolon_story="$TMP_ROOT/nocolon-user-journey-bdd.md"
 sed -E 's/^(\s*)(Given|When|Then|And):\s*/\1\2 /' "$good_story" > "$nocolon_story"
-python3 "$journey_discovery/scripts/scenario.py" check --file "$nocolon_story" --matrix "$good_matrix" >/dev/null \
+journey_check "$nocolon_story" "$good_matrix" >/dev/null \
   && pass "コロン無しのGherkin記法も同じstepとして受理（境界例）" || fail "コロン無し記法"
 bad_story="$TMP_ROOT/bad-user-journey-bdd.md"
 sed 's/予約者が希望を伝える/予約者がAPIを呼び出す/' "$good_story" > "$bad_story"
 semantic_matrix="$TMP_ROOT/semantic-user-journey-matrix.json"
 sed 's/予約者が希望を伝える/予約者がAPIを呼び出す/' "$good_matrix" > "$semantic_matrix"
-python3 "$journey_discovery/scripts/scenario.py" check --file "$bad_story" --matrix "$semantic_matrix" >/dev/null 2>&1 \
+journey_check "$bad_story" "$semantic_matrix" >/dev/null 2>&1 \
   && pass "ユーザー目的達成BDDの語彙責務を機械判定しない" || fail "語の存在だけでユーザー目的達成BDDの意味を判定"
 noconn_story="$TMP_ROOT/noconn-user-journey-bdd.md"
 sed 's/^\*\*接続\*\*: .*$//' "$good_story" > "$noconn_story"
-python3 "$journey_discovery/scripts/scenario.py" check --file "$noconn_story" --matrix "$good_matrix" >/dev/null 2>&1 \
-  && fail "場面の接続欠落を許可" || pass "場面の接続欠落を拒否"
+rejects journey_check "$noconn_story" "$good_matrix" && pass "場面の接続欠落を拒否（exit 1）" || fail "場面の接続欠落を拒否できない"
 wrongnote_story="$TMP_ROOT/wrongnote-user-journey-bdd.md"
 sed 's/^    Reason: .*$/    Reason: 違う理由/' "$good_story" > "$wrongnote_story"
-python3 "$journey_discovery/scripts/scenario.py" check --file "$wrongnote_story" --matrix "$good_matrix" >/dev/null 2>&1 \
-  && fail "NOTEと条件マトリクスの不一致を許可" || pass "NOTE: Rule: 形のReasonと条件マトリクスの不一致を拒否"
+rejects journey_check "$wrongnote_story" "$good_matrix" && pass "NOTE: Rule: 形のReasonと条件マトリクスの不一致を拒否（exit 1）" || fail "NOTEの不一致を拒否できない"
 
 # ── formulation の同一パス更新（update-guard.py） ──────────────────────
 existing="$TMP_ROOT/existing.md"; different="$TMP_ROOT/new.md"; cp "$good_story" "$existing"
+python3 "$PACKAGE/skills/formulate-domain/scripts/update-guard.py" self-test >/dev/null && pass "update-guard.py self-test（同一実体・別path・symlink・欠落）" || fail "update-guard.py self-test"
 for directory in formulate-domain formulate-user-journey formulate-data-model; do
   guard="$PACKAGE/skills/$directory/scripts/update-guard.py"
-  python3 "$guard" --existing "$existing" --output "$existing" >/dev/null && pass "$directory は同一パス更新を受理" || fail "$directory 同一パス更新"
-  python3 "$guard" --existing "$existing" --output "$different" >/dev/null 2>&1 && fail "$directory が新規資料を許可" || pass "$directory は新規資料を拒否"
+  python3 "$guard" check --existing "$existing" --output "$existing" >/dev/null && pass "$directory は同一パス更新を受理" || fail "$directory 同一パス更新"
+  rejects python3 "$guard" check --existing "$existing" --output "$different" && pass "$directory は新規資料を拒否（exit 1）" || fail "$directory が新規資料を拒否できない"
 done
 
-# ── 物理設計の検査（rdb.py）: 指紋・根拠台帳・必須欄 ──────────────────
+# ── 物理設計の検査（rdb.py）: 指紋・機能根拠欄・必須欄。論理資料は正本path、物理設計本文はstdin ──
 rdb="$PACKAGE/skills/formulate-data-model/scripts/rdb.py"
+python3 "$rdb" self-test >/dev/null && pass "rdb.py self-test（正例・根拠欄欠落・根拠不正・local:受理・重複・空stdin・正本欠落・旧引数拒否・指紋不一致）" || fail "rdb.py self-test"
 logical="$TMP_ROOT/logical.md"
 printf '%s\n' '# RDB論理設計 — 予約' '## 論理テーブル定義' '### テーブル: reservation' '#### 列: id' '#### 列: slot' '#### 業務制約: 同じ利用枠に有効な予約は一つ' > "$logical"
 digest=$(python3 "$rdb" fingerprint --model-file "$logical" | jq -r '.digest')
 [ -n "$digest" ] && pass "rdb.py fingerprint" || fail "rdb.py fingerprint"
-ledger="$TMP_ROOT/caps.jsonl"
-python3 "$rdb" capability --ledger "$ledger" --product PostgreSQL --version 16 --feature "排他制約" --support-from "9.0" --evidence "https://www.postgresql.org/docs/16/" --note "利用枠の重なりを止める" >/dev/null \
-  && pass "rdb.py capability 記録" || fail "rdb.py capability 記録"
+python3 "$rdb" fingerprint --model-file "$TMP_ROOT/missing-logical.md" >/dev/null 2>&1; [ $? -eq 2 ] && pass "rdb.py fingerprint: 正本pathの欠落はexit 2" || fail "rdb.py fingerprint: 正本欠落の終了code"
 design="$TMP_ROOT/design.md"
 cat > "$design" <<EOF
 # RDB物理設計 — 予約
@@ -322,6 +330,9 @@ x
 x
 ## 採用するRDB機能
 ### 機能: 排他制約
+- 採用箇所: reservation(slot)
+- 利用可能な版: 9.0
+- 根拠: https://www.postgresql.org/docs/16/
 - 対象バージョンで確認したこと: 実機
 ## 物理設計の完了条件
 x
@@ -339,14 +350,19 @@ x
 - SLO: p95 100ms
 - 支えるindex: reservation_slot_excl
 EOF
-python3 "$rdb" check --design-file "$design" --model-file "$logical" --ledger "$ledger" --product PostgreSQL --version 16 >/dev/null \
-  && pass "rdb.py check 正例" || fail "rdb.py check 正例"
-sed 's/^### 機能: 排他制約$/### 機能: 未確認の機能/' "$design" > "$TMP_ROOT/design-noevidence.md"
-python3 "$rdb" check --design-file "$TMP_ROOT/design-noevidence.md" --model-file "$logical" --ledger "$ledger" --product PostgreSQL --version 16 >/dev/null 2>&1 \
-  && fail "根拠の無い機能を許可" || pass "根拠の無い機能を拒否"
+rdb_check() { python3 "$rdb" check --model-file "$logical" --product PostgreSQL --version 16 < "$1"; }
+rdb_check "$design" >/dev/null && pass "rdb.py check 正例（stdin本文）" || fail "rdb.py check 正例"
+sed '/^- 根拠: https:\/\/www.postgresql.org\/docs\/16\/$/d' "$design" > "$TMP_ROOT/design-noevidence.md"
+rejects rdb_check "$TMP_ROOT/design-noevidence.md" && pass "根拠欄の無い機能を拒否（exit 1）" || fail "根拠欄の無い機能を拒否できない"
+sed 's|^- 根拠: https://www.postgresql.org/docs/16/$|- 根拠: 読んだ気がする|' "$design" > "$TMP_ROOT/design-badevidence.md"
+rejects rdb_check "$TMP_ROOT/design-badevidence.md" && pass "https / local: 以外の根拠を拒否（exit 1）" || fail "形の合わない根拠を拒否できない"
 printf '%s\n' '#### 列: created_at' >> "$logical"
-python3 "$rdb" check --design-file "$design" --model-file "$logical" --ledger "$ledger" --product PostgreSQL --version 16 >/dev/null 2>&1 \
-  && fail "論理構造の変化を許可" || pass "論理構造の変化（指紋不一致）を拒否"
+rdb_check "$design" > "$TMP_ROOT/rdb-drift.out" 2>&1; drift_code=$?
+if [ "$drift_code" -eq 1 ] && rg -q '論理構造の指紋' "$TMP_ROOT/rdb-drift.out"; then
+  pass "論理構造の変化を指紋不一致の診断で拒否（exit 1）"
+else
+  fail "論理構造の変化を指紋不一致の診断で拒否できない（exit ${drift_code}）"
+fi
 
 # ── 構文 ─────────────────────────────────────────────────────────────────
 syntax_failed=0

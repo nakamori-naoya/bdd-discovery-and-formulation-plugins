@@ -1,10 +1,22 @@
 #!/usr/bin/env python3
-"""BDD条件マトリクスに隠れた前提がないか検査する。"""
+"""BDD条件マトリクスに隠れた前提がないか検査する。
+
+  scenario_matrix.py check   < <条件マトリクスJSON>
+      -> 違反をstdoutへJSON 1行ずつ出す。exit 0 = 違反なし / 1 = 違反あり（path, detail, howto） / 2 = 入力を読めない
+  scenario_matrix.py self-test
+
+正本: BDDの前提・トリガー・失敗理由（scenario-premises.md）が定める条件マトリクスの形。
+入力: agentが同じ文脈で作った条件マトリクスJSONを標準入力で受ける。fileは介さない。
+合格述語: scenarios が空でないlistで、各シナリオの kind / expected / rule / trigger / premises / note が
+  種別ごとの成立条件（成功は全前提satisfied、単一失敗は対象1件unsatisfied、境界は対象1件boundary、
+  相互作用は対象2件以上、失敗にはrule/source一致のnote）を満たす。
+意味評価として残す範囲: 前提が業務上必要十分か、rule と source が正しい業務ルールを指すか。
+"""
 
 import argparse
 import json
 import re
-from pathlib import Path
+import sys
 
 KINDS = {"success", "single_failure", "boundary", "interaction"}
 EXPECTED = {"success", "failure"}
@@ -123,25 +135,85 @@ def validate(data):
     return problems
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    sub = parser.add_subparsers(dest="command", required=True)
-    check = sub.add_parser("check")
-    check.add_argument("--file", required=True)
-    args = parser.parse_args()
+def read_stdin_json():
+    """標準入力を条件マトリクスJSONとして読む。読めなければ (None, 診断) を返す。"""
+    raw = sys.stdin.read()
+    if not raw.strip():
+        return None, "標準入力が空。条件マトリクスJSONを標準入力で渡す"
     try:
-        data = json.loads(Path(args.file).read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        print(json.dumps({"error": f"条件マトリクスを読めない: {exc}"}, ensure_ascii=False))
-        raise SystemExit(2)
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return None, f"標準入力がJSONではない: {exc}"
+    if not isinstance(data, dict):
+        return None, "条件マトリクスはobjectでなければならない"
+    return data, None
+
+
+def cmd_check():
+    data, error = read_stdin_json()
+    if error:
+        print(json.dumps({"error": f"条件マトリクスを読めない: {error}"}, ensure_ascii=False))
+        return 2
     problems = validate(data)
     for item in problems:
         print(json.dumps(item, ensure_ascii=False))
     if problems:
         print(json.dumps({"error": f"{len(problems)}件の違反"}, ensure_ascii=False))
-        raise SystemExit(1)
+        return 1
     print(json.dumps({"check": "clean", "scenarios": len(data["scenarios"])}, ensure_ascii=False))
+    return 0
+
+
+def self_test():
+    import subprocess
+
+    good = {"scenarios": [
+        {"name": "成功", "kind": "success", "expected": "success", "rule": "R",
+         "trigger": {"kind": "event", "text": "受付が起きる"},
+         "premises": [{"text": "Aが成立", "state": "satisfied", "target": False, "source": "業務規則"}]},
+        {"name": "単一失敗", "kind": "single_failure", "expected": "failure", "rule": "R",
+         "trigger": {"kind": "action", "text": "確認する"},
+         "premises": [{"text": "Aが成立", "state": "satisfied", "target": False, "source": "業務規則"},
+                      {"text": "Bが不成立", "state": "unsatisfied", "target": True, "source": "業務規則"}],
+         "note": {"rule": "R", "reason": "Bに抵触"}},
+        {"name": "境界", "kind": "boundary", "expected": "success", "rule": "R",
+         "trigger": {"kind": "action", "text": "判定する"},
+         "premises": [{"text": "Aが境界", "state": "boundary", "target": True, "source": "業務規則"}]},
+        {"name": "組合せ", "kind": "interaction", "expected": "success", "rule": "R",
+         "trigger": {"kind": "event", "text": "同時に起きる"},
+         "premises": [{"text": "A", "state": "satisfied", "target": True, "source": "業務規則"},
+                      {"text": "B", "state": "satisfied", "target": True, "source": "業務規則"}]},
+    ]}
+    assert validate(good) == [], "正例: 4種別が通る"
+    implicit = json.loads(json.dumps(good, ensure_ascii=False))
+    implicit["scenarios"][1]["premises"][0]["state"] = "unsatisfied"
+    assert validate(implicit), "反例: 検証対象以外の未成立を拒否"
+    assert validate({"scenarios": []}), "反例: シナリオ0件"
+
+    def run(stdin_text):
+        return subprocess.run([sys.executable, __file__, "check"], input=stdin_text, text=True, capture_output=True)
+
+    assert run("").returncode == 2, "境界例: 空stdinはexit 2"
+    assert run("{not json").returncode == 2, "境界例: 不正JSONはexit 2"
+    assert run("[]").returncode == 2, "境界例: objectでない入力はexit 2"
+    assert run(json.dumps(good, ensure_ascii=False)).returncode == 0, "正例: stdin経由で通る"
+    assert run(json.dumps(implicit, ensure_ascii=False)).returncode == 1, "反例: stdin経由で違反はexit 1"
+    old_form = subprocess.run([sys.executable, __file__, "check", "--file", "x"], text=True, capture_output=True)
+    assert old_form.returncode == 2, "境界例: 旧引数 --file はargparseが拒否する"
+    print(json.dumps({"self_test": "passed", "cases": 9}, ensure_ascii=False))
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("check")
+    sub.add_parser("self-test")
+    args = parser.parse_args()
+    if args.command == "self-test":
+        return self_test()
+    return cmd_check()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

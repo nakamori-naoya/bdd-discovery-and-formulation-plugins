@@ -9,7 +9,7 @@ python3 /Users/naoya-nakamoriq/Documents/Github/harness-pluginsv2/scripts/valida
 
 `validate-structure.sh`は、両marketplaceと両runtime manifestのidentityが一致すること、公開入口6つと内部skill4つの集合がmanifestとdirectoryで一致すること、`CONTRACT.md`を持たないpackageが`playbooks` / `implements`を宣言しないこと、runtime manifestがpackage rootにだけあること、各`SKILL.md`の`name`がdirectory名と一致すること、隣接`playbook.yml`が外部packageだけを`requires`へ宣言し`playbook:`工程でだけ呼ぶこと、`script:` / `skill:`参照が実在すること、`shared/quality-engineering`の複製がbyte一致すること、禁止参照形が配布物に無いことを検査する。
 
-続けて、各toolを正例・反例・境界例で実行する。条件マトリクス（暗黙前提の拒否）、domainのGherkin検査（量を品質gateにせず、複数Whenを拒否）、誰が行えるかの網羅（`actor-coverage.py self-test`）、ユーザー目的達成BDD（複数場面の受理、語彙責務を機械判定しない、接続欠落の拒否）、formulation 3入口の同一パス更新、物理設計検査（指紋、根拠台帳、論理構造の変化の拒否）である。
+続けて、各toolの`self-test`（正例・反例・境界例: 空stdin、不正JSON、正本pathの欠落、旧引数のargparse拒否）と、SKILL.mdの手順と同じ形（本文はstdin、条件マトリクスは`--matrix-json`引数）でfixtureを渡す実行を行う。条件マトリクス（暗黙前提の拒否）、domainのGherkin検査（量を品質gateにせず、複数Whenを拒否）、誰が行えるかの網羅（`actor-coverage.py`）、ユーザー目的達成BDD（複数場面の受理、語彙責務を機械判定しない、接続欠落の拒否）、formulation 3入口の同一パス更新（`update-guard.py check`）、物理設計検査（指紋、機能節の根拠欄、論理構造の変化の拒否）である。agentが作った本文をfile引数で渡す経路が無いことは、tokenの不在では検査せず、SKILL.mdの手順文とscriptの引数を読んで評価する。
 
 `validate.sh`はさらに共有保守tool（`test-hardening.py`、`sync-runtime.py --check`、`validate-distribution.py`）と、兄弟checkoutの実配布物に対する消費側lint（`lint-consumer-contract.py`）を両runtimeで実行する。実配布物が見つからなければ落ちる。
 

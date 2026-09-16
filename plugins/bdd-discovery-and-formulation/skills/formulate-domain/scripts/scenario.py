@@ -4,15 +4,19 @@
 **読みやすさは自動化のしやすさより優先する。** ここで見るのは、
 その読みやすさを機械で守れる部分だけである。意図が伝わるかは人の判断に残る。
 
-  scenario.py check --file <BDD草案.feature> --matrix <condition-matrix.json>
+  scenario.py check --matrix-json '<条件マトリクスJSON>'   < <Gherkin本文>
       -> 違反をstdoutへJSON 1行ずつ出す。exit 0 = 違反なし / 1 = 違反あり（line, kind, detail, howto） / 2 = 入力を読めない
+  scenario.py self-test
 
+BDD草案（Gherkin本文）はそのまま標準入力で、条件マトリクスは --matrix-json 引数のJSON文字列で受ける。fileは介さない。
+標準入力が空、--matrix-json がJSONでない、objectでない場合は exit 2。
 Backgroundは使わない（共通の前提が重複しても各シナリオへ書くほうが読みやすい）。
 """
 
 import argparse
 import json
 import re
+import subprocess
 import sys
 
 from scenario_matrix import validate as validate_matrix
@@ -37,12 +41,18 @@ def fail(msg, code=2):
 
 
 
-def read_text(path):
+def read_inputs(matrix_json):
+    """標準入力のGherkin本文と --matrix-json の条件マトリクスを読む。読めなければ exit 2。"""
+    draft = sys.stdin.read()
+    if not draft.strip():
+        fail("標準入力が空。BDD草案（Gherkin本文）を標準入力で渡す")
     try:
-        with open(path, encoding="utf-8") as f:
-            return f.read()
-    except OSError as e:
-        fail("シナリオを読めない: {}".format(e))
+        matrix = json.loads(matrix_json)
+    except json.JSONDecodeError as e:
+        fail("--matrix-json がJSONではない: {}".format(e))
+    if not isinstance(matrix, dict):
+        fail("--matrix-json は条件マトリクスobjectでなければならない")
+    return draft, matrix
 
 
 def parse(text):
@@ -240,22 +250,18 @@ def check(doc, allow_background, matrix):
 
 
 
-def load_matrix(path):
-    try:
-        data = json.loads(read_text(path))
-    except json.JSONDecodeError as e:
-        fail("--matrix がJSONではない: {}".format(e))
-    matrix_problems = validate_matrix(data)
+def check_matrix(matrix):
+    matrix_problems = validate_matrix(matrix)
     if matrix_problems:
         for item in matrix_problems:
             print(json.dumps(item, ensure_ascii=False))
         fail("条件マトリクスに {} 件の違反".format(len(matrix_problems)), 1)
-    return data
 
 
 def cmd_check(args):
-    doc = parse(read_text(args.file))
-    matrix = load_matrix(args.matrix)
+    draft, matrix = read_inputs(args.matrix_json)
+    doc = parse(draft)
+    check_matrix(matrix)
     problems = check(doc, False, matrix)
     for p in problems:
         print(json.dumps(p, ensure_ascii=False))
@@ -265,16 +271,57 @@ def cmd_check(args):
     print(json.dumps({"check": "clean", "scenarios": len(doc["scenarios"])}, ensure_ascii=False))
 
 
+def self_test():
+    draft = (
+        "Feature: 予約\n"
+        "Scenario: 停止中の予約者は成立しない\n"
+        "  Given 予約者が候補を選べる\n"
+        "  And 予約者は仮押さえ停止中である\n"
+        "  When 予約者が候補を選ぶ\n"
+        "  Then 予約は成立しない\n"
+        "  NOTE:\n"
+        "    Rule: 予約成立規則\n"
+        "    Reason: 停止中顧客は新しい利用枠を確保できないため\n"
+    )
+    matrix = {"scenarios": [{
+        "name": "停止中の予約者は成立しない", "kind": "single_failure", "expected": "failure", "rule": "予約成立規則",
+        "trigger": {"kind": "action", "text": "予約者が候補を選ぶ"},
+        "premises": [
+            {"text": "予約者が候補を選べる", "state": "satisfied", "target": False, "source": "予約資料"},
+            {"text": "予約者は仮押さえ停止中である", "state": "unsatisfied", "target": True, "source": "予約成立規則"},
+        ],
+        "note": {"rule": "予約成立規則", "reason": "停止中顧客は新しい利用枠を確保できないため"},
+    }]}
+    assert check(parse(draft), False, matrix) == [], "正例: GherkinとマトリクスがGiven/When/NOTEで一致"
+    two_when = draft.replace("  Then 予約は成立しない", "  When 予約は成立しない")
+    assert any(p["kind"] == "行いの数" for p in check(parse(two_when), False, matrix)), "反例: Whenが2つ"
+    wrong_reason = draft.replace("停止中顧客は新しい利用枠を確保できないため\n", "違う理由\n")
+    assert any(p["kind"] == "NOTE" for p in check(parse(wrong_reason), False, matrix)), "反例: NOTEのReasonが不一致"
+
+    def run(stdin_text, *argv):
+        return subprocess.run([sys.executable, __file__, "check", *argv], input=stdin_text, text=True, capture_output=True)
+
+    matrix_arg = json.dumps(matrix, ensure_ascii=False)
+    assert run("", "--matrix-json", matrix_arg).returncode == 2, "境界例: 空stdinはexit 2"
+    assert run(draft, "--matrix-json", "{broken").returncode == 2, "境界例: 不正JSONはexit 2"
+    assert run(draft, "--matrix-json", "[]").returncode == 2, "境界例: objectでないマトリクスはexit 2"
+    assert run(draft).returncode == 2, "境界例: --matrix-json 欠落はargparseが拒否"
+    assert run(draft, "--file", "x", "--matrix", "y").returncode == 2, "境界例: 旧引数 --file / --matrix はargparseが拒否"
+    assert run(draft, "--matrix-json", matrix_arg).returncode == 0, "正例: stdin本文＋引数マトリクスで通る"
+    assert run(two_when, "--matrix-json", matrix_arg).returncode == 1, "反例: 違反はexit 1"
+    print(json.dumps({"self_test": "passed", "cases": 10}, ensure_ascii=False))
+
 
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
-
-    sp = sub.add_parser("check")
-    sp.add_argument("--file", required=True)
-    sp.add_argument("--matrix", required=True)
-
+    check = sub.add_parser("check")
+    check.add_argument("--matrix-json", required=True, help="条件マトリクスJSON文字列")
+    sub.add_parser("self-test")
     args = p.parse_args()
+    if args.cmd == "self-test":
+        self_test()
+        return
     cmd_check(args)
 
 

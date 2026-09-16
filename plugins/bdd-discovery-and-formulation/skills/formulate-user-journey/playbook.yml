@@ -10,7 +10,7 @@ requires:
 steps:
   - id: challenge
     playbook: grill
-    purpose: 既存正本を根拠に目的、両端、接続、分岐、中断再開、役割移譲、完了条件を問い、答えで本文の変更が一つに決まる不明点だけを1問ずつ確認する
+    purpose: 既存正本を根拠に目的、両端、接続、分岐、中断再開、役割移譲、完了条件を問い、答えで本文の変更が一つに決まる不明点を最大6問に厳選して確認する
     needs: [user_input, referenced_artifacts, existing_user_journey_bdd_path]
     provides: [decisions, open_questions]
 

@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""RDB機能根拠を記録し、物理設計が論理テーブル構造を変えていないか照合する。
+"""物理設計が論理テーブル構造を変えていないか、採用機能に対象版の根拠があるかを照合する。
 
-  rdb.py fingerprint --model-file <論理設計Markdown>
+  rdb.py fingerprint --model-file <論理設計Markdownの絶対path>
       -> 論理テーブル・列・業務制約から sha256 の指紋をstdoutへJSONで返す。exit 0 / 1 = 指紋を作れない / 2 = 読めない
-  rdb.py capability --ledger <機能根拠台帳.jsonl> --product <製品> --version <版> \
-      --feature <機能> --support-from <利用可能な版> --evidence <https URL または local:実機確認> --note <理由> [--replace]
-      -> 台帳へ1件追記する。exit 0 / 2 = 入力不正 / 3 = 同じ機能が既にある
-  rdb.py check --design-file <物理設計Markdown> --model-file <論理設計Markdown> \
-      --ledger <機能根拠台帳.jsonl> --product <製品> --version <版>
-      -> 見出し、対象、指紋、論理定義の非複製、業務制約の扱い、index・Read・分離性判断の欄、採用機能の根拠を検査する。
-         exit 0 = 整合 / 1 = 問題あり（stdoutへ問題を1行ずつ） / 2 = 読めない
+  rdb.py check --model-file <更新済み論理設計Markdownの絶対path> --product <製品> --version <版>   < <物理設計本文Markdown>
+      -> 見出し、対象、指紋、論理定義の非複製、業務制約の扱い、index・Read・分離性判断の欄、採用機能の根拠欄を検査する。
+         exit 0 = 整合 / 1 = 問題あり（stdoutへ problem を1行ずつ） / 2 = 読めない
+  rdb.py self-test
 
-検査するのは述語だけであり、index の選択や分離レベルの妥当性は判定しない。
+正本: --model-file が指す保存済みの論理設計資料。指紋はそこから毎回計算する。
+入力: agentが同じ文脈で作った物理設計本文（Markdown）を標準入力で受ける。fileは介さない。
+  採用機能の根拠は本文の "### 機能: <名前>" 節の "- 利用可能な版:" と "- 根拠:" 欄に書かれ、資料自体が根拠の記録になる。
+  "- 根拠:" は対象版の公式 https URL または local: で始まる実機確認。機能名は重複しない。
+検査するのは述語だけであり、index の選択や分離レベルの妥当性、根拠のURLがその版の公式資料かは判定しない。
 """
 
 import argparse
@@ -19,9 +20,10 @@ import hashlib
 import json
 import os
 import re
-from datetime import datetime, timedelta, timezone
+import subprocess
+import sys
+import tempfile
 
-JST = timezone(timedelta(hours=9))
 FEATURE = re.compile(r"^###\s+機能:\s*(.+?)\s*$")
 TABLE = re.compile(r"^###\s+テーブル:\s*(.+?)\s*$")
 COLUMN = re.compile(r"^####\s+列:\s*(.+?)\s*$")
@@ -51,6 +53,8 @@ READ_FIELDS = (
     "- 並び順と上限:", "- 返す情報:", "- 鮮度と一貫性:",
     "- 想定件数:", "- SLO:", "- 支えるindex:",
 )
+FEATURE_FIELDS = ("- 利用可能な版:", "- 根拠:")
+EVIDENCE_FIELD = "- 根拠:"
 
 
 def fail(message, code=2):
@@ -66,61 +70,6 @@ def target(args):
     if not product or not version:
         fail("--product / --version は空にできない")
     return product, version
-
-
-def read_jsonl(path, expected_kind=None):
-    if not os.path.isfile(path):
-        fail("入力ファイルが無い: {}".format(path))
-    rows = []
-    try:
-        with open(path, encoding="utf-8") as stream:
-            for number, line in enumerate(stream, 1):
-                if not line.strip():
-                    continue
-                try:
-                    row = json.loads(line)
-                except ValueError as exc:
-                    fail("{}の{}行目がJSONではない: {}".format(path, number, exc))
-                if expected_kind and row.get("kind") != expected_kind:
-                    continue
-                rows.append(row)
-    except OSError as exc:
-        fail("{}を読めない: {}".format(path, exc))
-    return rows
-
-
-def cmd_capability(args):
-    product, version = target(args)
-    feature = (args.feature or "").strip()
-    support_from = (args.support_from or "").strip()
-    evidence = (args.evidence or "").strip()
-    note = (args.note or "").strip()
-    if not all((feature, support_from, evidence, note)):
-        fail("feature、support-from、evidence、noteは空にできない")
-    if not (evidence.startswith("https://") or evidence.startswith("local:")):
-        fail("evidenceは対象版の公式https URLまたは local: で始まる実機確認にする")
-    path = args.ledger
-    if not os.path.isabs(path):
-        fail("--ledger は絶対pathで渡す: {}".format(path))
-    rows = read_jsonl(path) if os.path.exists(path) else []
-    duplicate = [row for row in rows if row.get("feature") == feature]
-    if duplicate and not args.replace:
-        fail("同じ機能の根拠がある。変更するなら --replace: {}".format(feature), 3)
-    row = {
-        "kind": "capability", "feature": feature,
-        "product": product, "version": version, "support_from": support_from,
-        "evidence": evidence, "note": note,
-        "ts": datetime.now(JST).isoformat(timespec="seconds"),
-    }
-    rows = [item for item in rows if item.get("feature") != feature] + [row]
-    try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as stream:
-            for item in rows:
-                stream.write(json.dumps(item, ensure_ascii=False) + "\n")
-    except OSError as exc:
-        fail("機能根拠台帳へ書けない: {}".format(exc))
-    print(json.dumps({"capability": "recorded", "feature": feature, "path": path}, ensure_ascii=False))
 
 
 def read_text(path, label):
@@ -263,11 +212,32 @@ def cmd_fingerprint(args):
     }, ensure_ascii=False))
 
 
+def read_stdin_design():
+    """標準入力を物理設計本文として読む。空なら exit 2。"""
+    design = sys.stdin.read()
+    if not design.strip():
+        fail("標準入力が空。物理設計本文（Markdown）を標準入力で渡す")
+    return design
+
+
+def check_feature_evidence(features, problems):
+    """各 ### 機能: 節が利用可能な版と根拠の欄を持ち、根拠が https URL または local: であることを検査する。"""
+    seen = set()
+    for name, lines in features:
+        if name in seen:
+            problems.append("機能「{}」が重複".format(name))
+        seen.add(name)
+        require_section_fields("機能", [(name, lines)], FEATURE_FIELDS, problems)
+        values = [line[len(EVIDENCE_FIELD):].strip() for line in lines if line.startswith(EVIDENCE_FIELD)]
+        for value in values:
+            if value and not (value.startswith("https://") or value.startswith("local:")):
+                problems.append("機能「{}」の根拠は対象版の公式https URLまたは local: で始まる実機確認にする: {}".format(name, value))
+
+
 def cmd_check(args):
     product, version = target(args)
-    design = read_text(args.design_file, "RDB設計")
+    design = read_stdin_design()
     model = read_text(args.model_file, "論理モデル")
-    capabilities = read_jsonl(args.ledger, "capability")
     problems = []
     design_lines = design.splitlines()
     for heading in REQUIRED_HEADINGS:
@@ -308,14 +278,10 @@ def cmd_check(args):
     if not isolation_cases:
         problems.append("### 分離性判断: <判断名> が1件も無い")
     require_section_fields("分離性判断", isolation_cases, ISOLATION_FIELDS, problems)
-    features = [match.group(1) for match in (FEATURE.match(line) for line in design_lines) if match]
+    features = named_sections(design_lines, FEATURE)
     if not features:
         problems.append("### 機能: <機能名> が1件も無い")
-    evidence = {row.get("feature"): row for row in capabilities
-                if row.get("product") == product and str(row.get("version")) == version}
-    for feature in features:
-        if feature not in evidence:
-            problems.append("採用機能「{}」に{} {}の根拠が無い".format(feature, product, version))
+    check_feature_evidence(features, problems)
     if problems:
         for problem in problems:
             print(json.dumps({"problem": problem}, ensure_ascii=False))
@@ -329,32 +295,78 @@ def cmd_check(args):
         "indexes": len(indexes),
         "read_scenarios": len(reads),
         "isolation_cases": len(isolation_cases),
-        "verified_features": len(features),
+        "features_with_evidence": len(features),
     }, ensure_ascii=False))
+
+
+def self_test():
+    logical_text = "\n".join((
+        "# RDB論理設計 — 予約", "## 論理テーブル定義", "### テーブル: reservation",
+        "#### 列: id", "#### 列: slot", "#### 業務制約: 同じ利用枠に有効な予約は一つ", "",
+    ))
+    with tempfile.TemporaryDirectory() as tmp:
+        logical = os.path.join(tmp, "logical.md")
+        with open(logical, "w", encoding="utf-8") as stream:
+            stream.write(logical_text)
+        fingerprint = subprocess.run([sys.executable, __file__, "fingerprint", "--model-file", logical], text=True, capture_output=True)
+        assert fingerprint.returncode == 0, "正例: fingerprint"
+        digest = json.loads(fingerprint.stdout)["digest"]
+        design = "\n".join((
+            "# RDB物理設計 — 予約", "## 対象と論理設計", "- 対象DBMS: PostgreSQL", "- 対象バージョン: 16",
+            "- 論理モデル: logical.md", "- 論理構造の指紋: sha256:" + digest,
+            "## 物理制約", "同じ利用枠に有効な予約は一つ を排他制約で守る", "## 物理化の方針", "x",
+            "## index", "### index: reservation_slot_excl", "- 対象: reservation(slot)", "- 種類: GiST 排他",
+            "- 目的: 競合制御", "- 列の順番: 単一列", "- 対象Read・更新: 予約の作成", "- 根拠: 対象版仕様", "- 更新費用: 小",
+            "## トランザクションと分離レベル", "### 分離性判断: 同時予約", "- 同時に進む操作: 予約Aと予約B",
+            "- 許してはいけない結果: 同じ枠に二つの予約", "- 発生し得る現象: 書き込みスキュー",
+            "- 選択する分離レベル: READ COMMITTED", "- 併用する仕組み: 排他制約", "- 対象バージョンでの確認: 実機",
+            "- 競合時の扱い: 中断して利用者へ返す", "## パーティションと配置", "なし", "## 容量・性能・運用", "x",
+            "## 採用するRDB機能", "### 機能: 排他制約", "- 採用箇所: reservation(slot)の排他制約",
+            "- 利用可能な版: 9.0", "- 根拠: https://www.postgresql.org/docs/16/", "- 対象バージョンで確認したこと: 実機",
+            "## 物理設計の完了条件", "x", "## 未決", "なし", "## 代表的な読み取り", "### Read-001: 空き枠を探す",
+            "- 利用者と目的: 予約者", "- 入力・検索条件: 日付", "- 結合: なし", "- 並び順と上限: 開始時刻, 100",
+            "- 返す情報: slot", "- 鮮度と一貫性: primary", "- 想定件数: 1000", "- SLO: p95 100ms",
+            "- 支えるindex: reservation_slot_excl", "",
+        ))
+
+        def run(payload, model=logical, *extra):
+            return subprocess.run([sys.executable, __file__, "check", "--model-file", model, "--product", "PostgreSQL", "--version", "16", *extra],
+                                  input=payload, text=True, capture_output=True)
+
+        assert run(design).returncode == 0, "正例: 指紋・欄・根拠欄が揃う"
+        assert run("").returncode == 2, "境界例: 空stdinはexit 2"
+        assert run(design.replace("- 根拠: https://www.postgresql.org/docs/16/\n", "")).returncode == 1, "反例: 根拠欄が無い"
+        assert run(design.replace("- 利用可能な版: 9.0\n", "")).returncode == 1, "反例: 利用可能な版の欄が無い"
+        assert run(design.replace("https://www.postgresql.org/docs/16/", "読んだ気がする")).returncode == 1, "反例: 根拠の形が不正"
+        assert run(design.replace("https://www.postgresql.org/docs/16/", "local: 16.4で排他制約を実行して確認")).returncode == 0, "境界例: local: の実機確認を受理"
+        duplicated = design.replace("## 物理設計の完了条件", "### 機能: 排他制約\n- 利用可能な版: 9.0\n- 根拠: https://www.postgresql.org/docs/16/\n## 物理設計の完了条件")
+        assert run(duplicated).returncode == 1, "反例: 同じ機能が重複"
+        assert run(design, os.path.join(tmp, "missing.md")).returncode == 2, "境界例: 正本pathの欠落はexit 2"
+        old_form = subprocess.run([sys.executable, __file__, "check", "--design-file", "x", "--model-file", logical, "--product", "P", "--version", "1"], text=True, capture_output=True)
+        assert old_form.returncode == 2, "境界例: 旧引数 --design-file はargparseが拒否する"
+        old_sub = subprocess.run([sys.executable, __file__, "capability", "--ledger", "x"], text=True, capture_output=True)
+        assert old_sub.returncode == 2, "境界例: 旧subcommand capability は無い"
+        with open(logical, "a", encoding="utf-8") as stream:
+            stream.write("#### 列: created_at\n")
+        assert run(design).returncode == 1, "反例: 論理構造の変化（指紋不一致）"
+    print(json.dumps({"self_test": "passed", "cases": 12}, ensure_ascii=False))
 
 
 def main():
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
-    capability = sub.add_parser("capability")
-    capability.add_argument("--ledger", required=True)
-    capability.add_argument("--product", required=True)
-    capability.add_argument("--version", required=True)
-    capability.add_argument("--feature", required=True)
-    capability.add_argument("--support-from", required=True)
-    capability.add_argument("--evidence", required=True)
-    capability.add_argument("--note", required=True)
-    capability.add_argument("--replace", action="store_true")
     check = sub.add_parser("check")
-    check.add_argument("--design-file", required=True)
     check.add_argument("--model-file", required=True)
-    check.add_argument("--ledger", required=True)
     check.add_argument("--product", required=True)
     check.add_argument("--version", required=True)
     fingerprint = sub.add_parser("fingerprint")
     fingerprint.add_argument("--model-file", required=True)
+    sub.add_parser("self-test")
     args = parser.parse_args()
-    {"capability": cmd_capability, "check": cmd_check, "fingerprint": cmd_fingerprint}[args.command](args)
+    if args.command == "self-test":
+        self_test()
+        return
+    {"check": cmd_check, "fingerprint": cmd_fingerprint}[args.command](args)
 
 
 if __name__ == "__main__":

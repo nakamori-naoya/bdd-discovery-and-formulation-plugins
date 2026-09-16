@@ -17,14 +17,14 @@
 - `contract: grill/grill` と `version: 1`
 - `topic`：確認したい題材
 - `context`：`purpose`、`audience`、`boundary`
-- `questions`：`{id, question, recommendation}` の配列。問いを相手に立ててもらう場合は空配列
+- `questions`：`{id, question, recommendation}` の配列。成果を左右する問いに厳選し、1回の呼び出しで**最大6問**。超える論点は渡さず、推奨を仮置きした未決として自分の成果物へ書く。問いを相手に立ててもらう場合は空配列
 - `grounding`：任意の根拠資料の絶対パス配列
 
-題材固有の観点は `context` と `questions` で渡す。空の `questions` は確認を省略する指示ではない。
+題材固有の観点は `context` と `questions` で渡す。空の `questions` は確認を省略する指示ではない。2回目の呼び出しは、利用者が求めた場合か、決定なしでは成果物を完成できない場合だけ行う。
 
 ### 受け取る結果
 
-直接返された結果objectを読み、`status: completed` の場合だけ続ける。`decisions` と `open_questions` はキーが存在する配列でなければならず、欠落、`null`、別の型は失敗として停止する。合法な空配列はそのまま受け入れる。`decisions` の各要素は `{id, question, answer, rationale}`、`open_questions` の各要素は `{id, question, state, reason}` を持ち、未決の `state` は `open` または `withdrawn` である。同じagentがこれらを利用者入力・明示資料と突き合わせて根拠づけられた入力を確定する。
+直接返された結果objectを読み、`status: completed` の場合だけ続ける。`decisions` と `open_questions` はキーが存在する配列でなければならず、欠落、`null`、別の型は公開契約に反する結果として止まる。合法な空配列はそのまま受け入れる。`decisions` の各要素は `{id, question, answer, rationale}`、`open_questions` の各要素は `{id, question, state, reason}` を持ち、未決の `state` は `open` または `withdrawn` である。同じagentがこれらを利用者入力・明示資料と突き合わせて根拠づけられた入力を確定し、`open` の未決と自分が仮置きした推奨を成果物のドラフトへ仮説と分かる形で反映する。
 
 ## write-doc（契約 `write-doc/write-doc` 版2）
 
@@ -49,4 +49,4 @@
 
 成功時は `status: completed` と `path`、失敗時は `status: failed` と `reason` が直接返る。`completed` と、保存済み Markdown の絶対パスを確認した場合だけ、`path` を自分の資料成果物名へ対応させる。新規の場合は指定した `output_directory` と `name` による保存先、更新の場合は `update_target` と `path` が一致することも確認する。
 
-失敗、結果欠落、不正なパス、保存先不一致の場合は理由を報告し、後続の工程や一時ファイルの削除へ進まない。
+失敗、結果欠落、不正なパス、保存先不一致の場合は理由を報告し、後続の工程へ進まない。
