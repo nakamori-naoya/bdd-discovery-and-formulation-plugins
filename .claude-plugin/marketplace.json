@@ -9,7 +9,7 @@
       "name": "bdd-discovery-and-formulation",
       "source": "./plugins/bdd-discovery-and-formulation",
       "description": "ドメイン、データモデル、User JourneyのBDD発見・深化の公開入口を一括提供する",
-      "version": "3.0.3"
+      "version": "4.0.0"
     }
   ]
 }
