@@ -18,4 +18,5 @@
 - Slack、meeting、session収集、digest、cadence、agent-run、PR関連を追加しない。
 - 保守tool（root契約の構造検査、回帰検査、消費側lint、release、eval）の正本は兄弟checkout `../harness-tools/`であり、このrepositoryは複製を持たない。`scripts/validate.sh`は`../harness-tools/tools`の実在を確認してから呼び、無ければ止まる。
 - 変更後は`bash scripts/validate.sh`と、workspace rootの`bash scripts/validate.sh <このrepositoryの絶対path>`を実行し、正常系だけでなく意図的に壊した負の試験が落ちることも確認する。
+- このrepositoryの変更をmainへマージしたら、同じ作業の続きとしてlocalのmainをremoteの最新状態へfast-forwardし、README.mdの更新手順に従ってCodexとClaude Codeのmarketplaceおよび`bdd-discovery-and-formulation` pluginを更新する。更新後は、両runtimeがmainに含まれる最新versionを参照していることを確認してから完了を報告する。`CLAUDE.md`は`@AGENTS.md`を読むため、この規則をClaude Codeにも同じく適用する。
 - install cacheは編集せず、このsourceを正本としてチューニングする。
