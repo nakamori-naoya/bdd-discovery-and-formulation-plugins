@@ -1,7 +1,7 @@
 version: 2
 name: formulate-data-model
-description: 対応する業務知識から既存のBDD付きRDB論理設計を反証して同じ資料へ戻し、そのテーブル構造を変えずに対象RDBの物理設計を作る
-inputs: [user_input, business_knowledge_paths, references, existing_logical_document_path, modeling_method, database_product, database_version, physical_output_directory, physical_name]
+description: 対応する業務知識から既存のBDD付きRDB論理データモデルを反証し、確認済みの発見を同じ正本へ更新する
+inputs: [user_input, business_knowledge_paths, references, existing_logical_document_path, modeling_method]
 
 requires:
   - {plugin: grill, marketplace: grill}
@@ -16,19 +16,19 @@ steps:
 
   - id: challenge-persistence
     playbook: grill
-    purpose: 既存論理資料を根拠にQA観点で問い、答えで残す事実・履歴・業務制約または物理設計の前提が変わる問いを成果を左右する順に厳選して利用者へ確認し、確認済みの発見と未決を分ける
+    purpose: 既存論理資料の永続化上の主張へQA観点を当て、答えで残す事実・履歴・業務制約が変わる問いだけを確かめる
     needs: [user_input, validated_business_knowledge_paths, references, existing_logical_document_path]
     provides: [decisions, open_questions]
 
   - id: ground
     agent_work: invoking_agent
-    purpose: 同じagentが既存論理資料、依頼、決定、未決を根拠・仮説・未確認へ区別して保持する
+    purpose: 既存論理資料、依頼、決定、未決を根拠・仮説・未確認へ区別して保持する
     needs: [existing_logical_document_path, validated_business_knowledge_paths, decisions, open_questions]
     provides: [grounded_input]
 
   - id: deepen-scenarios
     skill: write-persistence-scenarios
-    purpose: 同じagentが同梱skillの判断規律で、作成・更新・削除、履歴、保持、失敗時保証の不足を永続化シナリオと条件マトリクスへ深化させる
+    purpose: 作成・更新・削除、履歴、保持、失敗時保証の不足を永続化シナリオと条件マトリクスへ深化させる
     needs: [existing_logical_document_path, grounded_input]
     provides: [revised_persistence_scenarios, persistence_coverage, condition_matrix]
 
@@ -40,46 +40,26 @@ steps:
 
   - id: revise-logical-model
     skill: design-data-model
-    purpose: 同じagentが同梱skillの判断規律と選んだ手法で、確認済みの発見を論理構造とBDDへ戻し、同一パス更新へ渡す本文を作る
+    purpose: 確認済みの発見を論理構造とBDDへ戻し、同一path更新へ渡す本文を作る
     needs: [existing_logical_document_path, revised_persistence_scenarios, persistence_coverage, condition_matrix, validation_report, modeling_method, grounded_input]
     provides: [revised_logical_data_model, final_markdown, requested_output_path]
 
   - id: validate-immutable-structure
     script: scripts/immutable_model.py
-    purpose: 全論理テーブルの分類、宣言した時刻、イベント追加専用という構造契約だけを検査し、設計の意味は採点しない
+    purpose: 全論理テーブルの分類、時刻、イベント追加専用という構造契約だけを検査する
     needs: [final_markdown]
     provides: [immutable_validation_report]
 
   - id: guard-logical-update
     script: scripts/update-guard.py
-    purpose: 更新先が入力された既存論理資料と同じパスであることを検査する
+    purpose: 更新先が入力された既存論理資料と同じ実体であることを検査する
     needs: [existing_logical_document_path, requested_output_path, immutable_validation_report]
     provides: [update_target]
 
   - id: update-logical-document
     playbook: write-doc
-    purpose: 同じagentが保持した深化済みBDDと論理モデルをtext materialとして渡し、既存資料と同じパスへ差し替える
+    purpose: 深化済みBDDと論理モデルを既存資料と同じpathへ保存する
     input:
       document_type: rdb-logical-data-modeling
     needs: [final_markdown, validation_report, immutable_validation_report, update_target, references]
     provides: [updated_logical_document_path]
-
-  - id: design-physical
-    agent_work: invoking_agent
-    purpose: 同じagentが保存成功した更新済み論理資料の構造を固定し、対象RDBと版で確認できた機能だけでRead、型、制約、index、分離レベル、配置を物理設計本文へ写し、採用機能ごとの根拠を本文の機能節に書く
-    needs: [updated_logical_document_path, database_product, database_version, grounded_input]
-    provides: [read_scenarios, physical_final_markdown]
-
-  - id: verify-physical
-    script: scripts/rdb.py
-    purpose: 物理設計本文を標準入力で受け、保存済み論理資料の構造を変えず、必要な欄と機能ごとの根拠欄を持つことを検査し、設計の妥当性は採点しない
-    needs: [physical_final_markdown, updated_logical_document_path, database_product, database_version]
-    provides: [physical_validation_report]
-
-  - id: document-physical
-    playbook: write-doc
-    purpose: 検査済みの物理設計本文をtext materialとして渡し、RDB物理設計資料を1本保存する
-    input:
-      document_type: rdb-physical-design
-    needs: [physical_final_markdown, physical_validation_report, physical_output_directory, physical_name, references]
-    provides: [physical_rdb_design_path]
