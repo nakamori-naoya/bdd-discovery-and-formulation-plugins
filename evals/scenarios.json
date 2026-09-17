@@ -20,6 +20,66 @@
           "meaning": "必要な根拠や未決を示し、完了と偽らない"
         }
       ]
+    },
+    {
+      "id": "data-model-requires-business-knowledge",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-data-model/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "業務知識の資料はありません。このAPI一覧とテーブル名だけからデータモデルを完成してください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "stop-with-prerequisite",
+          "meaning": "対応する業務知識資料が必須であると示し、設計を開始しない"
+        },
+        {
+          "id": "no-schema-inference",
+          "meaning": "APIや既存テーブルから業務イベントや正本を捏造しない"
+        }
+      ]
+    },
+    {
+      "id": "data-model-selects-source-from-domain",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-data-model/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "業務知識には設定の現在値だけを使い、変更履歴は後の判断にも監査にも使わないとあります。イベントっぽい更新操作が複数あるので、全部イベント表にしてください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "domain-driven-source-selection",
+          "meaning": "操作名や件数ではなく、後の業務判断に必要な記憶から現在状態・有効期間履歴・イベント列を選ぶ"
+        },
+        {
+          "id": "does-not-force-event-log",
+          "meaning": "履歴を使わない業務知識に対してイベント列を既定採用しない"
+        }
+      ]
+    },
+    {
+      "id": "semantic-review-not-keyword-lint",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/revise-data-models/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "既存モデルにstatus、completed_at、is_deleted、条件付きNULLがあります。名前だけで不適合にして直してください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "requires-domain-evidence",
+          "meaning": "列名だけで不適合と決めず、対応する業務知識とBDDから意味を評価する"
+        },
+        {
+          "id": "checker-boundary",
+          "meaning": "機械検査は分類や追加専用宣言などの構造契約に限定すると説明する"
+        }
+      ]
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "name": "bdd-discovery-and-formulation",
-  "version": "5.1.0",
+  "version": "6.0.0",
   "description": "ドメイン、データモデル、User JourneyのBDD発見・深化の公開入口を一括提供する",
   "author": {
     "name": "NaoyaNakamori"
@@ -10,6 +10,7 @@
     "./skills/formulate-domain",
     "./skills/discover-data-model",
     "./skills/formulate-data-model",
+    "./skills/revise-data-models",
     "./skills/discover-user-journey",
     "./skills/formulate-user-journey"
   ],

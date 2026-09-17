@@ -1,0 +1,36 @@
+version: 2
+name: revise-data-models
+description: 対応する業務知識を前提に、複数の既存RDB論理設計を横断して同じpathへ改訂する
+inputs: [user_input, targets]
+requires: []
+
+steps:
+  - id: preflight-domain-knowledge
+    script: scripts/domain_input.py
+    purpose: 各論理資料に対応する業務知識が明示され、全pathが既存の通常fileであることを設計前に検査する
+    needs: [targets]
+    provides: [validated_targets]
+
+  - id: analyze-domains
+    agent_work: invoking_agent
+    purpose: 同じagentが各業務知識から業務イベント、後の問い、履歴を失う損失を分析し、現在状態・有効期間履歴・イベント列・派生の正本選択を決める
+    needs: [user_input, validated_targets]
+    provides: [modeling_decisions]
+
+  - id: revise-models
+    skill: design-data-model
+    purpose: 同じagentが全対象を一つの文脈で突き合わせ、分類、論理テーブル、ライフサイクル、BDDを横断改訂する
+    needs: [validated_targets, modeling_decisions]
+    provides: [revised_documents]
+
+  - id: validate-models
+    script: scripts/immutable_model.py
+    purpose: 全テーブル分類、宣言した時刻、イベント追加専用という構造契約だけを検査し、列の業務上の妥当性は採点しない
+    needs: [revised_documents]
+    provides: [immutable_validation_report]
+
+  - id: update-models
+    agent_work: invoking_agent
+    purpose: 検査済み本文を対象となった既存資料と同じpathへ保存し、部分成功を完成扱いにしない
+    needs: [validated_targets, revised_documents, immutable_validation_report]
+    provides: [updated_logical_document_paths]
