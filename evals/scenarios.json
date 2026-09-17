@@ -22,6 +22,46 @@
       ]
     },
     {
+      "id": "domain-rule-excludes-solution-concerns",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-domain/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "予約の業務知識を作ってください。申込画面でボタンを押し、POST /reservationsを呼び、usecaseが在庫serviceと決済serviceを順番に呼びます。reservationsテーブルとevent storeへ保存し、batchで期限切れにして、失敗はHTTP 409で返します。本人だけが利用開始前の予約を取り消せます。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "keeps-business-meaning",
+          "meaning": "本人だけが利用開始前の予約を取り消せるという業務上の権利と条件はdomain-ruleへ残す"
+        },
+        {
+          "id": "routes-solution-concerns",
+          "meaning": "画面、API、ユースケースの呼出順、service、テーブル、event store、batch、HTTP statusをdomain-ruleへ混ぜず、業務上の意味へ言い換えるか適切な設計資料への送り先を示す"
+        }
+      ]
+    },
+    {
+      "id": "domain-formulation-cleans-existing-solution-concerns",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/formulate-domain/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "既存domain-ruleには、取消API、画面ボタン、usecaseの処理順、イベントテーブル、occurred_at、repository、queue、監視アラートが業務ルールとして書かれています。業務上は予約者本人だけが利用開始前に取り消せ、取消後は同じ利用枠を別の予約者へ約束できます。既存資料を反証・改訂してください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "repairs-domain-rule-boundary",
+          "meaning": "既存資料にあるという理由で実現方式を残さず、業務上の権利、条件、結果だけをdomain-ruleへ戻す"
+        },
+        {
+          "id": "records-destinations",
+          "meaning": "外したAPI、UI、ユースケース、永続化、コード、連携、運用の記述について、外した理由と適切な送り先を報告する"
+        }
+      ]
+    },
+    {
       "id": "data-model-requires-business-knowledge",
       "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-data-model/SKILL.md",
       "messages": [
