@@ -220,6 +220,86 @@
           "meaning": "担当者が質問前には自己申告氏名を知らないという知識差が行為や結果に効く範囲だけを前提へ置き、画面・API・保存方式へ寄せない"
         }
       ]
+    },
+    {
+      "id": "user-journey-distinguishes-neighboring-artifacts",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-user-journey/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "検索画面を開き、キーワードを入力し、検索ボタンを押し、結果をクリックする流れをUser Journey BDDにしてください。知りたいのは各画面の操作順と、検索中に利用者が感じる不安です。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "rejects-ui-flow-as-journey",
+          "meaning": "操作列だけをUser Journeyへ広げず、開始状態、複数の意味ある場面、状態の受け渡し、観測可能な目的達成が欠けていると判定する"
+        },
+        {
+          "id": "routes-to-correct-artifacts",
+          "meaning": "画面の操作順はUIフロー、感情・接点・改善機会はUX Journey mapの関心として、User Journeyと混ぜずに送り先を示す"
+        }
+      ]
+    },
+    {
+      "id": "user-journey-centers-observable-continuity",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-user-journey/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "申込者が交換品を受け取って動作を確認するまでをJourneyにしてください。裏では申請API、審査batch、交換テーブル更新、queue配送、倉庫serviceが順番に動きます。申込者は受付完了、審査結果、集荷予定、交換品の到着を確認できます。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "uses-user-observable-scenes",
+          "meaning": "API、batch、table、queue、serviceを場面や役割にせず、申込者が見られる・知らされる・次にできるようになる意味ある変化を場面にする"
+        },
+        {
+          "id": "connects-scenes-by-state",
+          "meaning": "受付、審査、集荷、受取確認の各場面で、前の観測可能な結果から次の前提が成立する理由を接続として示し、交換品の動作確認を目的の観測可能な完了へ結び付ける"
+        }
+      ]
+    },
+    {
+      "id": "user-journey-groups-branches-by-purpose",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/formulate-user-journey/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "同じ購入者が商品を受け取る目的について、店舗受取、通常配送、日時指定配送を別々のJourney資料にしています。一方、受取後に返品して返金を受ける流れも同じ資料へ足したいです。既存資料を反証してください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "keeps-one-purpose-as-branches",
+          "meaning": "同じ主たるユーザーが同じ受取目的を達成する条件違いは、資料を増やさず一つのJourney内の分岐へ戻す"
+        },
+        {
+          "id": "separates-a-different-purpose",
+          "meaning": "返品して返金を受ける流れは目的と完了条件が異なるため、受取Journeyへ混ぜず別Journey候補として返す"
+        }
+      ]
+    },
+    {
+      "id": "user-journey-challenges-handoff-and-resumption",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/formulate-user-journey/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "故障交換Journeyでは、利用者が申請した後に受付担当から審査担当へ引き継ぎます。審査待ちで中断でき、30日以内なら途中から再開できます。現行BDDは `受付担当が審査担当へ渡す` とだけ書き、受け取られない場合、再開に残る状態、利用者が何を見て進捗を知るかを書いていません。深化してください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "makes-handoff-observable-and-failable",
+          "meaning": "誰から誰へ何の状態と責任が渡るか、受け手が何を観測すれば次へ進めるか、受け取られない場合にJourneyがどう終わるかを明らかにする"
+        },
+        {
+          "id": "preserves-resumption-boundary",
+          "meaning": "中断時に残る状態、30日の期限の直前・境界上・直後、途中から再開できる条件を、利用者が観測できる結果または可能な行動へ接続する"
+        }
+      ]
     }
   ]
 }
