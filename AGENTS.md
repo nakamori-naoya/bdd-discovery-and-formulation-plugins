@@ -5,7 +5,7 @@
 このrepositoryは、BDDによるdiscovery、formulation、User Journeyの意味判断を配布するsourceである。
 
 - 対象はドメインBDD、データモデリングBDD、User Journeyの線引き、ユーザー目的達成BDDに限定する。
-- marketplaceへ公開するインストール対象は`bdd-discovery-and-formulation` package 1つである。公開入口は`plugins/bdd-discovery-and-formulation/skills/<entry>/`の6つで、両runtime manifestの`skills`が列挙する。内部skillは2つ以上の公開入口が共有する判断だけを`internal/<name>/`に置き、`internalPlugins`で宣言する。1つの公開入口からしか使わない判断はその入口へ統合する。参照資料（`references/*.md`）は1か所にだけ置き、入口や内部skillへ複製しない。6入口が共有するBDDの記述規律は内部skill `write-bdd`が持ち、各入口は手順に入る前にそれを読んで適用する。
+- marketplaceへ公開するインストール対象は`bdd-discovery-and-formulation` package 1つである。公開入口は`plugins/bdd-discovery-and-formulation/skills/<entry>/`の7つで、両runtime manifestの`skills`が列挙する。内部skillは2つ以上の公開入口が共有する判断だけを`internal/<name>/`に置き、`internalPlugins`で宣言する。1つの公開入口からしか使わない判断はその入口へ統合する。参照資料（`references/*.md`）は1か所にだけ置き、入口や内部skillへ複製しない。7入口が共有するBDDの記述規律は内部skill `write-bdd`が持ち、各入口は手順に入る前にそれを読んで適用する。
 - 公開入口と内部skillは、directory名、`SKILL.md`の`name`、隣接`playbook.yml`の`name`を同じ一つの名前にする。
 - `SKILL.md`は目的、入力、判断基準（観察対象と二者択一の述語を肯定形で）、手順、停止条件、出力を持つ。停止条件は「止まる（必須入力の欠落、公開契約に反する入力、toolの失敗、保存先の不確定）」と「仮説を明示して進む（判断の揺れ、資料の不足、複数の解釈）」の2群に書き分け、判断の揺れで止まる文を置かない。実行基盤の配管（環境変数によるroot解決、設定解決script、`${.…}`マクロ、同期block、「解決済みYAMLを読め」型の指示）を書かない。入口が使うtoolは入口directory基準の相対pathで示し、入力（agentが作った本文は標準入力、正本はpath引数）、出力、終了code、失敗時に止まるか回復するかを手順の1か所で宣言する。検査のためだけの一時file、作業directory、後片付け工程を置かない。
 - 資料のtemplateを持たない。成果物の節構成と記法は、保存に使う`write-doc`の`document_type`（`domain-rule` / `user-journey-bdd` / `rdb-logical-data-modeling` / `rdb-physical-design`）をwrite-docが所有するtemplateが定め、このrepositoryのtoolが読む記法はそのtemplateが機械検査の記法として宣言する。

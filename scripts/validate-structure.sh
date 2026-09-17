@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scenario: BDD packageが6公開入口と5内部skillだけを配布し、入口のtoolが正例・反例・境界例で決まった結果を返す
+# Scenario: BDD packageが7公開入口と5内部skillだけを配布し、入口のtoolが正例・反例・境界例で決まった結果を返す
 #
 # 正本: 両marketplace、両runtime manifest、入口の playbook.yml。入口ごとの scripts/ に置く同名toolは、playbook.yml の script: が入口の scripts/ 配下を要求するための複製であり、互いにbyte一致する。
 # 入力: このrepositoryの配布物と、ここで作る fixture（検査toolへは標準入力または正本pathで渡し、tool専用の一時fileは置かない）。
@@ -21,7 +21,7 @@ for cmd in jq yq python3 bash cmp find sort diff rg; do
   command -v "$cmd" >/dev/null 2>&1 && pass "command $cmd" || fail "command $cmd が無い"
 done
 
-entries='discover-domain formulate-domain discover-data-model formulate-data-model discover-user-journey formulate-user-journey'
+entries='discover-domain formulate-domain discover-data-model formulate-data-model revise-data-models discover-user-journey formulate-user-journey'
 internals='explore-events map-user-journey write-persistence-scenarios design-data-model write-bdd'
 
 # ── marketplace と manifest の identity ──────────────────────────────────
@@ -54,7 +54,7 @@ printf '%s\n' $entries | sort > "$TMP_ROOT/expected-entries"
 jq -r '.skills[] | ltrimstr("./skills/")' "$PACKAGE/.claude-plugin/plugin.json" | sort > "$TMP_ROOT/manifest-entries"
 find "$PACKAGE/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort > "$TMP_ROOT/dir-entries"
 diff -u "$TMP_ROOT/expected-entries" "$TMP_ROOT/manifest-entries" >/dev/null && diff -u "$TMP_ROOT/expected-entries" "$TMP_ROOT/dir-entries" >/dev/null \
-  && pass "公開入口6つ = manifest skills = skills/直下" || fail "公開入口の集合"
+  && pass "公開入口7つ = manifest skills = skills/直下" || fail "公開入口の集合"
 printf '%s\n' $internals | sort > "$TMP_ROOT/expected-internals"
 jq -r '.metadata.harness.internalPlugins | to_entries[] | select(.value=="./internal/"+.key) | .key' "$PACKAGE/.claude-plugin/plugin.json" | sort > "$TMP_ROOT/manifest-internals"
 find "$PACKAGE/internal" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort > "$TMP_ROOT/dir-internals"
@@ -67,7 +67,7 @@ else
 fi
 [ "$(find "$PACKAGE" -name CONTRACT.md | wc -l | tr -d ' ')" = "0" ] && pass "公開playbook契約（CONTRACT.md）を持たない" || fail "CONTRACT.mdがあるのにplaybooksが無い"
 [ "$(find "$PACKAGE" -type d \( -name .claude-plugin -o -name .codex-plugin \) | wc -l | tr -d ' ')" = "2" ] && pass "runtime manifestはpackage rootにだけ" || fail "nested runtime manifestが残っている"
-[ "$(find "$PACKAGE" -name SKILL.md | wc -l | tr -d ' ')" = "11" ] && pass "SKILL.mdは公開6本と内部5本だけ" || fail "SKILL.mdの本数"
+[ "$(find "$PACKAGE" -name SKILL.md | wc -l | tr -d ' ')" = "12" ] && pass "SKILL.mdは公開7本と内部5本だけ" || fail "SKILL.mdの本数"
 
 for name in $entries $internals; do
   if [ -d "$PACKAGE/skills/$name" ]; then dir="$PACKAGE/skills/$name"; else dir="$PACKAGE/internal/$name"; fi
@@ -80,7 +80,7 @@ done
 matrix_source="$PACKAGE/skills/discover-domain/scripts/scenario_matrix.py"
 for directory in $entries; do
   pb="$PACKAGE/skills/$directory"
-  if yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -e --arg n "$directory" '.version==2 and .name==$n and (.requires|length>0) and all(.requires[]; (keys|sort)==["marketplace","plugin"] and .marketplace!="bdd-discovery-and-formulation" and .plugin==.marketplace)' >/dev/null; then
+  if yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -e --arg n "$directory" '.version==2 and .name==$n and (.requires|type=="array") and all(.requires[]; (keys|sort)==["marketplace","plugin"] and .marketplace!="bdd-discovery-and-formulation" and .plugin==.marketplace)' >/dev/null; then
     pass "$directory playbook.yml name / version / requiresは外部packageだけ"
   else
     fail "$directory playbook.yml の宣言"
@@ -90,8 +90,6 @@ for directory in $entries; do
       ([$root.requires[].plugin]) as $external |
       (all($root.steps[]; (.skill // "") as $s | ($external | index($s)) == null)) and
       (all($root.steps[]; (.playbook // null) as $b | $b == null or ($external | index($b)) != null)) and
-      ([$root.steps[] | select(.playbook != null)] | length > 0) and
-      ([$root.steps[] | select(.playbook == "write-doc")] | length > 0) and
       all($root.steps[] | select(.playbook == "write-doc"); (.input.document_type|type=="string") and (.input.document_type|test("^[a-z-]+$")))' >/dev/null; then
     pass "$directory 外部依存はplaybook:工程だけ、write-docのdocument_typeはliteral"
   else
@@ -105,7 +103,9 @@ for directory in $entries; do
   done < <(yq -o=json -I=0 '.' "$pb/playbook.yml" | jq -r '.steps[] | select(.skill) | .skill')
   [ -s "$pb/references/execution-guidance.md" ] && rg -F '[実行指示書](references/execution-guidance.md)' "$pb/SKILL.md" >/dev/null \
     && pass "$directory は実行指示書を入口から参照" || fail "$directory の実行指示書参照"
-  cmp -s "$matrix_source" "$pb/scripts/scenario_matrix.py" && pass "$directory 条件マトリクスvalidator同期" || fail "$directory 条件マトリクスvalidator同期"
+  if [ -f "$pb/scripts/scenario_matrix.py" ]; then
+    cmp -s "$matrix_source" "$pb/scripts/scenario_matrix.py" && pass "$directory 条件マトリクスvalidator同期" || fail "$directory 条件マトリクスvalidator同期"
+  fi
 done
 for internal in write-persistence-scenarios; do
   cmp -s "$matrix_source" "$PACKAGE/internal/$internal/scripts/scenario_matrix.py" && pass "$internal 条件マトリクスvalidator同期" || fail "$internal 条件マトリクスvalidator同期"
@@ -120,7 +120,7 @@ done
 # 反例: 入口の references/ へ scenario-premises.md を複製する
 # 境界例: execution-guidance.md / focus.md は入口ごとの別文書なので入力から除く。別の文書を同名にした場合も不合格（名前を分ける）
 # 意味評価として残す範囲: 各入口が内部skillの規律へ到達できること（SKILL本文の適用文）、1か所に置いた資料の内容が各入口の目的に合うこと
-duplicated_refs=$(find "$PACKAGE" -type f -name '*.md' ! -name SKILL.md ! -name execution-guidance.md ! -name focus.md -exec basename {} \; | sort | uniq -d)
+duplicated_refs=$(find "$PACKAGE" -type f -name '*.md' ! -path '*/fixtures/*' ! -name SKILL.md ! -name execution-guidance.md ! -name focus.md -exec basename {} \; | sort | uniq -d)
 if [ -z "$duplicated_refs" ]; then
   pass "参照資料（references/*.md）は package 内で1か所だけ"
 else
@@ -133,6 +133,45 @@ cmp -s "$PACKAGE/skills/discover-user-journey/scripts/scenario.py" "$PACKAGE/ski
 cmp -s "$PACKAGE/skills/formulate-domain/scripts/update-guard.py" "$PACKAGE/skills/formulate-user-journey/scripts/update-guard.py" \
   && cmp -s "$PACKAGE/skills/formulate-domain/scripts/update-guard.py" "$PACKAGE/skills/formulate-data-model/scripts/update-guard.py" \
   && pass "update-guard.py 3入口で同一" || fail "update-guard.py の差分"
+cmp -s "$PACKAGE/skills/discover-data-model/scripts/domain_input.py" "$PACKAGE/skills/formulate-data-model/scripts/domain_input.py" \
+  && cmp -s "$PACKAGE/skills/discover-data-model/scripts/domain_input.py" "$PACKAGE/skills/revise-data-models/scripts/domain_input.py" \
+  && pass "domain_input.py 3入口で同一" || fail "domain_input.py の差分"
+cmp -s "$PACKAGE/skills/discover-data-model/scripts/immutable_model.py" "$PACKAGE/skills/formulate-data-model/scripts/immutable_model.py" \
+  && cmp -s "$PACKAGE/skills/discover-data-model/scripts/immutable_model.py" "$PACKAGE/skills/revise-data-models/scripts/immutable_model.py" \
+  && pass "immutable_model.py 3入口で同一" || fail "immutable_model.py の差分"
+
+# ── データモデル事前条件と構造契約 ─────────────────────────────────────
+# 正本: 3入口のSKILL.mdが宣言する入力契約と、rdb-logical-data-modeling本文の分類表契約
+# 入力: 明示された絶対pathのJSON、または完成したMarkdown本文
+# 正規化: JSONはparserで、Markdownは必須節・分類表・論理テーブル見出しで読む
+# 合格述語: pathが既存通常fileで重複せず、定義された全テーブルが一度だけ分類され、宣言した系列・正本・時刻・変化の構造が一致する
+# 失敗時の診断: path/detail/howto
+# 正例: 対応する業務知識path、リソースと追加専用イベントを分類した本文
+# 反例: 対応資料の欠落、未分類テーブル、イベント行の「更新あり」宣言
+# 境界例: status・完了日時・削除フラグ・条件付きNULLを含んでも、それだけでは拒否しない
+# 意味評価として残す範囲: 業務知識が対象へ本当に対応するか、正本選択、業務/技術イベント、列の業務的妥当性、資料間の意味整合
+data_model_entry="$PACKAGE/skills/revise-data-models"
+domain_input="$data_model_entry/scripts/domain_input.py"
+immutable_model="$data_model_entry/scripts/immutable_model.py"
+printf '%s\n' '# 業務知識' > "$TMP_ROOT/business-knowledge.md"
+printf '%s\n' '# 論理設計' > "$TMP_ROOT/logical-model.md"
+jq -nc --arg p "$TMP_ROOT/business-knowledge.md" '{business_knowledge_paths:[$p]}' \
+  | python3 "$domain_input" check >/dev/null \
+  && pass "domain_input.pyは既存通常fileの絶対pathを受理" || fail "domain_input.pyの正例"
+rejects python3 "$domain_input" check <<< '{"business_knowledge_paths":[]}' \
+  && pass "domain_input.pyは業務知識の欠落を拒否（exit 1）" || fail "domain_input.pyが業務知識の欠落を拒否できない"
+python3 "$domain_input" check </dev/null >/dev/null 2>&1; [ $? -eq 2 ] \
+  && pass "domain_input.pyの空stdinはexit 2" || fail "domain_input.pyの空stdin終了code"
+python3 "$immutable_model" check < "$data_model_entry/fixtures/valid.md" >/dev/null \
+  && pass "immutable_model.pyの構造正例" || fail "immutable_model.pyの構造正例"
+rejects python3 "$immutable_model" check < "$data_model_entry/fixtures/event-updated.md" \
+  && pass "immutable_model.pyはイベントの更新宣言を拒否（exit 1）" || fail "immutable_model.pyがイベントの更新宣言を拒否できない"
+rejects python3 "$immutable_model" check < "$data_model_entry/fixtures/unclassified.md" \
+  && pass "immutable_model.pyは未分類テーブルを拒否（exit 1）" || fail "immutable_model.pyが未分類テーブルを拒否できない"
+python3 "$immutable_model" check < "$data_model_entry/fixtures/conditional-null.md" >/dev/null \
+  && pass "immutable_model.pyは意味評価対象の列名・NULLを拒否しない" || fail "immutable_model.pyが意味評価対象を誤検知"
+python3 "$immutable_model" check </dev/null >/dev/null 2>&1; [ $? -eq 2 ] \
+  && pass "immutable_model.pyの空stdinはexit 2" || fail "immutable_model.pyの空stdin終了code"
 
 # 禁止参照形（root validatorと同じ4 token）が配布物に無い。README / docs は対象外。
 if rg -n -e '\$\{\.' -e '<!-- BEGIN shared:' -e 'CLAUDE_PLUGIN_ROOT' -e 'BUNDLE_ROOT' "$PACKAGE" >/dev/null; then

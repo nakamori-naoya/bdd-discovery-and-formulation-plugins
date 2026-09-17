@@ -1,11 +1,11 @@
 ---
 name: discover-data-model
-description: 業務シナリオと業務イベントから、データの作成・更新・削除に関係する振る舞いを発見し、検査済みBDDとRDB論理データモデルを一つの資料にする。「データモデルのBDDを発見して」「業務イベントから永続化を考えて」と言われたときに使う。
+description: 対応する業務知識から、現在状態・有効期間履歴・イベント列・派生の正本を選び、データの作成・更新・削除に関係する振る舞いを発見し、検査済みBDDとRDB論理データモデルを一つの資料にする。「データモデルのBDDを発見して」「業務知識から永続化を考えて」と言われたときに使う。
 ---
 
 # データモデリングのBDDを発見する
 
-読み終えると、業務イベントによってどの事実を、誰の後の判断や説明のために残す必要が生じるかを永続化シナリオとして確定し、検査済みBDDを含むRDB論理設計資料1本へ保存できる。テーブルから始めない。Read、索引、物理型、分離レベル、SQL、API、DTO、ORM、画面はこの入口の関心外である。
+読み終えると、対応する業務知識を根拠に、業務上の対象・状態・出来事を分析し、誰の後の判断や説明のために何を残すかを永続化シナリオとして確定し、検査済みBDDを含むRDB論理設計資料1本へ保存できる。業務イベント列は最初から決めず、業務知識から複数の意味ある出来事、順序、履歴、取消・訂正の必要が読めるときに候補にする。テーブルから始めない。Read、索引、物理型、分離レベル、SQL、API、DTO、ORM、画面はこの入口の関心外である。
 
 同じdirectoryの`playbook.yml`が工程順の正本である。このSKILLを読んだagentが、利用者の入力と明示された資料を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`skill:`の工程は同じpackageに同梱された同名skillの`SKILL.md`をこのagentが同じ文脈で読んで適用する工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。手順に入る前に同梱の内部skill `write-bdd`の`SKILL.md`を同じ文脈で読み、その規律（入力の根拠づけ、業務の言葉、`grill` / `write-doc`の呼び方、BDDの前提・トリガー・失敗理由と条件マトリクス）を全工程へ適用する。
 
@@ -14,6 +14,7 @@ description: 業務シナリオと業務イベントから、データの作成�
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 依頼文。題材、既知の業務シナリオ、論理モデリングの手法の指定 | 題材が読めなければ`settle`の問いにする。題材そのものが決まらなければ止まる |
+| `business_knowledge_paths` | 必須。設計対象に対応する業務知識資料の絶対path配列 | 無い、空、相対path、読めないpath、symlinkなら設計せず止まる。テーブル名や画面・API仕様だけでは代替しない |
 | `references` | 任意。追加で従う資料の絶対path配列（業務知識、Journey、既存の業務シナリオ）。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `modeling_method` | 論理構造への配置方法。同梱の`fact-recording` / `normalized` / `dimensional`のID、または利用者の手法fileの絶対path。IDに対応する手法fileは論理モデルの工程で適用する同梱skillの`references/methods/`が持つ | 依頼に無ければ記録対象・監査要件・分析目的から文脈で決める。文脈でも決まらなければ`settle`の問いにし、それでも決まらなければ最も筋の良い手法を仮説として選び、決め方（依頼指定／文脈推定／確認済み／仮説）を報告と未決に書く。指した手法fileが無ければ止まる。既定値を持たない |
 | `output_directory` | 正本を置く既存の書き込み可能な絶対directory | 下の「保存先の決め方」に従う |
@@ -34,16 +35,20 @@ description: 業務シナリオと業務イベントから、データの作成�
 | 一つのシナリオ | 一つの業務イベントと一つの永続化上の変化を持つ | 分ける。何が起きたため何を残すのかを追跡できる形にする |
 | 論理モデルの要素 | 記録がなければ誰が何を判断・説明できなくなるかを言える | 残す。言えない要素は外す。モデルへ落ちていない事実は補う |
 | 現在の姿と成立済みの事実 | リソース系（現在の姿）とイベント系（成立済みの出来事の追加）に区別できる | 区別する。NULL、汎用属性、JSON、削除フラグで業務上の違いを隠さない |
+| 正本の選択 | 業務知識に、複数の意味ある業務イベントと、その順序・履歴・取消・訂正を後から説明する必要がある | イベント列を候補にする。出来事が無いか乏しく履歴を使わないなら現在状態、設定変更の履歴自体を扱うなら有効期間履歴を候補にし、選択理由を資料へ残す |
+| 出来事の性質 | 顧客・業務担当者が意味を説明できる業務イベントである | 業務イベントとして扱う。再試行、配送、cache更新、outbox、投影更新など運用・実装上だけの出来事は技術イベントとして分離し、業務イベントの根拠にしない |
 | 確からしさが`confirmed`でないシナリオ | 仮説の前提が変わると残す事実や履歴が変わる | 論理モデルへ写すが、そのBDDと対応する要素に仮説であることと根拠を明示し、確定事項と区別する |
 | 反証の深さ | 業務担当者が認識している代表的な永続化の共通理解である | この入口で作る。境界値、同値分割、順序逆転、重複、同時実行、読み取り特性による体系的な反証は、完成した論理資料を入力にする反証（formulation）が担う |
 
 ## 手順
 
-1. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって記録する事実・履歴・保持・削除の骨格が変わる問いを成果を左右する順に選び、推奨と理由を添えて`context`と`questions`に渡す。保存先や`modeling_method`が依頼と文脈から決まらなければ、その提案を問いに含める。呼び方は`write-bdd`の入れ子の段取りを呼ぶ規律に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは資料を完成できない場合だけ行う。
-2. **ground。** 依頼、参照資料、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
-3. **explore。** 同梱skillの判断規律で、永続化の必要を生む業務イベントと関係する役割を時系列に洗い出し、`events`と`actors`として保持する。
-4. **scenarios。** 同梱skillの判断規律で、作成・更新・削除に関係する業務断面を、アクター、事前状態、業務イベント、条件、判断、結果、次状態、残す事実、履歴、保持理由を持つ永続化シナリオにし、3操作の検討状況（`persistence_coverage`）と条件マトリクスを作る。`write-bdd`のBDDの前提・トリガー・失敗理由、[この入口の焦点](references/focus.md)、[永続化から論理モデルへ写す判断規律](references/modeling-judgment.md)を適用する。
-5. **validate-scenarios（`scripts/scenario_matrix.py`）。** 条件マトリクスJSONを標準入力で`python3 scripts/scenario_matrix.py check`へ渡す。pathはこのSKILLと同じdirectoryを基準にし、fileは介さない。stdoutにJSONを1行ずつ返し、終了codeは0が違反なし、1が違反あり（各行が`path` / `detail` / `howto`）、2が入力を読めない（空、不正JSON、objectでない）。0以外なら論理モデルへ進まず、診断に従って`scenarios`へ戻る。
+1. **preflight-domain-knowledge（`scripts/domain_input.py`）。** `business_knowledge_paths`をJSONで`python3 scripts/domain_input.py check`へ渡し、対応する業務知識資料がすべて絶対pathの通常fileとして読めることを確かめる。終了code 0以外なら設計を始めない。このtoolは入力の構造だけを検査し、資料の意味は判定しない。
+
+2. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって記録する事実・履歴・保持・削除の骨格が変わる問いを成果を左右する順に選び、推奨と理由を添えて`context`と`questions`に渡す。保存先や`modeling_method`が依頼と文脈から決まらなければ、その提案を問いに含める。呼び方は`write-bdd`の入れ子の段取りを呼ぶ規律に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは資料を完成できない場合だけ行う。
+3. **ground。** 依頼、参照資料、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
+4. **explore。** 同梱skillの判断規律で、永続化の必要を生む業務イベントと関係する役割を時系列に洗い出し、`events`と`actors`として保持する。
+5. **scenarios。** 同梱skillの判断規律で、作成・更新・削除に関係する業務断面を、アクター、事前状態、業務イベント、条件、判断、結果、次状態、残す事実、履歴、保持理由を持つ永続化シナリオにし、3操作の検討状況（`persistence_coverage`）と条件マトリクスを作る。`write-bdd`のBDDの前提・トリガー・失敗理由、[この入口の焦点](references/focus.md)、[永続化から論理モデルへ写す判断規律](references/modeling-judgment.md)を適用する。
+6. **validate-scenarios（`scripts/scenario_matrix.py`）。** 条件マトリクスJSONを標準入力で`python3 scripts/scenario_matrix.py check`へ渡す。pathはこのSKILLと同じdirectoryを基準にし、fileは介さない。stdoutにJSONを1行ずつ返し、終了codeは0が違反なし、1が違反あり（各行が`path` / `detail` / `howto`）、2が入力を読めない（空、不正JSON、objectでない）。0以外なら論理モデルへ進まず、診断に従って`scenarios`へ戻る。
 
    ```bash
    python3 scripts/scenario_matrix.py check <<'EOF'
@@ -51,18 +56,20 @@ description: 業務シナリオと業務イベントから、データの作成�
    EOF
    ```
 
-6. **logical-model。** 同梱skillの判断規律と`modeling_method`で選んだ手法に従い、検査済みシナリオだけから記録する事実と論理構造（論理テーブル、列と値域、業務上のキーと制約、関係と多重度、上書きする事実と履歴を残す事実の区別）を設計し、完成本文を作る。各BDDのBeforeとAfterへ全論理テーブルを同じ順序で全カラム見出し付きの表として置き、0件でも見出し行と区切り行だけの表を省かず、変化しない表もBeforeと同じ全行をAfterへ再掲する。BDDは本文の末尾に置く。本文の節構成と記法は`write-doc`の`rdb-logical-data-modeling`型（公開契約の`document_type`）が定め、このpackageはtemplateを持たない。`open_questions`と仮置きした推奨は、該当するBDDと要素に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。冒頭の段落は、誰が何を判断・説明するためにどの事実を残すのかを読み手の既知の語で文章として運ぶ。
-7. **document（`write-doc`）。** 完成本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-logical-data-modeling`を`document_type`に、確認済みの`output_directory`と`name`をそのまま渡す。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`logical_document_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
+7. **logical-model。** 同梱skillの判断規律と`modeling_method`で選んだ手法に従い、検査済みシナリオだけから記録する事実と論理構造（論理テーブル、列と値域、業務上のキーと制約、関係と多重度、上書きする事実と履歴を残す事実の区別）を設計し、完成本文を作る。各BDDのBeforeとAfterへ全論理テーブルを同じ順序で全カラム見出し付きの表として置き、0件でも見出し行と区切り行だけの表を省かず、変化しない表もBeforeと同じ全行をAfterへ再掲する。BDDは本文の末尾に置く。本文の節構成と記法は`write-doc`の`rdb-logical-data-modeling`型（公開契約の`document_type`）が定め、このpackageはtemplateを持たない。`open_questions`と仮置きした推奨は、該当するBDDと要素に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。冒頭の段落は、誰が何を判断・説明するためにどの事実を残すのかを読み手の既知の語で文章として運ぶ。
+8. **validate-immutable-structure（`scripts/immutable_model.py`）。** 完成本文を`python3 scripts/immutable_model.py check`へ渡し、全論理テーブルがリソース系／イベント系のどちらか一つに分類され、宣言した時刻規約とイベント表の追加専用宣言が構造上そろうことだけを検査する。状態列、完了日時、削除フラグ、条件付きNULLの業務的な妥当性はtoolに判定させず、業務知識とBDDを読んだagentが判断する。終了code 0以外なら`logical-model`へ戻る。
+9. **document（`write-doc`）。** 完成本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-logical-data-modeling`を`document_type`に、確認済みの`output_directory`と`name`をそのまま渡す。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`logical_document_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
 
 ## 停止条件
 
 **止まる。** 成果が無意味になる必須入力の欠落、公開契約に反する入力、toolの失敗、保存先の不確定である。止まるときは何も書かず、どこまで確定し、何が分かれば続けられるかを返す。
 
-- 題材、または記録の必要を生む業務イベントが一つも読めず、`settle`でも決まらない（何の永続化を発見するのかが無い）
+- `business_knowledge_paths`が無い、空、相対path、読めないpath、またはsymlinkである
+- 業務知識から業務上の対象・状態・変化を一つも読めず、`settle`でも題材を特定できない（業務イベントが乏しいこと自体は停止理由にしない）
 - `modeling_method`が指した手法fileが無い、または利用者の手法fileが同梱の3本と同じ節を持たない
 - `references`に相対path、読めないpath、symlinkがある
 - `grill`が`completed`以外を返した、または`decisions` / `open_questions`が配列でない
-- `scenario_matrix.py`が0以外で終了し、`scenarios`へ戻しても解消しない
+- `domain_input.py`、`scenario_matrix.py`、`immutable_model.py`のいずれかが0以外で終了し、対応する工程へ戻しても解消しない
 - 保存先が確認できない、`output_directory`が無いか相対pathである、同名fileがある、`write-doc`が`completed`以外を返した、または返った`path`が保存先と一致しない
 
 **仮説を明示して進む。** 判断の揺れ、資料の不足、複数の解釈があり得るときは止まらない。その時点の根拠から最も筋の良い仮説を立て、仮説であること、根拠、採らなかった解釈を該当するBDD・要素と未決に書いて先へ進み、確認は資料とともに仮説を添えて求める。根拠のないことを事実として書かない。

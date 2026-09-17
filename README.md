@@ -1,6 +1,6 @@
 # BDD Discovery and Formulation
 
-BDDを使ってドメイン理解とRDBデータモデリングを探索・反証し、User Journeyを線引きしてユーザー目的達成BDDを発見・深化する、Claude Code/Codex両対応のmarketplaceである。公開入口は6つで、1つのpackage `bdd-discovery-and-formulation` に同梱する。
+BDDを使ってドメイン理解とRDBデータモデリングを探索・反証し、User Journeyを線引きしてユーザー目的達成BDDを発見・深化する、Claude Code/Codex両対応のmarketplaceである。公開入口は7つで、1つのpackage `bdd-discovery-and-formulation` に同梱する。
 
 ## BDDを使う場面
 
@@ -26,6 +26,7 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 | 既存のユーザー目的達成BDDを反証する | `formulate-user-journey` | 分岐・中断再開・役割移譲を戻した同一パスの正本 |
 | 永続化の発見から論理設計まで初めて通す | `discover-data-model` | 検査済みBDD付きRDB論理設計 |
 | 既存のBDD付き論理設計を反証し、物理設計まで進める | `formulate-data-model` | 更新済み論理設計と、依頼で指定したRDB製品・版の物理設計 |
+| 対応する業務知識を根拠に複数の既存論理設計を横断改訂する | `revise-data-models` | 正本選択とリソース系／イベント系分類を揃えた同一pathの論理設計群 |
 
 ## 代表的なユースケース
 
@@ -47,7 +48,9 @@ BDDを使ってドメイン理解とRDBデータモデリングを探索・反�
 
 ### 業務からDB設計へ進む
 
-**何を記録するか未確定なら`discover-data-model`を使う。** 既存の論理設計から物理設計へ進める場合は`formulate-data-model`を使う。
+**何を記録するか未確定なら`discover-data-model`を使う。** 対応する業務知識資料が必須であり、無ければ先に`discover-domain`で業務知識を作る。既存の論理設計から物理設計へ進める場合は`formulate-data-model`、複数の既存論理設計を同じ業務知識から横断改訂する場合は`revise-data-models`を使う。
+
+イベント列は既定ではない。業務知識から複数の意味ある業務イベントと、順序・履歴・取消・訂正を後から使う必要が読めるときに候補にする。イベントが無いか乏しく履歴を使わない場合は現在状態、設定や契約条件の過去時点の値を使う場合は有効期間履歴を候補にする。
 
 ```text
 注文確定・取消・返金の業務シナリオから、BDD付きRDB論理データモデルを作って。
@@ -134,15 +137,15 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 
 ## 公開インストール単位と内包する機能
 
-利用者がインストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`だけである。packageは`plugins/bdd-discovery-and-formulation/`にあり、公開入口6つを`skills/<entry>/`に、2つ以上の公開入口が共有する判断規律を内部skillとして`internal/<name>/`に持つ。
+利用者がインストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`だけである。packageは`plugins/bdd-discovery-and-formulation/`にあり、公開入口7つを`skills/<entry>/`に、2つ以上の公開入口が共有する判断規律を内部skillとして`internal/<name>/`に持つ。
 
 | 内部skill | 共有する公開入口 | 担う判断 |
 |---|---|---|
 | `explore-events` | discover-domain、discover-data-model | 業務で起きた事実を時系列に洗い出す |
 | `map-user-journey` | discover-user-journey、formulate-user-journey | 何がJourneyで何がJourneyでないかを判定し、両端と場面を決める |
 | `write-persistence-scenarios` | discover-data-model、formulate-data-model | 作成・更新・削除に関係する断面を永続化シナリオにする |
-| `design-data-model` | discover-data-model、formulate-data-model | 記録すべき事実を先に決め、BDD付きの論理設計本文を作る。手法は`fact-recording` / `normalized` / `dimensional`、または利用者の手法file |
-| `write-bdd` | 6入口すべて（同梱skillも適用する） | 入力の根拠づけ、業務の言葉（役割、業務イベント、ユビキタス言語）、BDDの前提・トリガー・失敗理由と条件マトリクス、定式化へ進める見極め、QA観点、`grill` / `write-doc`の呼び方という共通規律。成果物は作らず、各入口が手順に入る前に読んで全工程へ適用する |
+| `design-data-model` | discover-data-model、formulate-data-model、revise-data-models | 対応する業務知識から記録すべき事実と正本を選び、BDD付きの論理設計本文を作る。手法は`fact-recording` / `normalized` / `dimensional`、または利用者の手法file |
+| `write-bdd` | 7入口すべて（同梱skillも適用する） | 入力の根拠づけ、業務の言葉（役割、業務イベント、ユビキタス言語）、BDDの前提・トリガー・失敗理由と条件マトリクス、定式化へ進める見極め、QA観点、`grill` / `write-doc`の呼び方という共通規律。成果物は作らず、各入口が手順に入る前に読んで全工程へ適用する |
 
 内部skillはmarketplaceの個別インストール対象にせず、公開入口の`playbook.yml`が`skill:`工程で呼ぶか、`write-bdd`のように入口の`SKILL.md`が手順に入る前に読んで全工程へ適用する。1つの公開入口だけが使っていた判断（コア・支援・汎用の線引き、RDB物理設計）はその公開入口へ統合した。
 
@@ -169,7 +172,7 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 bash scripts/validate.sh
 ```
 
-`validate-structure.sh`は、両marketplaceと両runtime manifestのidentity、公開入口6つと内部skill5つの集合、`playbook.yml`の外部依存宣言と`script:` / `skill:`参照の実在、入口ごとの`scripts/`に置く同名toolのbyte一致、参照資料（`references/*.md`）がpackage内で1か所にだけあること、禁止参照形の不在を検査し、各tool（条件マトリクス、Gherkin検査、誰が行えるかの網羅、ユーザー目的達成BDD、同一パス更新、物理設計検査）の`self-test`（旧引数のargparse拒否を含む）と、SKILL.mdの手順と同じ形（本文はstdin、条件マトリクスは`--matrix-json`）での正例・反例・境界例を実行する。続けて兄弟checkout `../harness-tools/tools/`の保守tool（root契約の`validate-plugin-repository.py`とその`--self-test`、回帰検査の`test-hardening.py --repository`）と、兄弟checkout（`../grill-plugins/plugins/grill`、`../write-doc-plugins/plugins/write-doc`）の実配布物に対する消費側lint（`lint-consumer-contract.py --repo --runtime`）を両runtimeで実行する。`../harness-tools/`が無ければexit 2で止まり、実配布物が見つからなければ落ちる。
+`validate-structure.sh`は、両marketplaceと両runtime manifestのidentity、公開入口7つと内部skill5つの集合、`playbook.yml`の外部依存宣言と`script:` / `skill:`参照の実在、入口ごとの`scripts/`に置く同名toolのbyte一致、参照資料（`references/*.md`）がpackage内で1か所にだけあること、禁止参照形の不在を検査し、各tool（業務知識入力、データモデル構造、条件マトリクス、Gherkin検査、誰が行えるかの網羅、ユーザー目的達成BDD、同一パス更新、物理設計検査）の`self-test`またはfixture（旧引数のargparse拒否を含む）を実行する。データモデルの境界fixtureは、状態列・完了日時・削除フラグ・条件付きNULLを意味評価へ残し、それらの語だけで機械的に拒否しないことも確認する。続けて兄弟checkout `../harness-tools/tools/`の保守tool（root契約の`validate-plugin-repository.py`とその`--self-test`、回帰検査の`test-hardening.py --repository`）と、兄弟checkout（`../grill-plugins/plugins/grill`、`../write-doc-plugins/plugins/write-doc`）の実配布物に対する消費側lint（`lint-consumer-contract.py --repo --runtime`）を両runtimeで実行する。`../harness-tools/`が無ければexit 2で止まり、実配布物が見つからなければ落ちる。
 
 workspace rootの`bash scripts/validate.sh <このrepositoryの絶対path>`が配置・manifest・隣接playbook.yml・禁止参照形の構造契約を検査する。構造検査の成功は、SKILL本文の判断規律や生成された資料の業務上の正しさを保証しない。
 
