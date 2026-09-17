@@ -1,6 +1,6 @@
 version: 2
 name: discover-user-journey
-description: 1人の主たるユーザーが1つの目的を達成するまでを発見し、接続した場面のBDD正本として初めて作る
+description: 資料の有無にかかわらず、1人の主たるユーザーが1つの目的を達成するまでを発見し、接続した場面の新しいBDD正本を作る
 inputs: [user_input, references, output_directory, name]
 
 requires:
@@ -46,7 +46,7 @@ steps:
 
   - id: document
     playbook: write-doc
-    purpose: 同じagentが保持した検査済みの完成本文をtext materialとして渡し、Markdown正本を初めて1本保存する
+    purpose: 同じagentが保持した検査済みの完成本文をtext materialとして渡し、未使用の出力先へMarkdown正本を1本保存する
     input:
       document_type: user-journey-bdd
     needs: [final_markdown, validation_report, output_directory, name, references]

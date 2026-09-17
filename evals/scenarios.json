@@ -300,6 +300,66 @@
           "meaning": "中断時に残る状態、30日の期限の直前・境界上・直後、途中から再開できる条件を、利用者が観測できる結果または可能な行動へ接続する"
         }
       ]
+    },
+    {
+      "id": "domain-discovery-uses-existing-materials-as-evidence",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-domain/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "既存の用語集と要件資料はありますが、予約取消の業務イベント、役割、判断、境界はまだ探索できていません。既存資料を根拠にして、未使用の別名で新しいdomain-rule正本を作ってください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "continues-discovery-with-existing-materials",
+          "meaning": "既存資料の存在だけを理由に停止したりformulationへ切り替えたりせず、資料を入力根拠としてDiscoveryを続ける"
+        },
+        {
+          "id": "preserves-grounding-and-output-boundary",
+          "meaning": "既存資料の記載を自動的に確認済みにせず、未使用の出力pathへ新規保存し、同じpathの上書きはしない"
+        }
+      ]
+    },
+    {
+      "id": "data-model-discovery-uses-existing-design-as-evidence",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-data-model/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "対応する業務知識と既存の論理設計案はありますが、何を後の判断のために残すかは未探索です。既存案も根拠の一つとして読み、未使用の別名で新しいBDD付き論理設計を作ってください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "discovers-persistence-despite-existing-design",
+          "meaning": "既存の論理設計案があることだけを理由に停止したりformulationへ切り替えたりせず、永続化理由と残す事実を探索する"
+        },
+        {
+          "id": "does-not-overwrite-existing-design",
+          "meaning": "既存案を確認済みの正解として扱わず、未使用の出力pathへ新しい正本を保存し、同じpathは上書きしない"
+        }
+      ]
+    },
+    {
+      "id": "user-journey-discovery-uses-neighboring-journeys-as-evidence",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-user-journey/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "同じ利用者について別目的のJourney資料と画面案はありますが、初回購入から受取確認までの目的達成は未探索です。それらを根拠に読み、未使用の別名で新しいJourney BDD正本を作ってください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "continues-journey-discovery-with-related-documents",
+          "meaning": "既存Journeyや画面案の存在だけを理由に停止したりformulationへ切り替えたりせず、新しい目的達成の連続性を探索する"
+        },
+        {
+          "id": "keeps-existing-documents-as-grounded-input",
+          "meaning": "既存資料を入力根拠として扱いながら、未使用の出力pathへ新しい正本を保存し、同じpathは上書きしない"
+        }
+      ]
     }
   ]
 }
