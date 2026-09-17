@@ -14,7 +14,7 @@ description: 対応する業務知識から、現在状態・有効期間履歴�
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 依頼文。題材、既知の業務シナリオ、論理モデリングの手法の指定 | 題材が読めなければ`settle`の問いにする。題材そのものが決まらなければ止まる |
-| `business_knowledge_paths` | 必須。設計対象に対応する業務知識資料の絶対path配列 | 無い、空、相対path、読めないpath、symlinkなら設計せず止まる。テーブル名や画面・API仕様だけでは代替しない |
+| `business_knowledge_paths` | 必須。対象repository配下にある、設計対象に対応する業務知識資料の絶対path配列 | 無い、空、repository外、相対path、読めないpath、symlinkなら設計せず止まる。テーブル名や画面・API仕様だけでは代替しない |
 | `references` | 任意。追加で従う資料の絶対path配列（業務知識、Journey、既存の業務シナリオ）。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `modeling_method` | 論理構造への配置方法。同梱の`fact-recording` / `normalized` / `dimensional`のID、または利用者の手法fileの絶対path。IDに対応する手法fileは論理モデルの工程で適用する同梱skillの`references/methods/`が持つ | 依頼に無ければ記録対象・監査要件・分析目的から文脈で決める。文脈でも決まらなければ`settle`の問いにし、それでも決まらなければ最も筋の良い手法を仮説として選び、決め方（依頼指定／文脈推定／確認済み／仮説）を報告と未決に書く。指した手法fileが無ければ止まる。既定値を持たない |
 | `output_directory` | 正本を置く既存の書き込み可能な絶対directory | 下の「保存先の決め方」に従う |
@@ -42,7 +42,7 @@ description: 対応する業務知識から、現在状態・有効期間履歴�
 
 ## 手順
 
-1. **preflight-domain-knowledge（`scripts/domain_input.py`）。** `business_knowledge_paths`をJSONで`python3 scripts/domain_input.py check`へ渡し、対応する業務知識資料がすべて絶対pathの通常fileとして読めることを確かめる。終了code 0以外なら設計を始めない。このtoolは入力の構造だけを検査し、資料の意味は判定しない。
+1. **preflight-domain-knowledge（`scripts/domain_input.py`）。** 対象repository rootをcurrent directoryにし、`business_knowledge_paths`をJSONで`python3 scripts/domain_input.py check`へ渡し、対応する業務知識資料がすべて絶対pathの通常fileとして読めることを確かめる。終了code 0以外なら設計を始めない。このtoolは入力の構造だけを検査し、資料の意味は判定しない。
 
 2. **settle（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」で、答えによって記録する事実・履歴・保持・削除の骨格が変わる問いを成果を左右する順に選び、推奨と理由を添えて`context`と`questions`に渡す。保存先や`modeling_method`が依頼と文脈から決まらなければ、その提案を問いに含める。呼び方は`write-bdd`の入れ子の段取りを呼ぶ規律に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・明示資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは資料を完成できない場合だけ行う。
 3. **ground。** 依頼、参照資料、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。

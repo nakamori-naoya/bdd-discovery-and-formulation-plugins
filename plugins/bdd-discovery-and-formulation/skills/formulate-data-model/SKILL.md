@@ -14,7 +14,7 @@ description: 対応する業務知識を根拠に既存のBDD付きRDB論理設�
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 依頼文。どの永続化の主張を深めたいか、新しく分かったこと | 反証の焦点が読めなければ`challenge-persistence`の問いにする。決まらなければ作成・更新・削除のBDD全体を対象に仮置きして進む |
-| `business_knowledge_paths` | 必須。既存論理資料の各設計対象に対応する業務知識資料の絶対path配列 | 無い、空、相対path、読めないpath、symlinkなら既存論理資料を変更せず止まる |
+| `business_knowledge_paths` | 必須。対象repository配下にある、既存論理資料の各設計対象に対応する業務知識資料の絶対path配列 | 無い、空、repository外、相対path、読めないpath、symlinkなら既存論理資料を変更せず止まる |
 | `references` | 任意。追加で従う資料の絶対path配列。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `existing_logical_document_path` | 更新する既存の`rdb-logical-data-modeling`資料の絶対path。symlinkではない既存file | 無い、複数ある、別pathへの出力を求められた、BDDと論理テーブル定義のどちらかが資料に無い場合は止まる |
 | `modeling_method` | 論理構造への配置方法。同梱の`fact-recording` / `normalized` / `dimensional`のID、または利用者の手法fileの絶対path。IDに対応する手法fileは論理モデルの工程で適用する同梱skillの`references/methods/`が持つ | 既存資料に手法が書かれていればそれを使う。無ければ依頼、文脈、`challenge-persistence`の順で決め、それでも決まらなければ既存資料の構造から最も筋の良い手法を仮説として選び、決め方を報告と未決に書く。指した手法fileが無ければ止まる。既定値を持たない |
@@ -40,7 +40,7 @@ description: 対応する業務知識を根拠に既存のBDD付きRDB論理設�
 
 ## 手順
 
-1. **preflight-domain-knowledge（`scripts/domain_input.py`）。** `business_knowledge_paths`をJSONで`python3 scripts/domain_input.py check`へ渡し、対応する業務知識資料がすべて絶対pathの通常fileとして読めることを確かめる。終了code 0以外なら既存資料を変更しない。このtoolは入力の構造だけを検査し、資料の意味は判定しない。
+1. **preflight-domain-knowledge（`scripts/domain_input.py`）。** 対象repository rootをcurrent directoryにし、`business_knowledge_paths`をJSONで`python3 scripts/domain_input.py check`へ渡し、対応する業務知識資料がすべて絶対pathの通常fileとして読めることを確かめる。終了code 0以外なら既存資料を変更しない。このtoolは入力の構造だけを検査し、資料の意味は判定しない。
 
 2. **challenge-persistence（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」、[工程間の契約](references/contract.md)、`write-bdd`の重要なシナリオを見つけるQA観点で、既存論理資料のどの永続化上の主張を反証しているかを明らかにし、答えで残す事実・履歴・業務制約または物理設計の前提（製品と版、保存先）が変わる問いを成果を左右する順に選んで推奨と理由を添え、`context`と`questions`に渡す。呼び方は`write-bdd`の入れ子の段取りを呼ぶ規律に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・既存資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは資料を完成できない場合だけ行う。
 3. **ground。** 既存論理資料、依頼、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
