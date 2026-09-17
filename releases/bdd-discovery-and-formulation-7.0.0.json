@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "plugin": "bdd-discovery-and-formulation",
+  "version": "7.0.0",
+  "created_at": "2026-09-17T13:04:56Z",
+  "notes": "formulate-data-modelを既存RDB論理設計の反証と同一正本更新へ限定し、物理設計責務を独立packageへ分離",
+  "breaking": "formulate-data-modelはRDB物理設計を新規作成しない",
+  "migration": "物理設計の新規作成はrdb-design/design-rdb-physical、既存物理設計の反証と同一正本更新はrdb-design/revise-rdb-physicalを使う",
+  "checks": {
+    "codex": {
+      "status": "manifest-and-contract-tests-passed",
+      "native-client-installation": "not-executed（merge後に導入）",
+      "evidence": "bash scripts/validate.sh: exit 0 (Structure 126 passed; hardening 27 tests OK skipped=1; consumer contract lint 0 findings)"
+    },
+    "claude": {
+      "status": "manifest-and-contract-tests-passed",
+      "native-client-installation": "not-executed（merge後に導入）",
+      "evidence": "bash scripts/validate.sh: exit 0 (consumer contract lint 0 findings)"
+    },
+    "root-validation": "workspace root scripts/validate.sh: Root validation passed"
+  },
+  "files": [
+    ".agents/plugins/marketplace.json",
+    "plugins/bdd-discovery-and-formulation/.codex-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
+    "plugins/bdd-discovery-and-formulation/.claude-plugin/plugin.json"
+  ]
+}

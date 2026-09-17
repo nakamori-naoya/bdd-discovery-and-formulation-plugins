@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Scenario: BDD packageの全受入検査を一度に実行する
-# Given: 6公開入口と5内部skillを持つ1 packageと、grill / write-docへの外部依存宣言と、兄弟checkout ../harness-tools/ の保守toolがある
+# Given: 7公開入口と5内部skillを持つ1 packageと、grill / write-docへの外部依存宣言と、兄弟checkout ../harness-tools/ の保守toolがある
 # When: 構造、root契約、保守toolの回帰検査、消費側lintを順に検査する
 # Then: 一つでも不具合があれば最終終了codeを非0にする。harness-tools または依存先の実配布物が無ければ検査せずに止まる（fixtureで代用しない）
 set -uo pipefail
