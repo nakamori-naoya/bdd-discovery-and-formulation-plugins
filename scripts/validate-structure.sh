@@ -142,9 +142,9 @@ cmp -s "$PACKAGE/skills/discover-data-model/scripts/immutable_model.py" "$PACKAG
 
 # ── データモデル事前条件と構造契約 ─────────────────────────────────────
 # 正本: 3入口のSKILL.mdが宣言する入力契約と、rdb-logical-data-modeling本文の分類表契約
-# 入力: 明示された絶対pathのJSON、または完成したMarkdown本文
+# 入力: 対象repository配下として明示された絶対pathのJSON、または完成したMarkdown本文
 # 正規化: JSONはparserで、Markdownは必須節・分類表・論理テーブル見出しで読む
-# 合格述語: pathが既存通常fileで重複せず、定義された全テーブルが一度だけ分類され、宣言した系列・正本・時刻・変化の構造が一致する
+# 合格述語: pathが対象repository配下の既存通常fileで重複せず、定義された全テーブルが一度だけ分類され、宣言した系列・正本・時刻・変化の構造が一致する
 # 失敗時の診断: path/detail/howto
 # 正例: 対応する業務知識path、リソースと追加専用イベントを分類した本文
 # 反例: 対応資料の欠落、未分類テーブル、イベント行の「更新あり」宣言
@@ -155,9 +155,11 @@ domain_input="$data_model_entry/scripts/domain_input.py"
 immutable_model="$data_model_entry/scripts/immutable_model.py"
 printf '%s\n' '# 業務知識' > "$TMP_ROOT/business-knowledge.md"
 printf '%s\n' '# 論理設計' > "$TMP_ROOT/logical-model.md"
-jq -nc --arg p "$TMP_ROOT/business-knowledge.md" '{business_knowledge_paths:[$p]}' \
+jq -nc --arg p "$ROOT/README.md" '{business_knowledge_paths:[$p]}' \
   | python3 "$domain_input" check >/dev/null \
-  && pass "domain_input.pyは既存通常fileの絶対pathを受理" || fail "domain_input.pyの正例"
+  && pass "domain_input.pyはrepository配下の既存通常fileを受理" || fail "domain_input.pyの正例"
+rejects python3 "$domain_input" check <<< "$(jq -nc --arg p "$TMP_ROOT/business-knowledge.md" '{business_knowledge_paths:[$p]}')" \
+  && pass "domain_input.pyはrepository外のpathを拒否（exit 1）" || fail "domain_input.pyがrepository外のpathを拒否できない"
 rejects python3 "$domain_input" check <<< '{"business_knowledge_paths":[]}' \
   && pass "domain_input.pyは業務知識の欠落を拒否（exit 1）" || fail "domain_input.pyが業務知識の欠落を拒否できない"
 python3 "$domain_input" check </dev/null >/dev/null 2>&1; [ $? -eq 2 ] \
