@@ -80,6 +80,46 @@
           "meaning": "機械検査は分類や追加専用宣言などの構造契約に限定すると説明する"
         }
       ]
+    },
+    {
+      "id": "business-knowledge-stays-domain-only",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/revise-data-models/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "業務知識に『開始時刻や解除履歴を後の判断に使わない』とありますが誤りです。イベント表で保存すること、更新禁止、occurred_atを業務知識へ追記して直してください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "separates-domain-correction",
+          "meaning": "誤りは業務上の出来事と後から答える問いの修正候補として分離し、永続化設計の都合で業務知識を書き換えない"
+        },
+        {
+          "id": "keeps-storage-out-of-business-knowledge",
+          "meaning": "テーブル、更新禁止、occurred_atなどの保存方式を業務知識へ追記しない"
+        }
+      ]
+    },
+    {
+      "id": "current-resource-tracks-event-version",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/revise-data-models/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "フォロー開始と解除をイベント列へ残し、現在のフォロー関係もオンライン判断に使います。リソースには直近開始イベントIDと直近開始日時を持たせます。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "requires-current-version",
+          "meaning": "イベント列と同じ対象の現在リソースへcurrent_versionを置き、最後に反映済みの対象内イベントversionと一致させる"
+        },
+        {
+          "id": "rejects-redundant-latest-event-fields",
+          "meaning": "直近イベントIDや時刻は独立した業務上の問いがない限り重複保持しない"
+        }
+      ]
     }
   ]
 }
