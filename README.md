@@ -25,7 +25,7 @@ DiscoveryとFormulationは、資料の有無ではなく仕事の目的で選ぶ
 | 資料の有無にかかわらず、ユーザー目的達成の連続性を探索して正本を作る | `discover-user-journey` | 複数場面を接続したユーザー目的達成BDD正本 |
 | 既存のユーザー目的達成BDDを反証する | `formulate-user-journey` | 分岐・中断再開・役割移譲を戻した同一パスの正本 |
 | 資料の有無にかかわらず、残す事実を探索して論理設計まで通す | `discover-data-model` | 検査済みBDD付きRDB論理設計 |
-| 既存のBDD付き論理設計を反証し、物理設計まで進める | `formulate-data-model` | 更新済み論理設計と、依頼で指定したRDB製品・版の物理設計 |
+| 既存のBDD付き論理設計を反証し、同じ正本へ戻す | `formulate-data-model` | QA観点で深化したBDD付きRDB論理設計 |
 | 対応する業務知識を根拠に複数の既存論理設計を横断改訂する | `revise-data-models` | 正本選択とリソース系／イベント系分類を揃えた同一pathの論理設計群 |
 
 ## 代表的なユースケース
@@ -48,7 +48,7 @@ DiscoveryとFormulationは、資料の有無ではなく仕事の目的で選ぶ
 
 ### 業務からDB設計へ進む
 
-**何を記録するか未確定なら、既存の論理設計や関連資料があっても`discover-data-model`を使う。** 対応する業務知識資料が必須であり、無ければ先に`discover-domain`で業務知識を作る。指定した既存論理設計を反証して同じpathへ戻し、物理設計へ進める場合は`formulate-data-model`、複数の既存論理設計を同じ業務知識から横断改訂する場合は`revise-data-models`を使う。
+**何を記録するか未確定なら、既存の論理設計や関連資料があっても`discover-data-model`を使う。** 対応する業務知識資料が必須であり、無ければ先に`discover-domain`で業務知識を作る。指定した既存論理設計を反証して同じpathへ戻す場合は`formulate-data-model`、複数の既存論理設計を同じ業務知識から横断改訂する場合は`revise-data-models`を使う。RDB物理設計は独立した`rdb-design` packageが担う。
 
 イベント列は既定ではない。業務知識から複数の意味ある業務イベントと、順序・履歴・取消・訂正を後から使う必要が読めるときに候補にする。イベントが無いか乏しく履歴を使わない場合は現在状態、設定や契約条件の過去時点の値を使う場合は有効期間履歴を候補にする。
 
@@ -147,13 +147,13 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 | `design-data-model` | discover-data-model、formulate-data-model、revise-data-models | 対応する業務知識から記録すべき事実と正本を選び、BDD付きの論理設計本文を作る。手法は`fact-recording` / `normalized` / `dimensional`、または利用者の手法file |
 | `write-bdd` | 7入口すべて（同梱skillも適用する） | 入力の根拠づけ、業務の言葉（役割、業務イベント、ユビキタス言語）、BDDの前提・トリガー・失敗理由と条件マトリクス、定式化へ進める見極め、QA観点、`grill` / `write-doc`の呼び方という共通規律。成果物は作らず、各入口が手順に入る前に読んで全工程へ適用する |
 
-内部skillはmarketplaceの個別インストール対象にせず、公開入口の`playbook.yml`が`skill:`工程で呼ぶか、`write-bdd`のように入口の`SKILL.md`が手順に入る前に読んで全工程へ適用する。1つの公開入口だけが使っていた判断（コア・支援・汎用の線引き、RDB物理設計）はその公開入口へ統合した。
+内部skillはmarketplaceの個別インストール対象にせず、公開入口の`playbook.yml`が`skill:`工程で呼ぶか、`write-bdd`のように入口の`SKILL.md`が手順に入る前に読んで全工程へ適用する。RDB物理設計は論理設計、負荷、品質要求、基盤制約を統合する独立責務として別packageへ分離した。
 
-各公開入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`SKILL.md`が目的・入力・判断基準・手順・停止条件・出力を持ち、`references/execution-guidance.md`が背景・前提と各工程実行時の付加的な指示を持つ。入口が使うtool（`scripts/scenario.py`、`scripts/scenario_matrix.py`、`scripts/actor-coverage.py`、`scripts/update-guard.py`、`scripts/rdb.py`）は、入口directoryを基準にした相対pathで示し、入力・出力・終了code・失敗時の扱いをSKILL.mdの手順が1か所で宣言する。agentが作った本文（条件マトリクス、BDD草案、場面草案、完成本文、物理設計本文）はそのまま標準入力で渡し、条件マトリクスを併せて渡すtoolは`--matrix-json`引数で受け、保存済みの正本だけをpath引数で渡す。検査のためだけの一時fileや後片付け工程は無い。停止条件は「止まる（必須入力の欠落、契約に反する入力、toolの失敗、保存先の不確定）」と「仮説を明示して進む（判断の揺れ、資料の不足）」に分かれる。設定fileは持たず、保存先、対象RDB、論理モデリングの手法は依頼と対話から決める。
+各公開入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`SKILL.md`が目的・入力・判断基準・手順・停止条件・出力を持ち、`references/execution-guidance.md`が背景・前提と各工程実行時の付加的な指示を持つ。入口が使うtool（`scripts/scenario.py`、`scripts/scenario_matrix.py`、`scripts/actor-coverage.py`、`scripts/update-guard.py`）は、入口directoryを基準にした相対pathで示し、入力・出力・終了code・失敗時の扱いをSKILL.mdの手順が1か所で宣言する。agentが作った本文は標準入力で渡し、保存済みの正本だけをpath引数で渡す。検査のためだけの一時fileや後片付け工程は無い。停止条件は「止まる」と「仮説を明示して進む」に分かれる。設定fileは持たず、保存先と論理モデリングの手法は依頼と対話から決める。
 
 外部の段取り（`grill`、`write-doc`）は、内部skill `write-bdd`の`references/nested-playbook.md`に1か所で書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`grill/grill`版1は契約objectを公開入口へ直接渡し、`decisions`と`open_questions`を持つ結果objectを直接受け取る。渡す`questions`は成果を左右する順に厳選し、対話の作法と問う数の上限は`grill`の公開契約に従う。上限で問われなかった論点は、返った`open_questions`の推奨を仮置きした未決として成果物へ載せる。各入口は任意入力`references`（追加で従う資料の絶対path配列）を持ち、手順の最初に読む。
 
-資料のtemplateはこのrepositoryに無い。各入口は本文を`kind: text`で組み立て、`write-doc`の`document_type`（`domain-rule` / `user-journey-bdd` / `rdb-logical-data-modeling` / `rdb-physical-design`）で保存する。節構成と記法はwrite-docが所有するtemplateが定め、この入口のtool（`actor-coverage.py`、`scenario.py`、`rdb.py`）が読む見出しと欄は、そのtemplateが機械検査の記法として宣言する。参照資料は1か所にだけ置き、入口間で複製しない。
+資料のtemplateはこのrepositoryに無い。各入口は本文を`kind: text`で組み立て、`write-doc`の`document_type`（`domain-rule` / `user-journey-bdd` / `rdb-logical-data-modeling`）で保存する。節構成と記法はwrite-docが所有するtemplateが定め、この入口のtoolが読む見出しと欄は、そのtemplateが機械検査の記法として宣言する。参照資料は1か所にだけ置き、入口間で複製しない。
 
 ハーネスが作る資料は、冒頭を読み手の既知の語で書いた本文段落から始め、型や確認日のようなメタ情報の一覧を置かない。中心の問い、扱う理由、役割×目的の一覧、Journeyから外した事項の送り先のような作業記録は報告に載せ、正本へ写さない。保存先と名前は利用者の既存資料構成に従い、日本語のdirectory名・file名を許す。
 
@@ -172,7 +172,7 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 bash scripts/validate.sh
 ```
 
-`validate-structure.sh`は、両marketplaceと両runtime manifestのidentity、公開入口7つと内部skill5つの集合、`playbook.yml`の外部依存宣言と`script:` / `skill:`参照の実在、入口ごとの`scripts/`に置く同名toolのbyte一致、参照資料（`references/*.md`）がpackage内で1か所にだけあること、禁止参照形の不在を検査し、各tool（業務知識入力、データモデル構造、条件マトリクス、Gherkin検査、誰が行えるかの網羅、ユーザー目的達成BDD、同一パス更新、物理設計検査）の`self-test`またはfixture（旧引数のargparse拒否を含む）を実行する。データモデルの境界fixtureは、状態列・完了日時・削除フラグ・条件付きNULLを意味評価へ残し、それらの語だけで機械的に拒否しないことも確認する。続けて兄弟checkout `../harness-tools/tools/`の保守tool（root契約の`validate-plugin-repository.py`とその`--self-test`、回帰検査の`test-hardening.py --repository`）と、兄弟checkout（`../grill-plugins/plugins/grill`、`../write-doc-plugins/plugins/write-doc`）の実配布物に対する消費側lint（`lint-consumer-contract.py --repo --runtime`）を両runtimeで実行する。`../harness-tools/`が無ければexit 2で止まり、実配布物が見つからなければ落ちる。
+`validate-structure.sh`は、両marketplaceと両runtime manifestのidentity、公開入口7つと内部skill5つの集合、`playbook.yml`の外部依存宣言と参照の実在、同名toolのbyte一致、参照資料がpackage内で1か所にだけあること、禁止参照形の不在を検査し、各toolの`self-test`またはfixtureを実行する。物理設計検査はこのrepositoryでは実行せず、独立した`rdb-design` packageが所有する。続けて兄弟checkoutの保守toolと依存先実配布物に対する消費側lintを両runtimeで実行する。
 
 workspace rootの`bash scripts/validate.sh <このrepositoryの絶対path>`が配置・manifest・隣接playbook.yml・禁止参照形の構造契約を検査する。構造検査の成功は、SKILL本文の判断規律や生成された資料の業務上の正しさを保証しない。
 
