@@ -14,7 +14,7 @@ description: 対応する業務知識から、現在状態・有効期間履歴�
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 依頼文。題材、既知の業務シナリオ、論理モデリングの手法の指定 | 題材が読めなければ`settle`の問いにする。題材そのものが決まらなければ止まる |
-| `business_knowledge_paths` | 必須。対象repository配下にある、設計対象に対応する業務知識資料の絶対path配列 | 無い、空、repository外、相対path、読めないpath、symlinkなら設計せず止まる。テーブル名や画面・API仕様だけでは代替しない |
+| `business_knowledge_paths` | 必須。対象repositoryに追跡済みで、設計対象に対応する業務知識資料の絶対path配列 | 無い、空、未追跡、repository外、相対path、読めないpath、symlinkなら設計せず止まる。テーブル名や画面・API仕様だけでは代替しない |
 | `references` | 任意。追加で従う資料の絶対path配列（業務知識、Journey、既存の業務シナリオ）。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `modeling_method` | 論理構造への配置方法。同梱の`fact-recording` / `normalized` / `dimensional`のID、または利用者の手法fileの絶対path。IDに対応する手法fileは論理モデルの工程で適用する同梱skillの`references/methods/`が持つ | 依頼に無ければ記録対象・監査要件・分析目的から文脈で決める。文脈でも決まらなければ`settle`の問いにし、それでも決まらなければ最も筋の良い手法を仮説として選び、決め方（依頼指定／文脈推定／確認済み／仮説）を報告と未決に書く。指した手法fileが無ければ止まる。既定値を持たない |
 | `output_directory` | 正本を置く既存の書き込み可能な絶対directory | 下の「保存先の決め方」に従う |

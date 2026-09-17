@@ -14,7 +14,7 @@ description: 対応する業務知識を根拠に既存のBDD付きRDB論理設�
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 依頼文。どの永続化の主張を深めたいか、新しく分かったこと | 反証の焦点が読めなければ`challenge-persistence`の問いにする。決まらなければ作成・更新・削除のBDD全体を対象に仮置きして進む |
-| `business_knowledge_paths` | 必須。対象repository配下にある、既存論理資料の各設計対象に対応する業務知識資料の絶対path配列 | 無い、空、repository外、相対path、読めないpath、symlinkなら既存論理資料を変更せず止まる |
+| `business_knowledge_paths` | 必須。対象repositoryに追跡済みで、既存論理資料の各設計対象に対応する業務知識資料の絶対path配列 | 無い、空、未追跡、repository外、相対path、読めないpath、symlinkなら既存論理資料を変更せず止まる |
 | `references` | 任意。追加で従う資料の絶対path配列。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `existing_logical_document_path` | 更新する既存の`rdb-logical-data-modeling`資料の絶対path。symlinkではない既存file | 無い、複数ある、別pathへの出力を求められた、BDDと論理テーブル定義のどちらかが資料に無い場合は止まる |
 | `modeling_method` | 論理構造への配置方法。同梱の`fact-recording` / `normalized` / `dimensional`のID、または利用者の手法fileの絶対path。IDに対応する手法fileは論理モデルの工程で適用する同梱skillの`references/methods/`が持つ | 既存資料に手法が書かれていればそれを使う。無ければ依頼、文脈、`challenge-persistence`の順で決め、それでも決まらなければ既存資料の構造から最も筋の良い手法を仮説として選び、決め方を報告と未決に書く。指した手法fileが無ければ止まる。既定値を持たない |

@@ -14,7 +14,7 @@ description: 対応する業務知識を正本として複数の既存RDB論理�
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 横断改訂の目的と追加の設計指示 | 対象と目的を読めなければ止まる |
-| `targets` | 1件以上の`{logical_document_path, business_knowledge_paths}`。論理資料と業務知識は対象repository配下にある既存の通常fileの絶対path | 最初の事前条件検査で一件でも欠ければ、全資料を変更せず止まる |
+| `targets` | 1件以上の`{logical_document_path, business_knowledge_paths}`。論理資料と業務知識は対象repositoryに追跡済みの通常fileの絶対path | 最初の事前条件検査で一件でも欠ければ、全資料を変更せず止まる |
 
 論理資料と業務知識の対応は利用者が指定する。directory名や近いファイル名から推測しない。業務知識が存在しない領域は、テーブル設計ではなく`discover-domain`で業務知識を作る対象として返す。
 
