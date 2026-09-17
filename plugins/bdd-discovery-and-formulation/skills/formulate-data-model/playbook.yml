@@ -1,23 +1,29 @@
 version: 2
 name: formulate-data-model
-description: 既存のBDD付きRDB論理設計を永続化のQA観点で反証して同じ資料へ戻し、そのテーブル構造を変えずに対象RDBの物理設計を作る
-inputs: [user_input, references, existing_logical_document_path, modeling_method, database_product, database_version, physical_output_directory, physical_name]
+description: 対応する業務知識から既存のBDD付きRDB論理設計を反証して同じ資料へ戻し、そのテーブル構造を変えずに対象RDBの物理設計を作る
+inputs: [user_input, business_knowledge_paths, references, existing_logical_document_path, modeling_method, database_product, database_version, physical_output_directory, physical_name]
 
 requires:
   - {plugin: grill, marketplace: grill}
   - {plugin: write-doc, marketplace: write-doc}
 
 steps:
+  - id: preflight-domain-knowledge
+    script: scripts/domain_input.py
+    purpose: 既存論理資料に対応する業務知識が1件以上明示され、既存の通常fileとして読めることを反証前に検査する
+    needs: [business_knowledge_paths]
+    provides: [validated_business_knowledge_paths]
+
   - id: challenge-persistence
     playbook: grill
     purpose: 既存論理資料を根拠にQA観点で問い、答えで残す事実・履歴・業務制約または物理設計の前提が変わる問いを成果を左右する順に厳選して利用者へ確認し、確認済みの発見と未決を分ける
-    needs: [user_input, references, existing_logical_document_path]
+    needs: [user_input, validated_business_knowledge_paths, references, existing_logical_document_path]
     provides: [decisions, open_questions]
 
   - id: ground
     agent_work: invoking_agent
     purpose: 同じagentが既存論理資料、依頼、決定、未決を根拠・仮説・未確認へ区別して保持する
-    needs: [existing_logical_document_path, decisions, open_questions]
+    needs: [existing_logical_document_path, validated_business_knowledge_paths, decisions, open_questions]
     provides: [grounded_input]
 
   - id: deepen-scenarios
@@ -38,10 +44,16 @@ steps:
     needs: [existing_logical_document_path, revised_persistence_scenarios, persistence_coverage, condition_matrix, validation_report, modeling_method, grounded_input]
     provides: [revised_logical_data_model, final_markdown, requested_output_path]
 
+  - id: validate-immutable-structure
+    script: scripts/immutable_model.py
+    purpose: 全論理テーブルの分類、宣言した時刻、イベント追加専用という構造契約だけを検査し、設計の意味は採点しない
+    needs: [final_markdown]
+    provides: [immutable_validation_report]
+
   - id: guard-logical-update
     script: scripts/update-guard.py
     purpose: 更新先が入力された既存論理資料と同じパスであることを検査する
-    needs: [existing_logical_document_path, requested_output_path]
+    needs: [existing_logical_document_path, requested_output_path, immutable_validation_report]
     provides: [update_target]
 
   - id: update-logical-document
@@ -49,7 +61,7 @@ steps:
     purpose: 同じagentが保持した深化済みBDDと論理モデルをtext materialとして渡し、既存資料と同じパスへ差し替える
     input:
       document_type: rdb-logical-data-modeling
-    needs: [final_markdown, validation_report, update_target, references]
+    needs: [final_markdown, validation_report, immutable_validation_report, update_target, references]
     provides: [updated_logical_document_path]
 
   - id: design-physical

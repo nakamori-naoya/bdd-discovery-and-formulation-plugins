@@ -1,11 +1,11 @@
 ---
 name: formulate-data-model
-description: 既存のBDD付きRDB論理設計をQA観点で深化させ、同じ資料へ更新する。その論理構造を変えず、指定されたRDB製品・バージョンのRead、型、index、分離レベル、配置へ写す。「データモデルを定式化して」「論理設計を深掘りして物理設計して」と言われたときに使う。
+description: 対応する業務知識を根拠に既存のBDD付きRDB論理設計をQA観点で深化させ、同じ資料へ更新する。その論理構造を変えず、指定されたRDB製品・バージョンのRead、型、index、分離レベル、配置へ写す。「データモデルを定式化して」「論理設計を深掘りして物理設計して」と言われたときに使う。
 ---
 
 # データモデルを定式化する
 
-読み終えると、既存のBDD付きRDB論理設計へ永続化のQA観点の反例を当てて同じpathへ戻し、その論理構造を変えずに、指定されたRDB製品と版で確認できた機能だけを使った物理設計資料を1本新しく保存できる。論理資料は更新であり、新しい論理資料は作らない。
+読み終えると、既存のBDD付きRDB論理設計と、それに対応する業務知識を突き合わせ、永続化のQA観点の反例を当てて同じpathへ戻し、その論理構造を変えずに、指定されたRDB製品と版で確認できた機能だけを使った物理設計資料を1本新しく保存できる。論理資料は更新であり、新しい論理資料は作らない。業務知識の裏付けが無ければ既存テーブルだけから設計判断を補わない。
 
 同じdirectoryの`playbook.yml`が工程順の正本である。このSKILLを読んだagentが、利用者の入力と既存論理資料を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`skill:`の工程は同じpackageに同梱された同名skillの`SKILL.md`をこのagentが同じ文脈で読んで適用する工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値（条件マトリクス、本文）はこのagentが文脈に保持し、fileへ書き出して受け渡さない。手順に入る前に同梱の内部skill `write-bdd`の`SKILL.md`を同じ文脈で読み、その規律（入力の根拠づけ、業務の言葉、`grill` / `write-doc`の呼び方、BDDの前提・トリガー・失敗理由と条件マトリクス、定式化へ進める見極め、QA観点）を全工程へ適用する。
 
@@ -14,6 +14,7 @@ description: 既存のBDD付きRDB論理設計をQA観点で深化させ、同�
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 依頼文。どの永続化の主張を深めたいか、新しく分かったこと | 反証の焦点が読めなければ`challenge-persistence`の問いにする。決まらなければ作成・更新・削除のBDD全体を対象に仮置きして進む |
+| `business_knowledge_paths` | 必須。既存論理資料の各設計対象に対応する業務知識資料の絶対path配列 | 無い、空、相対path、読めないpath、symlinkなら既存論理資料を変更せず止まる |
 | `references` | 任意。追加で従う資料の絶対path配列。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
 | `existing_logical_document_path` | 更新する既存の`rdb-logical-data-modeling`資料の絶対path。symlinkではない既存file | 無い、複数ある、別pathへの出力を求められた、BDDと論理テーブル定義のどちらかが資料に無い場合は止まる |
 | `modeling_method` | 論理構造への配置方法。同梱の`fact-recording` / `normalized` / `dimensional`のID、または利用者の手法fileの絶対path。IDに対応する手法fileは論理モデルの工程で適用する同梱skillの`references/methods/`が持つ | 既存資料に手法が書かれていればそれを使う。無ければ依頼、文脈、`challenge-persistence`の順で決め、それでも決まらなければ既存資料の構造から最も筋の良い手法を仮説として選び、決め方を報告と未決に書く。指した手法fileが無ければ止まる。既定値を持たない |
@@ -39,19 +40,22 @@ description: 既存のBDD付きRDB論理設計をQA観点で深化させ、同�
 
 ## 手順
 
-1. **challenge-persistence（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」、[工程間の契約](references/contract.md)、`write-bdd`の重要なシナリオを見つけるQA観点で、既存論理資料のどの永続化上の主張を反証しているかを明らかにし、答えで残す事実・履歴・業務制約または物理設計の前提（製品と版、保存先）が変わる問いを成果を左右する順に選んで推奨と理由を添え、`context`と`questions`に渡す。呼び方は`write-bdd`の入れ子の段取りを呼ぶ規律に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・既存資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは資料を完成できない場合だけ行う。
-2. **ground。** 既存論理資料、依頼、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
-3. **deepen-scenarios。** 同梱skillの判断規律と`write-bdd`のBDDの前提・トリガー・失敗理由に従い、作成・更新・削除、履歴、保持、失敗時保証の不足を永続化シナリオ、3操作の検討状況、条件マトリクスへ深化させる。
-4. **validate-scenarios（`scripts/scenario_matrix.py`）。** 条件マトリクスJSONを標準入力で`python3 scripts/scenario_matrix.py check`へ渡す。pathはこのSKILLと同じdirectoryを基準にし、fileは介さない。stdoutにJSONを1行ずつ返し、終了codeは0が違反なし、1が違反あり（各行が`path` / `detail` / `howto`）、2が入力を読めない（空、不正JSON、objectでない）。0以外なら先へ進まず`deepen-scenarios`へ戻る。
-5. **revise-logical-model。** 同梱skillの判断規律と`modeling_method`で選んだ手法に従い、確認済みの発見を論理構造とBDDへ戻し、`open_questions`と仮置きした推奨を該当するBDD・要素に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べ、BeforeとAfterで全テーブルを同じ順序に置いた改訂本文を作る。更新先は既存論理資料と同じpathであり、これを`requested_output_path`にする。
-6. **guard-logical-update（`scripts/update-guard.py`）。** `python3 scripts/update-guard.py check --existing <既存論理資料の絶対path> --output <requested_output_path>`を実行する。引数は2つのpathだけで本文は渡さない。既存fileがsymlinkでない通常fileで、両pathが同じ実体を指すときだけ終了code 0で`{"update_target": <絶対path>}`をstdoutへ返す。それ以外は終了code 1で`{"error": <診断>}`を返すので、既存資料を変えずに止まる。
-7. **update-logical-document（`write-doc`）。** 改訂本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-logical-data-modeling`を`document_type`に、`update_target`をそのまま渡す。新規作成用の`output_directory`と`name`は渡さない。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が`update_target`と一致することを確かめ、その`path`を`updated_logical_document_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まり、物理設計を始めない。
-8. **design-physical。** [RDB物理設計へ写す判断規律](references/physical-design-judgment.md)、[RDB設計の契約](references/design-contract.md)、[関係データのライフサイクル](references/relational-data-lifecycle.md)、[トランザクション分離](references/transaction-isolation.md)を適用し、`revise-logical-model`で適用した同梱skillの関係データモデリングの原則とNULL回避を物理設計でも保つ。保存成功した`updated_logical_document_path`だけを入力にし、次の順に進める。
+1. **preflight-domain-knowledge（`scripts/domain_input.py`）。** `business_knowledge_paths`をJSONで`python3 scripts/domain_input.py check`へ渡し、対応する業務知識資料がすべて絶対pathの通常fileとして読めることを確かめる。終了code 0以外なら既存資料を変更しない。このtoolは入力の構造だけを検査し、資料の意味は判定しない。
+
+2. **challenge-persistence（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」、[工程間の契約](references/contract.md)、`write-bdd`の重要なシナリオを見つけるQA観点で、既存論理資料のどの永続化上の主張を反証しているかを明らかにし、答えで残す事実・履歴・業務制約または物理設計の前提（製品と版、保存先）が変わる問いを成果を左右する順に選んで推奨と理由を添え、`context`と`questions`に渡す。呼び方は`write-bdd`の入れ子の段取りを呼ぶ規律に従う。問う数の上限と対話の作法はgrillの公開契約に従い、上限で問われなかった論点は返った`open_questions`の推奨を仮置きした未決として保持する。返った`decisions`と`open_questions`を利用者入力・既存資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは資料を完成できない場合だけ行う。
+3. **ground。** 既存論理資料、依頼、決定、未決、仮置きした推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
+4. **deepen-scenarios。** 同梱skillの判断規律と`write-bdd`のBDDの前提・トリガー・失敗理由に従い、作成・更新・削除、履歴、保持、失敗時保証の不足を永続化シナリオ、3操作の検討状況、条件マトリクスへ深化させる。
+5. **validate-scenarios（`scripts/scenario_matrix.py`）。** 条件マトリクスJSONを標準入力で`python3 scripts/scenario_matrix.py check`へ渡す。pathはこのSKILLと同じdirectoryを基準にし、fileは介さない。stdoutにJSONを1行ずつ返し、終了codeは0が違反なし、1が違反あり（各行が`path` / `detail` / `howto`）、2が入力を読めない（空、不正JSON、objectでない）。0以外なら先へ進まず`deepen-scenarios`へ戻る。
+6. **revise-logical-model。** 同梱skillの判断規律と`modeling_method`で選んだ手法に従い、確認済みの発見を論理構造とBDDへ戻し、`open_questions`と仮置きした推奨を該当するBDD・要素に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べ、BeforeとAfterで全テーブルを同じ順序に置いた改訂本文を作る。更新先は既存論理資料と同じpathであり、これを`requested_output_path`にする。
+7. **validate-immutable-structure（`scripts/immutable_model.py`）。** 改訂本文を`python3 scripts/immutable_model.py check`へ渡し、全論理テーブルのリソース系／イベント系分類、宣言した時刻規約、イベント表の追加専用宣言という構造契約だけを検査する。状態列、完了日時、削除フラグ、条件付きNULLの業務的な妥当性はtoolに判定させず、業務知識とBDDを読んだagentが判断する。終了code 0以外なら`revise-logical-model`へ戻る。
+8. **guard-logical-update（`scripts/update-guard.py`）。** `python3 scripts/update-guard.py check --existing <既存論理資料の絶対path> --output <requested_output_path>`を実行する。引数は2つのpathだけで本文は渡さない。既存fileがsymlinkでない通常fileで、両pathが同じ実体を指すときだけ終了code 0で`{"update_target": <絶対path>}`をstdoutへ返す。それ以外は終了code 1で`{"error": <診断>}`を返すので、既存資料を変えずに止まる。
+9. **update-logical-document（`write-doc`）。** 改訂本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-logical-data-modeling`を`document_type`に、`update_target`をそのまま渡す。新規作成用の`output_directory`と`name`は渡さない。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が`update_target`と一致することを確かめ、その`path`を`updated_logical_document_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まり、物理設計を始めない。
+10. **design-physical。** [RDB物理設計へ写す判断規律](references/physical-design-judgment.md)、[RDB設計の契約](references/design-contract.md)、[関係データのライフサイクル](references/relational-data-lifecycle.md)、[トランザクション分離](references/transaction-isolation.md)を適用し、`revise-logical-model`で適用した同梱skillの関係データモデリングの原則とNULL回避を物理設計でも保つ。保存成功した`updated_logical_document_path`だけを入力にし、次の順に進める。
    - `python3 scripts/rdb.py fingerprint --model-file <更新済み論理資料の絶対path>`で論理構造の指紋を得る。引数は保存済み正本のpathだけである。終了code 0でstdoutに`digest`を返し、1なら論理テーブル定義を読めないので論理資料へ戻り、2なら正本を読めない。指紋は物理資料の「対象と論理設計」に`- 論理構造の指紋: sha256:<digest>`として書く
    - 業務で典型的かつ重要なReadを記録してからindexを決める
    - 採用する型、制約、index、時間表現、生成列、範囲、トランザクション機能ごとに`### 機能: <機能名>`節を置き、`- 利用可能な版:`（使えるようになった版）と`- 根拠:`（対象版の公式https URL、または`local:`で始まる実機確認の要約）を欄として書く。根拠は物理設計資料そのものに残り、別の台帳やfileは持たない。同じ機能名の節を2つ置かない
    - 物理制約、型、index、分離レベル、パーティションと配置、容量・性能・運用、採用するRDB機能、代表的な読み取りを書いた物理設計本文を完成させる。節と欄は`write-doc`の`rdb-physical-design`型（公開契約の`document_type`）が定める形で書き、このpackageはtemplateを持たない。`scripts/rdb.py check`が要求するのは、その型のH2見出し11節（`## 対象と論理設計`、`## 物理制約`、`## 物理化の方針`、`## index`、`## トランザクションと分離レベル`、`## パーティションと配置`、`## 容量・性能・運用`、`## 採用するRDB機能`、`## 物理設計の完了条件`、`## 未決`、`## 代表的な読み取り`）が各1回あることと、`### index:`、`### 分離性判断:`、`### 機能:`、`### Read-<連番>:`の小見出しがその型の欄を各1回持つことである。論理テーブル定義、ER図、CUDのBDDは複製せず、入力論理資料を一つ明記する。仮説の値（想定件数、SLO、確認できなかった代替）は仮説と分かる形で書き、`## 未決`へ並べる
-9. **verify-physical（`scripts/rdb.py`）。** 物理設計本文（Markdown）をそのまま標準入力で`python3 scripts/rdb.py check --model-file <更新済み論理資料の絶対path> --product <database_product> --version <database_version>`へ渡す。fileへ書かず、正本pathだけを引数にする。見出し、対象DBMSと版、指紋の一致、論理定義の非複製、業務制約の扱い、index・Read・分離性判断の欄、各`### 機能:`が`- 利用可能な版:`と`- 根拠:`を1つずつ持ち根拠が公式https URLか`local:`で始まること、機能名の重複が無いことが揃えば終了code 0、問題があれば1でstdoutへ`problem`を1行ずつ返し、入力を読めなければ（標準入力が空、正本pathが読めない）2である。0以外なら`design-physical`へ戻る。例の`...`は他の節の省略で、必須見出しと欄の全体は`write-doc`の`rdb-physical-design`型と手順8のとおりである。
+11. **verify-physical（`scripts/rdb.py`）。** 物理設計本文（Markdown）をそのまま標準入力で`python3 scripts/rdb.py check --model-file <更新済み論理資料の絶対path> --product <database_product> --version <database_version>`へ渡す。fileへ書かず、正本pathだけを引数にする。見出し、対象DBMSと版、指紋の一致、論理定義の非複製、業務制約の扱い、index・Read・分離性判断の欄、各`### 機能:`が`- 利用可能な版:`と`- 根拠:`を1つずつ持ち根拠が公式https URLか`local:`で始まること、機能名の重複が無いことが揃えば終了code 0、問題があれば1でstdoutへ`problem`を1行ずつ返し、入力を読めなければ（標準入力が空、正本pathが読めない）2である。0以外なら`design-physical`へ戻る。例の`...`は他の節の省略で、必須見出しと欄の全体は`write-doc`の`rdb-physical-design`型と手順8のとおりである。
 
    ```bash
    python3 scripts/rdb.py check --model-file /abs/path/to/logical.md --product PostgreSQL --version 16 <<'EOF'
@@ -72,18 +76,19 @@ description: 既存のBDD付きRDB論理設計をQA観点で深化させ、同�
    EOF
    ```
 
-10. **document-physical（`write-doc`）。** 物理設計本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-physical-design`を`document_type`に、確認済みの`physical_output_directory`と`physical_name`をそのまま渡す。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`physical_rdb_design_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
+12. **document-physical（`write-doc`）。** 物理設計本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`rdb-physical-design`を`document_type`に、確認済みの`physical_output_directory`と`physical_name`をそのまま渡す。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が指定した保存先と一致することを確かめ、その`path`を`physical_rdb_design_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
 
 ## 停止条件
 
 **止まる。** 成果が無意味になる必須入力の欠落、公開契約に反する入力、toolの失敗、保存先の不確定である。止まるときは既存資料を変更せず（論理更新の保存後なら物理設計を始めず）、どこまで確定し、何が分かれば続けられるかを返す。
 
+- `business_knowledge_paths`が無い、空、相対path、読めないpath、またはsymlinkである
 - 既存論理資料のpathが無い、symlinkである、複数ある、別pathへの出力を求められた、またはBDDと論理テーブル定義のどちらかが資料に無い
 - 既存資料に代表的な永続化のBDDが無く、反証の対象が存在しない。未決と回答責任者を示し、論理資料を初めて作る入口が該当すると報告する
 - `modeling_method`が指した手法fileが無い、または利用者の手法fileが同梱の3本と同じ節を持たない
 - `references`に相対path、読めないpath、symlinkがある
 - `grill`が`completed`以外を返した、または`decisions` / `open_questions`が配列でない
-- `scenario_matrix.py` / `update-guard.py` / `rdb.py`のどれかが0以外で終了し、戻しても解消しない
+- `domain_input.py` / `scenario_matrix.py` / `immutable_model.py` / `update-guard.py` / `rdb.py`のどれかが0以外で終了し、戻しても解消しない
 - 論理資料の更新が`completed`以外を返した、または`path`が`update_target`と一致しない。物理設計を始めない
 - `database_product`か`database_version`が`challenge-persistence`の後も一つに決まらない。論理資料の更新までを完了とし、物理設計を始めずに止まる（版の根拠が取れない物理設計は成果にならない）
 - 物理設計で論理構造の変更が必要になった。物理側で補わず論理設計へ戻す
