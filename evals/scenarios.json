@@ -160,6 +160,66 @@
           "meaning": "直近イベントIDや時刻は独立した業務上の問いがない限り重複保持しない"
         }
       ]
+    },
+    {
+      "id": "domain-event-is-a-business-fact",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-domain/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "予約画面で取消ボタンが押された、DELETE /reservations/{id}を受信した、取消メッセージをpublishした、をすべて業務イベントとして業務知識に載せてください。業務上は、予約者本人の取消要求が利用開始前に受理されると予約が取り消され、利用枠を別の予約者へ約束できるようになります。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "separates-fact-from-request-and-delivery",
+          "meaning": "取消ボタン、API request、message publishを業務イベントにせず、要求・操作・伝達と、すでに起きて権利や可能な行為を変えた業務事実を区別する"
+        },
+        {
+          "id": "names-business-event-at-business-grain",
+          "meaning": "業務イベントは予約が取り消されたという過去形の業務事実として、取消後に利用枠を別の予約者へ約束できるという業務上の結果と結び付ける"
+        }
+      ]
+    },
+    {
+      "id": "domain-formulation-keeps-bdd-responsibilities",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/formulate-domain/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "既存domain-ruleでは、予約者本人で利用開始前なら予約を取り消せると決まっています。しかしBDDは `Given 予約がある / When 取消ボタンを押す / And APIが成功する / Then 内部で正しく判定される / And 本人の約束を第三者に壊されないため` です。この正本を反証して直してください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "restores-given-when-then-boundaries",
+          "meaning": "Givenへ本人の予約であることと利用開始前であることを一件ずつ置き、Whenを一つの業務上の契機にし、Thenを業務上観測できる成立・不成立と次状態にする"
+        },
+        {
+          "id": "keeps-reason-out-of-then",
+          "meaning": "拒む理由を観測結果としてThenへ重複させず、業務ルールと失敗シナリオのNOTEのRule・Reasonへ役割分担する"
+        }
+      ]
+    },
+    {
+      "id": "domain-formulation-preserves-actor-knowledge-and-source",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/formulate-domain/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "本人確認では、顧客の自己申告氏名と会員台帳の登録氏名が一致したときだけ担当者が本人として扱えます。担当者は質問前には自己申告氏名を知りません。既存BDDは `Given 氏名が正しい / When 本人確認する / Then 本人である` だけです。業務BDDを深化してください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "distinguishes-actors-and-sources",
+          "meaning": "顧客と担当者の主体を省略せず、顧客の自己申告と会員台帳の記録を別の出所を持つ事実として区別する"
+        },
+        {
+          "id": "models-relevant-knowledge-gap",
+          "meaning": "担当者が質問前には自己申告氏名を知らないという知識差が行為や結果に効く範囲だけを前提へ置き、画面・API・保存方式へ寄せない"
+        }
+      ]
     }
   ]
 }

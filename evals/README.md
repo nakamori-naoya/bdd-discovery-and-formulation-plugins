@@ -1,6 +1,6 @@
 # bdd-discovery-and-formulation の eval
 
-6つの公開入口はすべて最初の工程で `grill` を `playbook:` で呼び、利用者との対話で題材の曖昧さを解消してから正本を書く。`claude -p`（対話なし・tool無し）の1往復では対話と保存を観測できないので、自動実行は行わず手動evalを記録する。`scenarios.json` は agent が読む会話fixtureであり、自動採点の入力ではない。
+7つの公開入口はすべて最初の工程で `grill` を `playbook:` で呼び、利用者との対話で題材の曖昧さを解消してから正本を書く。`claude -p`（対話なし・tool無し）の1往復では対話と保存を観測できないので、自動実行は行わず手動evalを記録する。`scenarios.json` は agent が読む会話fixtureであり、自動採点の入力ではない。
 
 ## 手動evalの手順（代表1本: `discover-domain`）
 
