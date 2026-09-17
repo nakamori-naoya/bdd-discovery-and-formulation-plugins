@@ -14,7 +14,7 @@ description: 対応する業務知識を正本として複数の既存RDB論理�
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
 | `user_input` | 横断改訂の目的と追加の設計指示 | 対象と目的を読めなければ止まる |
-| `targets` | 1件以上の`{logical_document_path, business_knowledge_paths}`。論理資料は既存の通常fileの絶対path、業務知識は対応関係を説明できる1件以上の通常fileの絶対path | 最初の事前条件検査で一件でも欠ければ、全資料を変更せず止まる |
+| `targets` | 1件以上の`{logical_document_path, business_knowledge_paths}`。論理資料と業務知識は対象repository配下にある既存の通常fileの絶対path | 最初の事前条件検査で一件でも欠ければ、全資料を変更せず止まる |
 
 論理資料と業務知識の対応は利用者が指定する。directory名や近いファイル名から推測しない。業務知識が存在しない領域は、テーブル設計ではなく`discover-domain`で業務知識を作る対象として返す。
 
@@ -34,7 +34,7 @@ description: 対応する業務知識を正本として複数の既存RDB論理�
 
 ## 手順
 
-1. **preflight-domain-knowledge。** `targets`をJSON objectのまま標準入力から`python3 scripts/domain_input.py check`へ渡す。終了code 0は正規化済みtarget、1は不足または不正pathの診断、2は入力を読めない状態である。0以外なら一つも変更せず止まる。
+1. **preflight-domain-knowledge。** 対象repository rootをcurrent directoryにし、`targets`をJSON objectのまま標準入力から`python3 scripts/domain_input.py check`へ渡す。終了code 0は正規化済みtarget、1は不足または不正pathの診断、2は入力を読めない状態である。0以外なら一つも変更せず止まる。
 2. **analyze-domains。** targetごとに業務知識を読み、業務上の対象、現在状態、業務イベント、後で答える問い、履歴を失う損失を対応付ける。現在状態・有効期間履歴・イベント列・派生のうち正本を選び、選ばなかった候補と理由も保持する。業務イベント数は候補を見つける材料であり、採否条件にはしない。
 3. **revise-models。** 全targetを同じ文脈で読み、共有概念、同じテーブル、上流・下流の参照を突き合わせる。各資料の分類表を`系列 / 性質 / 論理テーブル / 正本 / 時刻 / 変化 / 根拠`の7列に揃え、論理テーブル定義、ライフサイクル、BDDを同じ判断へ改訂する。一つの変更が他資料の前提を変える場合は同じ実行で直す。
 4. **validate-models。** 改訂本文を`{"documents":[{"path":"<絶対path>","content":"<Markdown>"}]}`として標準入力から`python3 scripts/immutable_model.py check`へ渡す。終了code 0は分類表と論理テーブル定義の構造契約を満たす、1は各違反の`path / detail / howto`、2は入力を読めない状態である。0以外なら保存せず`revise-models`へ戻る。状態列、完了日時、削除フラグ、条件付きNULLの妥当性はこのtoolへ判定させず、業務知識を読んで意味評価する。
