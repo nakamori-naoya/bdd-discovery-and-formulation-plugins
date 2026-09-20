@@ -34,9 +34,9 @@ steps:
 
   - id: scenarios
     skill: write-persistence-scenarios
-    purpose: 同じagentが同梱skillの判断規律で、作成・更新・削除に関係する業務断面を永続化シナリオ、3操作の検討状況、条件マトリクスへ構成する
+    purpose: 同じagentが業務シナリオを掲載順に棚卸しし、永続化が結果を左右する断面だけを永続化シナリオ、採否表、3操作の検討状況、条件マトリクスへ構成する
     needs: [events, actors, grounded_input]
-    provides: [persistence_scenarios, persistence_coverage, condition_matrix]
+    provides: [persistence_scenarios, scenario_selection, persistence_coverage, condition_matrix]
 
   - id: validate-scenarios
     script: scripts/scenario_matrix.py
@@ -47,7 +47,7 @@ steps:
   - id: logical-model
     skill: design-data-model
     purpose: 同じagentが同梱skillの判断規律と選んだ手法で、検査済みシナリオから記録する事実とRDB論理構造を設計し完成本文を作る
-    needs: [persistence_scenarios, persistence_coverage, condition_matrix, validation_report, modeling_method, grounded_input]
+    needs: [persistence_scenarios, scenario_selection, persistence_coverage, condition_matrix, validation_report, modeling_method, grounded_input]
     provides: [logical_data_model, final_markdown]
 
   - id: validate-immutable-structure

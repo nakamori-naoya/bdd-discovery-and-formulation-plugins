@@ -28,9 +28,9 @@ steps:
 
   - id: deepen-scenarios
     skill: write-persistence-scenarios
-    purpose: 作成・更新・削除、履歴、保持、失敗時保証の不足を永続化シナリオと条件マトリクスへ深化させる
+    purpose: 業務シナリオを掲載順に再評価し、永続化が結果を左右する作成・更新・削除、履歴、保持、失敗時保証だけを永続化シナリオ、採否表、条件マトリクスへ深化させる
     needs: [existing_logical_document_path, grounded_input]
-    provides: [revised_persistence_scenarios, persistence_coverage, condition_matrix]
+    provides: [revised_persistence_scenarios, scenario_selection, persistence_coverage, condition_matrix]
 
   - id: validate-scenarios
     script: scripts/scenario_matrix.py
@@ -41,7 +41,7 @@ steps:
   - id: revise-logical-model
     skill: design-data-model
     purpose: 確認済みの発見を論理構造とBDDへ戻し、同一path更新へ渡す本文を作る
-    needs: [existing_logical_document_path, revised_persistence_scenarios, persistence_coverage, condition_matrix, validation_report, modeling_method, grounded_input]
+    needs: [existing_logical_document_path, revised_persistence_scenarios, scenario_selection, persistence_coverage, condition_matrix, validation_report, modeling_method, grounded_input]
     provides: [revised_logical_data_model, final_markdown, requested_output_path]
 
   - id: validate-immutable-structure
