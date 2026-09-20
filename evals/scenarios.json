@@ -2,6 +2,50 @@
   "schema": 1,
   "cases": [
     {
+      "id": "data-model-selects-only-persistence-relevant-business-scenarios",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-data-model/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "業務知識には、予約成立、同じ受付番号の重複登録、権限のない担当者による登録、存在しない顧客への登録があります。業務知識の順序からBDD付き論理データモデルを作ってください。受付番号は一意で、顧客参照には参照整合性があります。権限確認は永続化前に完了します。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "keeps-persistence-relevant-scenarios",
+          "meaning": "正常な予約成立に加え、一意性が決める重複登録と参照整合性が決める存在しない顧客への登録をデータモデルBDDへ採用する"
+        },
+        {
+          "id": "excludes-pre-persistence-authorization",
+          "meaning": "権限のない担当者による登録は業務知識に残し、永続化前に拒否が決まるため空のBefore/Afterを持つデータモデルBDDにはせず、対応表へ対象外理由を残す"
+        }
+      ]
+    },
+    {
+      "id": "data-model-bdd-is-concrete-and-complete",
+      "skill": "../plugins/bdd-discovery-and-formulation/skills/revise-data-models/SKILL.md",
+      "messages": [
+        {
+          "role": "user",
+          "content": "既存の登録データモデルBDDは、`Given 登録処理に失敗する / When 登録が試みられる / Then 中途半端なデータを残さない`だけです。利用者、認証対応、イベント共通ヘッダー、登録イベント詳細の4表があります。イベント共通ヘッダーは新しいアカウントイベント系列です。具体的に改訂してください。"
+        }
+      ],
+      "criteria": [
+        {
+          "id": "uses-one-concrete-trigger-and-result",
+          "meaning": "固定した利用者ID、認証ID、時刻、失敗する保存位置を示し、一つのWhenと一意に読めるAfterへ改訂する"
+        },
+        {
+          "id": "shows-all-structures-before-and-after",
+          "meaning": "4つの全論理テーブルをBeforeとAfterの両側へ同じ順序・全カラム見出しで置き、ロールバック後に部分行が無いことを表で示す"
+        },
+        {
+          "id": "names-owned-base-event-table",
+          "meaning": "新しいイベント共通ヘッダーを対象不明のbase_eventsではなく、所有系列を識別できるaccount_base_eventsとして一貫して命名する"
+        }
+      ]
+    },
+    {
       "id": "representative-boundary",
       "skill": "../plugins/bdd-discovery-and-formulation/skills/discover-domain/SKILL.md",
       "messages": [

@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "plugin": "bdd-discovery-and-formulation",
+  "version": "7.1.0",
+  "created_at": "2026-09-20T04:17:09.251098+00:00",
+  "notes": "データモデルBDDを業務シナリオ順に選別し、永続化保証に関係する具体的なBefore/Afterへ改訂する判断規律を追加",
+  "breaking": "なし",
+  "migration": "既存のデータモデル資料は、認可など永続化前に完結する拒否をBDDから外し、対応表へ対象外理由を残す。新しい基底イベント表は所有系列付きの名称を使う。",
+  "checks": {
+    "codex": {
+      "status": "passed",
+      "checks": [
+        "repository validation",
+        "consumer contract lint"
+      ]
+    },
+    "claude": {
+      "status": "passed",
+      "checks": [
+        "repository validation",
+        "consumer contract lint"
+      ]
+    }
+  },
+  "files": [
+    ".agents/plugins/marketplace.json",
+    "plugins/bdd-discovery-and-formulation/.codex-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
+    "plugins/bdd-discovery-and-formulation/.claude-plugin/plugin.json"
+  ]
+}

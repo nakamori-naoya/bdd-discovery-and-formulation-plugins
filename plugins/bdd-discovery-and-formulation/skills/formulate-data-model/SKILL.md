@@ -23,6 +23,7 @@ description: 対応する業務知識を根拠に、既存のBDD付きRDB論理�
 
 | 観察対象 | 述語 | 行動 |
 |---|---|---|
+| 既存BDDと業務知識のシナリオ | 正常系、または論理制約・トランザクション・履歴・読み取り投影が結果を左右する | 永続化BDDとして深化する。認可や永続化前の入力受付だけで拒否が決まるものは既存データモデルBDDから外し、業務知識と採否表へ対象外理由を残す |
 | `grounded_input` | 代表的な永続化の振る舞いと反証対象を説明できる | 定式化へ進む。反証対象が無ければ、初回発見が必要な理由と未決を返して止まる |
 | 反証の対象 | 作成・更新・削除に関係するBDDである | 境界、精度と単位、状態遷移、順序、重複、同時実行、権限内の悪用、時間、規則変更の遡及、失敗時保証によって残す事実や履歴が変わるかを見る |
 | 反証で見つかった違い | 既存理解で説明できる／確認済み修正／仮説つき未決／論理設計外のどれかに分けられる | 確認済み修正をBDD、事実、論理テーブル、列、業務制約へ戻す。未決は推奨仮説、根拠、採らなかった解釈とともに該当箇所へ明示する |
@@ -33,9 +34,9 @@ description: 対応する業務知識を根拠に、既存のBDD付きRDB論理�
 1. **preflight-domain-knowledge（`scripts/domain_input.py`）。** `business_knowledge_paths`をJSONで標準入力へ渡す。終了code 0以外なら既存資料を変更しない。
 2. **challenge-persistence（`grill`）。** [実行指示書](references/execution-guidance.md)と[工程間の契約](references/contract.md)に従い、既存論理資料のどの永続化上の主張を反証するかを示し、答えで残す事実、履歴、業務制約が変わる問いだけを成果を左右する順に渡す。返った未決は推奨を仮説として保持する。2回目は利用者が求めた場合か、決定なしでは停止条件に当たる場合だけ呼ぶ。
 3. **ground。** 既存論理資料、依頼、決定、未決を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
-4. **deepen-scenarios。** 同梱skillの判断規律で、作成・更新・削除、履歴、保持、失敗時保証を永続化シナリオ、3操作の検討状況、条件マトリクスへ深化させる。
+4. **deepen-scenarios。** 同梱skillの判断規律で、業務シナリオを掲載順に再評価し、`scenario_selection`へ採用した永続化シナリオまたは対象外理由を記録する。採用した作成・更新・削除、履歴、保持、失敗時保証を永続化シナリオ、3操作の検討状況、条件マトリクスへ深化させる。
 5. **validate-scenarios（`scripts/scenario_matrix.py`）。** 条件マトリクスJSONを標準入力で検査する。終了code 0以外なら`deepen-scenarios`へ戻り、解消できなければ止まる。
-6. **revise-logical-model。** 確認済みの発見を論理構造とBDDへ戻し、仮説を該当BDD・要素と未決へ明示した改訂本文を作る。更新先は既存論理資料と同じpathにする。
+6. **revise-logical-model。** 確認済みの発見を論理構造とBDDへ戻し、`scenario_selection`を対応表へ反映する。採用した業務由来BDDを業務知識の掲載順で先に置き、永続化固有BDDを後へ置く。各BDDは固定した識別子、値、時刻、順序、失敗位置と一つのWhenを持ち、Before/Afterの両側へ全論理テーブルを同じ順序・全カラム見出しで置く。仮説を該当BDD・要素と未決へ明示した改訂本文を作り、更新先は既存論理資料と同じpathにする。
 7. **validate-immutable-structure（`scripts/immutable_model.py`）。** 改訂本文を標準入力で渡し、全論理テーブルの分類、時刻規約、イベント表の追加専用宣言という構造契約を検査する。意味は業務知識とBDDを読んだagentが判断する。
 8. **guard-logical-update（`scripts/update-guard.py`）。** 既存論理資料と要求した更新先が同じ実体を指すことを検査し、返った`update_target`だけを保存先にする。
 9. **update-logical-document（`write-doc`）。** 改訂本文を`material: [{kind: text, content: <本文>}]`、`document_type: rdb-logical-data-modeling`、`update_target`、入力の`references`で保存する。`status: completed`かつ返却pathが`update_target`と一致した場合だけ完了する。
@@ -50,4 +51,5 @@ description: 対応する業務知識を根拠に、既存のBDD付きRDB論理�
 
 - `updated_logical_document_path`: 同じpathへ更新したBDD付きRDB論理データモデル正本の絶対path
 - QA反証で変化した永続化の理解、追加・修正したBDD、未回答の問い、採用した仮説と根拠の報告
+- 業務知識の掲載順を保ったデータモデルBDDの採用結果と、永続化が関与しないため対象外にしたシナリオの理由
 - 物理設計へ渡すが論理正本には混ぜなかった技術論点
