@@ -41,7 +41,7 @@ def validate_file(value: object, path: str, allowed: dict[str, str], problems: l
         return None
     result = allowed.get(os.path.normpath(value))
     if result is None:
-        problems.append(diagnostic(path, "対象repositoryの追跡済み通常fileではない", "対象repositoryへ記録済みの正本fileを指定する"))
+        problems.append(diagnostic(path, "対象repositoryの追跡済み通常fileではない", "対象repositoryへ記録済みの正式な定義のfileを指定する"))
     return result
 
 

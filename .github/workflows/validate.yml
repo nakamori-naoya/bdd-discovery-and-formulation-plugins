@@ -13,7 +13,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      # 自 repository は <workspace>/<自分の名前>、保守 tool の正本 harness-tools と依存 provider は <workspace>/<repo 名> に置く。
+      # 自 repository は <workspace>/<自分の名前>、保守 tool の参照元 harness-tools と依存 provider は <workspace>/<repo 名> に置く。
       # scripts/validate.sh から見た兄弟の相対 path は ../<repo 名> になる。
       # 兄弟 repository は常に検証済みの main を取得し、PR 由来の ref を渡さない（未信頼のコードを実行する経路を作らない）。
       # 複数 repository を同時に更新するときは、harness-tools → provider → consumer の順に merge する。
