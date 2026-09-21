@@ -16,7 +16,7 @@ steps:
 
   - id: ground
     agent_work: invoking_agent
-    purpose: 同じagentが既存正本、依頼、決定、未決を根拠・仮説・未確認へ区別して保持し、コアの範囲を確定する
+    purpose: 同じagentが既存の正式な定義、依頼、決定、未決を根拠・仮説・未確認へ区別して保持し、コアの範囲を確定する
     needs: [existing_domain_rule_path, decisions, open_questions]
     provides: [grounded_input, core_scope]
 
@@ -40,7 +40,7 @@ steps:
 
   - id: guard-update
     script: scripts/update-guard.py
-    purpose: 更新先が入力された既存正本と同じパスであることを検査する
+    purpose: 更新先が入力された既存の正式な定義と同じパスであることを検査する
     needs: [existing_domain_rule_path, requested_output_path]
     provides: [update_target]
 

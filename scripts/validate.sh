@@ -20,7 +20,7 @@ status=0
 printf '\n=== validate-structure.sh ===\n'
 bash "$ROOT/scripts/validate-structure.sh" || status=1
 
-# 共有保守tool（正本は ../harness-tools/tools。複製を持たない）
+# 共有保守tool（参照元は ../harness-tools/tools。複製を持たない）
 printf '\n=== validate-plugin-repository.py ===\n'
 python3 "$TOOLS/validate-plugin-repository.py" "$ROOT" || status=1
 python3 "$TOOLS/validate-plugin-repository.py" --self-test || status=1

@@ -4,7 +4,7 @@
   actor-coverage.py check   < <domain-rule本文Markdown>
   actor-coverage.py self-test
 
-正本: 資料の `## コマンドとクエリ` 表と `# 誰が行えるか` 表（templateが定める見出しと第1列）。
+基準資料: 資料の `## コマンドとクエリ` 表と `# 誰が行えるか` 表（templateが定める見出しと第1列）。
 入力: agentが同じ文脈で作った完成本文（Markdown）を標準入力で受ける。fileは介さない。
 正規化: 2つの見出し配下のMarkdown表を読み、第1列の文字列を前後空白除去して集合にする。
 合格述語: 両表が存在し空でなく、第1列集合が両方向で一致する。

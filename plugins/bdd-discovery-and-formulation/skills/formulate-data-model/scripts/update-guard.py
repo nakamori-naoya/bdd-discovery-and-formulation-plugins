@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""formulationの更新先が、入力された既存正本と同じ実体であることを検査する。
+"""formulationの更新先が、入力された既存の正式な定義と同じ実体であることを検査する。
 
-  update-guard.py check --existing <既存正本の絶対path> --output <更新先として決めた絶対path>
+  update-guard.py check --existing <既存の正式な定義の絶対path> --output <更新先として決めた絶対path>
       -> exit 0 で {"update_target": <解決済み絶対path>} をstdoutへ返す
-         exit 1 = 既存正本がsymlinkか通常fileでない、または両pathが別の実体を指す（stdoutへ {"error": ...}）
+         exit 1 = 既存の正式な定義がsymlinkか通常fileでない、または両pathが別の実体を指す（stdoutへ {"error": ...}）
   update-guard.py self-test
 
-正本: 入力 `existing_*_path`（symlinkではない既存file）。
+基準資料: 入力 `existing_*_path`（symlinkではない既存file）。
 入力: 2つのpath引数だけ。本文は受け取らない（fileの中身を読まず、実体の同一性だけを見る）。
 合格述語: existing が symlink でない通常 file で、resolve() が output の resolve() と一致する。
-意味評価として残す範囲: その正本が本当に更新対象として妥当か、更新内容が正本の型に合うか。
+意味評価として残す範囲: その正式な定義が本当に更新対象として妥当か、更新内容が正式な定義の型に合うか。
 """
 
 import argparse
@@ -30,9 +30,9 @@ def guard(existing_path, output_path):
     existing = Path(existing_path)
     output = Path(output_path)
     if existing.is_symlink() or not existing.is_file():
-        return "入力はsymlinkではない既存の正本fileでなければならない: {}".format(existing_path), None
+        return "入力はsymlinkではない既存の正式な定義のfileでなければならない: {}".format(existing_path), None
     if existing.resolve() != output.resolve():
-        return "formulationは新規資料を作らず、入力された正本と同じpathを更新する: existing={} output={}".format(existing_path, output_path), None
+        return "formulationは新規資料を作らず、入力された正式な定義と同じpathを更新する: existing={} output={}".format(existing_path, output_path), None
     return None, str(existing.resolve())
 
 
@@ -48,15 +48,15 @@ def cmd_check(args):
 def self_test():
     with tempfile.TemporaryDirectory() as tmp:
         existing = Path(tmp) / "existing.md"
-        existing.write_text("# 正本\n", encoding="utf-8")
+        existing.write_text("# 正式な定義\n", encoding="utf-8")
         other = Path(tmp) / "other.md"
         link = Path(tmp) / "link.md"
         os.symlink(existing, link)
         assert guard(existing, existing)[0] is None, "正例: 同一path"
         assert guard(existing, Path(tmp) / "." / "existing.md")[0] is None, "境界例: 表記が違っても同じ実体なら受理"
         assert guard(existing, other)[0], "反例: 別pathへの出力"
-        assert guard(link, link)[0], "反例: symlinkの正本"
-        assert guard(Path(tmp) / "missing.md", Path(tmp) / "missing.md")[0], "反例: 存在しない正本"
+        assert guard(link, link)[0], "反例: symlinkの正式な定義"
+        assert guard(Path(tmp) / "missing.md", Path(tmp) / "missing.md")[0], "反例: 存在しない正式な定義"
 
         def run(*argv):
             return subprocess.run([sys.executable, __file__, "check", *map(str, argv)], text=True, capture_output=True)

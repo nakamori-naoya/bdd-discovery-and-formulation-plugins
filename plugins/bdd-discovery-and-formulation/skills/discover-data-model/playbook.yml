@@ -1,6 +1,6 @@
 version: 2
 name: discover-data-model
-description: 対応する業務知識から保存する正本と永続化の作成・更新・削除を発見し、BDDを含むRDB論理データモデル資料にする
+description: 対応する業務知識の正式な定義から一次データの保存表現と永続化の作成・更新・削除を発見し、BDDを含むRDB論理データモデル資料にする
 inputs: [user_input, business_knowledge_paths, references, modeling_method, output_directory, name]
 
 requires:
