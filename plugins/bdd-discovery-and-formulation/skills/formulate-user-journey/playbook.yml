@@ -1,6 +1,6 @@
 version: 2
 name: formulate-user-journey
-description: 既存のユーザー目的達成BDDを反証し、確認済みの理解と未決を同じ正本へ戻して深化させる
+description: 既存のユーザー目的達成BDDを反証し、確認済みの理解と未決を同じ正式な定義へ戻して深化させる
 inputs: [user_input, references, existing_user_journey_bdd_path]
 
 requires:
@@ -10,13 +10,13 @@ requires:
 steps:
   - id: challenge
     playbook: grill
-    purpose: 既存正本を根拠に目的、両端、接続、分岐、中断再開、役割移譲、完了条件を問い、答えで本文の変更が一つに決まる不明点を成果を左右する順に厳選して確認する
+    purpose: 既存の正式な定義を根拠に目的、両端、接続、分岐、中断再開、役割移譲、完了条件を問い、答えで本文の変更が一つに決まる不明点を成果を左右する順に厳選して確認する
     needs: [user_input, references, existing_user_journey_bdd_path]
     provides: [decisions, open_questions]
 
   - id: ground
     agent_work: invoking_agent
-    purpose: 同じagentが既存正本、依頼、決定、未決を根拠・仮説・未確認へ区別して保持する
+    purpose: 同じagentが既存の正式な定義、依頼、決定、未決を根拠・仮説・未確認へ区別して保持する
     needs: [existing_user_journey_bdd_path, decisions, open_questions]
     provides: [grounded_input]
 
@@ -28,7 +28,7 @@ steps:
 
   - id: revise
     agent_work: invoking_agent
-    purpose: 同じagentが確認済みの発見と未決を既存本文へ戻し、場面草案、条件マトリクス、改訂本文を作る。更新先は既存正本と同じpathである
+    purpose: 同じagentが確認済みの発見と未決を既存本文へ戻し、場面草案、条件マトリクス、改訂本文を作る。更新先は既存の正式な定義と同じpathである
     needs: [existing_user_journey_bdd_path, journey_map, grounded_input]
     provides: [scenario_draft, condition_matrix, requested_output_path, final_markdown]
 
@@ -40,13 +40,13 @@ steps:
 
   - id: guard-update
     script: scripts/update-guard.py
-    purpose: 更新先が入力された既存正本と同じpathであることを検査する
+    purpose: 更新先が入力された既存の正式な定義と同じpathであることを検査する
     needs: [existing_user_journey_bdd_path, requested_output_path]
     provides: [update_target]
 
   - id: document
     playbook: write-doc
-    purpose: 同じagentが保持した検査済みの改訂本文をtext materialとして渡し、既存正本と同じpathへ差し替える
+    purpose: 同じagentが保持した検査済みの改訂本文をtext materialとして渡し、既存の正式な定義と同じpathへ差し替える
     input:
       document_type: user-journey-bdd
     needs: [final_markdown, validation_report, update_target, references]

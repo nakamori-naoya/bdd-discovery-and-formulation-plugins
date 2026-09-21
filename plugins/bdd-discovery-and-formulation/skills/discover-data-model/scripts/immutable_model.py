@@ -9,7 +9,7 @@ import sys
 from dataclasses import dataclass
 
 
-REQUIRED_HEADERS = ["系列", "性質", "論理テーブル", "正本", "時刻", "変化", "根拠"]
+REQUIRED_HEADERS = ["系列", "性質", "論理テーブル", "正式な定義", "時刻", "変化", "根拠"]
 ALLOWED_SERIES = {"リソース系", "イベント系"}
 ALLOWED_NATURES = {"業務", "技術", "派生"}
 ALLOWED_SOURCES = {"現在状態", "有効期間履歴", "イベント列", "派生"}
@@ -122,7 +122,7 @@ def check_document(markdown: str, label: str) -> list[Problem]:
     classified = set(classification)
     defined = set(definitions)
     for name in sorted(defined - classified):
-        problems.append(Problem(f"{label}.classification.{name}", "論理テーブルが分類表に無い", "系列・性質・正本・時刻・変化・根拠を記載する"))
+        problems.append(Problem(f"{label}.classification.{name}", "論理テーブルが分類表に無い", "系列・性質・正式な定義・時刻・変化・根拠を記載する"))
     for name in sorted(classified - defined):
         problems.append(Problem(f"{label}.classification.{name}", "分類したテーブルの論理定義が無い", "論理テーブル定義を追加するか分類から外す"))
 
@@ -133,10 +133,10 @@ def check_document(markdown: str, label: str) -> list[Problem]:
             problems.append(Problem(f"{prefix}.系列", f"許可値ではない: {row['系列']}", "リソース系またはイベント系にする"))
         if row["性質"] not in ALLOWED_NATURES:
             problems.append(Problem(f"{prefix}.性質", f"許可値ではない: {row['性質']}", "業務・技術・派生のいずれかにする"))
-        if row["正本"] not in ALLOWED_SOURCES:
-            problems.append(Problem(f"{prefix}.正本", f"許可値ではない: {row['正本']}", "現在状態・有効期間履歴・イベント列・派生のいずれかにする"))
+        if row["正式な定義"] not in ALLOWED_SOURCES:
+            problems.append(Problem(f"{prefix}.正式な定義", f"許可値ではない: {row['正式な定義']}", "分類表の「正式な定義」列を現在状態・有効期間履歴・イベント列・派生のいずれかにする"))
         if not row["根拠"] or row["根拠"] in {"-", "なし"}:
-            problems.append(Problem(f"{prefix}.根拠", "業務知識または技術要件への根拠が無い", "対応する正本の参照を記載する"))
+            problems.append(Problem(f"{prefix}.根拠", "業務知識または技術要件への根拠が無い", "対応する業務知識または技術要件の参照を記載する"))
 
         columns = {column for column, _, _ in definitions[name]}
         if row["系列"] == "リソース系":
@@ -144,16 +144,16 @@ def check_document(markdown: str, label: str) -> list[Problem]:
                 problems.append(Problem(f"{prefix}.created_at", "リソース系にcreated_atが無い", "リソース成立時刻をcreated_atで持つ"))
             if "created_at" not in row["時刻"]:
                 problems.append(Problem(f"{prefix}.時刻", "分類表の時刻がcreated_atを示さない", "created_atの意味を記載する"))
-            if row["正本"] == "イベント列":
-                problems.append(Problem(f"{prefix}.正本", "リソース系をイベント列正本にしている", "現在状態・有効期間履歴・派生から選ぶ"))
+            if row["正式な定義"] == "イベント列":
+                problems.append(Problem(f"{prefix}.正式な定義", "リソース系の論理テーブルに対し、分類表の「正式な定義」列でイベント列を選択している", "「正式な定義」列を現在状態・有効期間履歴・派生のいずれかにする"))
 
         if row["系列"] == "イベント系":
             if "occurred_at" not in row["時刻"]:
                 problems.append(Problem(f"{prefix}.時刻", "イベント系の業務上または技術上の成立時刻がoccurred_atではない", "occurred_atを記載する"))
             if row["変化"] != "追加のみ":
                 problems.append(Problem(f"{prefix}.変化", f"追加専用ではない: {row['変化']}", "イベント表は追加のみにする"))
-            if row["正本"] != "イベント列":
-                problems.append(Problem(f"{prefix}.正本", "イベント系の正本がイベント列ではない", "イベント列にする"))
+            if row["正式な定義"] != "イベント列":
+                problems.append(Problem(f"{prefix}.正式な定義", "イベント系の論理テーブルで「正式な定義」列がイベント列ではない", "「正式な定義」列をイベント列にする"))
             if row["性質"] == "派生":
                 problems.append(Problem(f"{prefix}.性質", "派生物をイベント系に分類している", "業務イベントか技術イベントかを明示する"))
 

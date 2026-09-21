@@ -5,7 +5,7 @@
       -> 違反をstdoutへJSON 1行ずつ出す。exit 0 = 違反なし / 1 = 違反あり（path, detail, howto） / 2 = 入力を読めない
   scenario_matrix.py self-test
 
-正本: BDDの前提・トリガー・失敗理由（scenario-premises.md）が定める条件マトリクスの形。
+基準資料: BDDの前提・トリガー・失敗理由（scenario-premises.md）が定める条件マトリクスの形。
 入力: agentが同じ文脈で作った条件マトリクスJSONを標準入力で受ける。fileは介さない。
 合格述語: scenarios が空でないlistで、各シナリオの kind / expected / rule / trigger / premises / note が
   種別ごとの成立条件（成功は全前提satisfied、単一失敗は対象1件unsatisfied、境界は対象1件boundary、
@@ -60,7 +60,7 @@ def validate(data):
         if expected not in EXPECTED:
             problems.append(problem(f"{base}.expected", f"不正な期待結果: {expected!r}", f"{sorted(EXPECTED)}から選ぶ"))
         if not nonempty(scenario.get("rule")):
-            problems.append(problem(f"{base}.rule", "対象業務ルールが無い", "BDDより上または外部正本の業務ルールを書く"))
+            problems.append(problem(f"{base}.rule", "対象業務ルールが無い", "BDDより上または外部正式な定義の業務ルールを書く"))
 
         source = scenario.get("source")
         if source is not None and (not nonempty(source) or not RELATIVE_LINK.match(source.strip())):
@@ -127,7 +127,7 @@ def validate(data):
                 if note.get("rule") != scenario.get("rule"):
                     problems.append(problem(f"{base}.note.rule", "対象業務ルールと一致しない", "scenario.ruleと同じ値を書く"))
                 if note.get("source") != source:
-                    problems.append(problem(f"{base}.note.source", "外部正本の参照が一致しない", "scenario.sourceと同じ値を書く。内部ルールなら両方省略する"))
+                    problems.append(problem(f"{base}.note.source", "外部参照元が一致しない", "scenario.sourceと同じ値を書く。内部ルールなら両方省略する"))
                 if not nonempty(note.get("reason")):
                     problems.append(problem(f"{base}.note.reason", "拒否理由が無い", "抵触した必要条件と拒否理由を書く"))
         elif note is not None:
