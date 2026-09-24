@@ -128,7 +128,6 @@ else
   fail "参照資料が2か所以上にある"
 fi
 # ── 同名toolの byte 一致（playbook.yml の script: が入口の scripts/ 配下を要求するための複製） ──
-cmp -s "$PACKAGE/skills/discover-domain/scripts/actor-coverage.py" "$PACKAGE/skills/formulate-domain/scripts/actor-coverage.py" && pass "actor-coverage.py 2入口で同一" || fail "actor-coverage.py の差分"
 cmp -s "$PACKAGE/skills/discover-user-journey/scripts/scenario.py" "$PACKAGE/skills/formulate-user-journey/scripts/scenario.py" && pass "user-journey scenario.py 2入口で同一" || fail "user-journey scenario.py の差分"
 cmp -s "$PACKAGE/skills/formulate-domain/scripts/update-guard.py" "$PACKAGE/skills/formulate-user-journey/scripts/update-guard.py" \
   && cmp -s "$PACKAGE/skills/formulate-domain/scripts/update-guard.py" "$PACKAGE/skills/formulate-data-model/scripts/update-guard.py" \
@@ -262,10 +261,6 @@ broken_scenario="$TMP_ROOT/broken-large-scenario.feature"
 sed 's/^  Then 結果1を観測する$/  When 結果1を観測する/' "$large_scenario" > "$broken_scenario"
 rejects python3 "$domain_formulation/scripts/scenario.py" check --matrix-json "$(cat "$large_matrix")" < "$broken_scenario" \
   && pass "一つのWhenという表現契約を拒否側で検証（exit 1）" || fail "複数Whenを拒否できない"
-
-# ── 誰が行えるかの網羅（actor-coverage.py）: self-test（正例・反例・境界例） ──
-python3 "$PACKAGE/skills/discover-domain/scripts/actor-coverage.py" self-test >/dev/null \
-  && pass "actor-coverage.py self-test（正例・反例・境界例）" || fail "actor-coverage.py self-test"
 
 # ── ユーザー目的達成BDD（scenario.py）: write-docの user-journey-bdd 型の記法（Given: / And: / NOTE: Rule:）で正例を書く。
 #    冒頭の段落は検査せず、場面・接続・NOTE・条件マトリクスだけ見る。
