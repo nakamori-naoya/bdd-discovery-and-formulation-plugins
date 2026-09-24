@@ -146,7 +146,7 @@ cmp -s "$PACKAGE/skills/discover-data-model/scripts/immutable_model.py" "$PACKAG
 # 合格述語: pathが対象repository配下の既存通常fileで重複せず、定義された全テーブルが一度だけ分類され、宣言した系列・正式な定義・時刻・変化の構造が一致する
 # 失敗時の診断: path/detail/howto
 # 正例: 対応する業務知識path、リソースと追加専用イベントを分類した本文
-# 反例: 対応資料の欠落、未分類テーブル、イベント行の「更新あり」宣言、廃止した旧列名、二本目の時刻、詳細イベントの日付、技術イベントの時刻名、_eventsで終わらないイベント表
+# 反例: 対応資料の欠落、未分類テーブル、イベント行の「更新あり」宣言、廃止した旧列名、occurred_at の有無、_eventsで終わらないイベント表、version の無い基底イベント
 # 境界例: status・完了日時・削除フラグ・条件付きNULLを含んでも、それだけでは拒否しない
 # 意味評価として残す範囲: 業務知識が対象へ本当に対応するか、正式な定義の選択、業務/技術イベント、列の業務的妥当性、資料間の意味整合
 data_model_entry="$PACKAGE/skills/revise-data-models"
@@ -184,25 +184,18 @@ rejects python3 "$immutable_model" check < "$data_model_entry/fixtures/unclassif
   && pass "immutable_model.pyは未分類テーブルを拒否（exit 1）" || fail "immutable_model.pyが未分類テーブルを拒否できない"
 python3 "$immutable_model" check < "$data_model_entry/fixtures/conditional-null.md" >/dev/null \
   && pass "immutable_model.pyは意味評価対象の列名・NULLを拒否しない" || fail "immutable_model.pyが意味評価対象を誤検知"
-# 反例: イベント表の二本目の時刻、詳細イベントの日付の時点、occurred_at 以外の技術イベントの時刻、_events で終わらないイベント表
-(perl -pe 's/^(\s+timestamptz occurred_at "起きた時点")$/$1\n        timestamptz recorded_at "記録した時点"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F 'occurred_atの一本ではない' >/dev/null \
-  && pass "immutable_model.pyはイベント表の二本目の時刻を拒否" || fail "immutable_model.pyがイベント表の二本目の時刻を拒否できない"
-(perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        date cancelled_on "取消日"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '詳細イベントが時点の列を持つ' >/dev/null \
-  && pass "immutable_model.pyは詳細イベントの日付の時点を拒否" || fail "immutable_model.pyが詳細イベントの日付の時点を拒否できない"
-(perl -pe 's/timestamptz occurred_at "要求した時点"/timestamptz requested_at "要求した時点"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F 'occurred_atの一本ではない' >/dev/null \
-  && pass "immutable_model.pyは occurred_at 以外の技術イベントの時刻を拒否" || fail "immutable_model.pyが技術イベントの時刻名を拒否できない"
+# 反例: occurred_at の無い技術イベント、occurred_at を持つ詳細イベント、_events で終わらないイベント表、version の無い基底イベント
+(perl -pe 's/timestamptz occurred_at "要求した時点"/timestamptz requested_at "要求した時点"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F 'occurred_at の列が無い' >/dev/null \
+  && pass "immutable_model.pyは occurred_at の無い技術イベントを拒否" || fail "immutable_model.pyが occurred_at の無い技術イベントを拒否できない"
+(perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        timestamptz occurred_at "起きた時点"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '詳細イベントが occurred_at を持つ' >/dev/null \
+  && pass "immutable_model.pyは occurred_at を持つ詳細イベントを拒否" || fail "immutable_model.pyが occurred_at を持つ詳細イベントを拒否できない"
 (sed 's/reservation_base_events/reservation_header/g' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '_eventsで終わらない' >/dev/null \
   && pass "immutable_model.pyは_eventsで終わらないイベント表を拒否" || fail "immutable_model.pyが_eventsで終わらないイベント表を拒否できない"
-# 反例: 状態の列の名前が status でない、リソースの版の名前が current_version でない、基底イベントに version が無い
-(sed 's/text status "いまの状態"/text state "いまの状態"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '状態の列の名前が status ではない' >/dev/null \
-  && pass "immutable_model.pyは state の列を拒否" || fail "immutable_model.pyが state の列を拒否できない"
-(sed 's/bigint current_version "反映済みの最後の版"/bigint version "反映済みの最後の版"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F 'リソースの版の列の名前が current_version ではない' >/dev/null \
-  && pass "immutable_model.pyはリソースの version を拒否" || fail "immutable_model.pyがリソースの version を拒否できない"
 (sed '/bigint version "予約の中の順序"/d' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '基底イベントに適用後の版 version が無い' >/dev/null \
   && pass "immutable_model.pyは version の無い基底イベントを拒否" || fail "immutable_model.pyが version の無い基底イベントを拒否できない"
-# 境界例: 意味が「業務が与えた値」で始まる日付は詳細イベントに置ける。リソースの業務の日付は拒まない（valid.md の use_on）
-perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        date judged_on "業務が与えた値。取消を判断した基準日"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
-  && pass "immutable_model.pyは業務が与えた日付を詳細イベントに許す" || fail "immutable_model.pyが業務が与えた日付を誤検知"
+# 境界例: 日付や時刻の列（返却期限など）は、名前が occurred_at でなければ詳細イベントにもリソースにも置ける（意味は読んで評価する）
+perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        date refund_due_on "返金の期限"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
+  && pass "immutable_model.pyは詳細イベントの日付の列を拒否しない" || fail "immutable_model.pyが詳細イベントの日付の列を誤検知"
 python3 "$immutable_model" check </dev/null >/dev/null 2>&1; [ $? -eq 2 ] \
   && pass "immutable_model.pyの空stdinはexit 2" || fail "immutable_model.pyの空stdin終了code"
 
