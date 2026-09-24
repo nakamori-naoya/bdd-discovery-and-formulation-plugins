@@ -9,12 +9,13 @@
 合格述語: 分類、図の実体、定義の見出しが同じテーブルの集合で、分類は一度ずつ。系列・性質・正式な定義が許可値で、根拠が空でない。
   リソース系はイベント列を選ばない。イベント系は追加のみ・イベント列・性質が派生でなく、名前が _events で終わる。
   イベント系の表で名前が _at で終わる列は、業務の基底イベント（_base_events）と技術イベントでは occurred_at（型は timestamptz）だけで、
-  必ずある。分類表の時刻の欄に occurred_at を示す。業務の詳細イベントは _at で終わる列を持たない。業務の基底イベントは version の列を持つ。業務の詳細イベントがあれば基底イベントもある。
+  必ずある。分類表の時刻の欄は `occurred_at` と完全に一致する（backtick は外す）。業務の詳細イベントは _at で終わる列を持たない。業務の基底イベントは version の列を持つ。業務の詳細イベントがあれば基底イベントもある。
   いずれも宣言（分類表の値、テーブルと列の名前）から一意に決まることだけを見る。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。終了code 1。入力を読めなければ {"error"} と終了code 2。
 正例: revise-data-models/fixtures/valid.md と write-doc の rdb-logical-data-modeling の見本。
 反例: scripts/validate-structure.sh の、旧列名、イベントの更新宣言、未分類のテーブル、_events で終わらないイベント表、
-  occurred_at の無い技術イベント、_at の列を持つ詳細イベント、occurred_at のほかの _at の列、version の無い基底イベント。
+  occurred_at の無い技術イベント、_at の列を持つ詳細イベント、occurred_at のほかの _at の列、version の無い基底イベント、
+  時刻の欄が `occurred_at` と一致しない分類表。
 境界例: 状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。名前が _at で終わらない日付の列（返却期限の due_on など）は拒まない。
 意味評価として残す範囲: 列が事実か業務が与えた値か加工した情報か、イベント表に二本目の時点が無いか（日付の列が出来事の時点の写しでないか）、
   状態と版の列の名前が status・current_version になっているか、保存表現の選択、資料間の意味の整合。
@@ -180,7 +181,7 @@ def check_document(markdown: str, label: str) -> list[Problem]:
         if row["正式な定義"] not in ALLOWED_SOURCES:
             problems.append(Problem(f"{prefix}.正式な定義", f"許可値ではない: {row['正式な定義']}", "分類表の「正式な定義」列を現在状態・有効期間履歴・イベント列・派生のいずれかにする"))
         if not row["根拠"] or row["根拠"] in {"-", "なし"}:
-            problems.append(Problem(f"{prefix}.根拠", "業務知識または技術要件への根拠が無い", "対応する業務知識または技術要件の参照を記載する"))
+            problems.append(Problem(f"{prefix}.根拠", "分類表の根拠の欄が空か「-」「なし」である", "対応する業務知識または技術要件の参照を記載する"))
         column_names = [a["name"] for a in entities[name]]
         if row["系列"] == "イベント系" and row["性質"] == "業務" and name.endswith("_base_events") and "version" not in column_names:
             problems.append(Problem(f"{prefix}.version", "基底イベントに適用後の版 version が無い", "基底イベントに、そのイベントを適用した後の版を version として置く"))
@@ -211,8 +212,8 @@ def check_document(markdown: str, label: str) -> list[Problem]:
             problems.append(Problem(f"{prefix}.{OCCURRED_AT}", f"{OCCURRED_AT} の列が無い", f"出来事が起きた時点を {OCCURRED_AT} として置く"))
         elif occurred[0]["type"] != "timestamptz":
             problems.append(Problem(f"{prefix}.{OCCURRED_AT}", f"{OCCURRED_AT} の型が timestamptz ではない: {occurred[0]['type']}", f"{OCCURRED_AT} は timestamptz で持つ"))
-        if OCCURRED_AT not in row["時刻"]:
-            problems.append(Problem(f"{prefix}.時刻", f"分類表の時刻が{OCCURRED_AT}を示さない", f"分類表の時刻に{OCCURRED_AT}を書く"))
+        if row["時刻"].strip("`") != OCCURRED_AT:
+            problems.append(Problem(f"{prefix}.時刻", f"分類表の時刻の欄が `{OCCURRED_AT}` と一致しない: {row['時刻']}", f"分類表の時刻の欄を `{OCCURRED_AT}` だけにする"))
 
     business_details = [n for n, r in classification.items() if r["系列"] == "イベント系" and r["性質"] == "業務" and n.endswith("_events") and not n.endswith("_base_events")]
     business_bases = [n for n, r in classification.items() if r["系列"] == "イベント系" and r["性質"] == "業務" and n.endswith("_base_events")]
