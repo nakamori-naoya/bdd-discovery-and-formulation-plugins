@@ -8,18 +8,16 @@
   （型 名前 [PK|FK|UK...] "意味"）を列として、「論理テーブル定義」の節の ### `名前` を定義として読む。backtick は外して比べる。
 合格述語: 分類、図の実体、定義の見出しが同じテーブルの集合で、分類は一度ずつ。系列・性質・正式な定義が許可値で、根拠が空でない。
   リソース系はイベント列を選ばない。イベント系は追加のみ・イベント列・性質が派生でなく、名前が _events で終わる。
-  イベント系の時刻の列（型が timestamptz / timestamp / date か、名前が _at で終わる列）は、基底イベント（_base_events）と技術イベントでは
-  occurred_at（timestamptz）の一本だけ、業務の詳細イベントでは無し。ただし意味が「業務が与えた値」で始まる列は時刻の列に数えない。
-  基底イベントと技術イベントの分類表の時刻の欄は occurred_at を示す。業務の詳細イベントがあれば基底イベントもある。
-  現在の状態の列は status（state、current_state、*_state を使わない）、リソースの現在の版は current_version（version などを使わない）、
-  業務の基底イベントは適用後の版 version を持つ。
+  業務の基底イベント（_base_events）と技術イベントは occurred_at の列を持ち、分類表の時刻の欄に occurred_at を示す。
+  業務の詳細イベントは occurred_at の列を持たない。業務の基底イベントは version の列を持つ。業務の詳細イベントがあれば基底イベントもある。
+  いずれも宣言（分類表の値、テーブルと列の名前）から一意に決まることだけを見る。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。終了code 1。入力を読めなければ {"error"} と終了code 2。
 正例: revise-data-models/fixtures/valid.md と write-doc の rdb-logical-data-modeling の見本。
-反例: scripts/validate-structure.sh の、旧列名、イベントの更新宣言、未分類のテーブル、二本目の時刻、日付の二本目の時点、
-  _events で終わらないイベント表、occurred_at 以外の技術イベントの時刻、state の列、リソースの version、version の無い基底イベント。
-境界例: 状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。リソースの業務の日付は拒まない。
-  意味が「業務が与えた値」で始まる日付の列は詳細イベントに置ける。
-意味評価として残す範囲: 列が事実か業務が与えた値か導ける情報か、「業務が与えた値」の宣言が正しいか、保存表現の選択、資料間の意味の整合。
+反例: scripts/validate-structure.sh の、旧列名、イベントの更新宣言、未分類のテーブル、_events で終わらないイベント表、
+  occurred_at の無い技術イベント、occurred_at を持つ詳細イベント、version の無い基底イベント。
+境界例: 状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。日付や時刻の列（返却期限など）は、名前が occurred_at でなければ拒まない。
+意味評価として残す範囲: 列が事実か業務が与えた値か加工した情報か、イベント表に二本目の時点が無いか（日付の列が出来事の時点の写しでないか）、
+  状態と版の列の名前が status・current_version になっているか、保存表現の選択、資料間の意味の整合。
 """
 
 from __future__ import annotations
@@ -37,12 +35,6 @@ ALLOWED_SOURCES = {"現在状態", "有効期間履歴", "イベント列", "派
 TABLE_HEADING = re.compile(r"^###\s+`([^`|]+)`")
 TABLE_CELL = re.compile(r"^`([^`|]+)`$")
 OCCURRED_AT = "occurred_at"
-TIME_TYPES = {"timestamptz", "timestamp", "date"}
-GIVEN_VALUE = "業務が与えた値"
-STATUS = "status"
-STATE_NAMES = {"state", "current_state", "current_status"}
-CURRENT_VERSION = "current_version"
-VERSION_ALIASES = {"version", "last_version", "latest_version"}
 ENTITY_OPEN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\{$")
 ATTRIBUTE = re.compile(r'^([A-Za-z_][A-Za-z0-9_\[\]]*)\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s+(?:PK|FK|UK)(?:\s*,\s*(?:PK|FK|UK))*)?(?:\s+"([^"]*)")?$')
 
@@ -190,11 +182,6 @@ def check_document(markdown: str, label: str) -> list[Problem]:
         if not row["根拠"] or row["根拠"] in {"-", "なし"}:
             problems.append(Problem(f"{prefix}.根拠", "業務知識または技術要件への根拠が無い", "対応する業務知識または技術要件の参照を記載する"))
         column_names = [a["name"] for a in entities[name]]
-        for column in column_names:
-            if column in STATE_NAMES or column.endswith("_state"):
-                problems.append(Problem(f"{prefix}.{column}", f"状態の列の名前が {STATUS} ではない: {column}", f"現在の状態の列は {STATUS} と名付ける"))
-        if row["系列"] == "リソース系" and set(column_names) & VERSION_ALIASES:
-            problems.append(Problem(f"{prefix}.version", f"リソースの版の列の名前が {CURRENT_VERSION} ではない: {sorted(set(column_names) & VERSION_ALIASES)}", f"リソースの現在の版は {CURRENT_VERSION} と名付ける"))
         if row["系列"] == "イベント系" and row["性質"] == "業務" and name.endswith("_base_events") and "version" not in column_names:
             problems.append(Problem(f"{prefix}.version", "基底イベントに適用後の版 version が無い", "基底イベントに、そのイベントを適用した後の版を version として置く"))
         if row["系列"] == "リソース系" and row["正式な定義"] == "イベント列":
@@ -210,18 +197,13 @@ def check_document(markdown: str, label: str) -> list[Problem]:
         if not name.endswith("_events"):
             problems.append(Problem(f"{prefix}.name", "イベント系のテーブル名が過去分詞の_eventsで終わらない", "<対象>_base_events、<対象>_<過去分詞>_events、<処理>_<過去分詞>_eventsのどれかにする"))
             continue
-        times = [a for a in entities[name]
-                 if (a["type"] in TIME_TYPES or a["name"].endswith("_at")) and not a["comment"].startswith(GIVEN_VALUE)]
-        time_names = [a["name"] for a in times]
         detail = row["性質"] == "業務" and not name.endswith("_base_events")
         if detail:
-            if time_names:
-                problems.append(Problem(f"{prefix}.時刻", f"詳細イベントが時点の列を持つ: {time_names}", f"出来事の時点は基底イベントの{OCCURRED_AT}だけに置く。業務が与えた日付なら意味を「{GIVEN_VALUE}」で始める"))
+            if OCCURRED_AT in column_names:
+                problems.append(Problem(f"{prefix}.{OCCURRED_AT}", f"詳細イベントが {OCCURRED_AT} を持つ", f"{OCCURRED_AT} は基底イベントにだけ置く"))
             continue
-        if time_names != [OCCURRED_AT]:
-            problems.append(Problem(f"{prefix}.時刻", f"時点の列が{OCCURRED_AT}の一本ではない: {time_names}", f"出来事の時点は{OCCURRED_AT}の一本だけにする。業務が与えた日付なら意味を「{GIVEN_VALUE}」で始める"))
-        elif times[0]["type"] != "timestamptz":
-            problems.append(Problem(f"{prefix}.{OCCURRED_AT}", f"{OCCURRED_AT}の型が timestamptz ではない: {times[0]['type']}", "出来事の時点は timestamptz で持つ"))
+        if OCCURRED_AT not in column_names:
+            problems.append(Problem(f"{prefix}.{OCCURRED_AT}", f"{OCCURRED_AT} の列が無い", f"出来事が起きた時点を {OCCURRED_AT} として置く"))
         if OCCURRED_AT not in row["時刻"]:
             problems.append(Problem(f"{prefix}.時刻", f"分類表の時刻が{OCCURRED_AT}を示さない", f"分類表の時刻に{OCCURRED_AT}を書く"))
 
