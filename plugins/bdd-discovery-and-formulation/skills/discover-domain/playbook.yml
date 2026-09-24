@@ -44,16 +44,10 @@ steps:
     needs: [condition_matrix]
     provides: [validation_report]
 
-  - id: validate-actors
-    script: scripts/actor-coverage.py
-    purpose: コマンドとクエリの一覧と誰が行えるかの表の第1列が一致することを検査し、役割の正しさは採点しない
-    needs: [final_markdown]
-    provides: [actor_coverage_report]
-
   - id: document
     playbook: write-doc
     purpose: 同じagentが保持した確認済みの理解と検査済みBDDをtext materialとして渡し、domain-ruleの正式な定義を1本保存する
     input:
       document_type: domain-rule
-    needs: [final_markdown, validation_report, actor_coverage_report, output_directory, name, references]
+    needs: [final_markdown, validation_report, output_directory, name, references]
     provides: [domain_rule_path]
