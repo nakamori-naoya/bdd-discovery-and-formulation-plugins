@@ -1,11 +1,23 @@
 #!/usr/bin/env python3
-"""論理データモデル資料の分類表と論理テーブル定義が、イミュータブルデータモデルの型に構造上合うかを検査する。
+"""論理データモデル資料が、イミュータブルデータモデルの型に構造上合うかを検査する。
 
-合格述語: 全論理テーブルが分類表に一度だけあり定義と対応する。系列・性質・正式な定義が許可値である。
-イベント系は追加のみ・イベント列で、名前が_eventsで終わり、created_at・updated_at・recorded_atを持たない。
-業務の基底イベント（_base_events）は時刻の列がoccurred_atの一本だけ、業務の詳細イベントはoccurred_atを持たず、
-詳細イベントがあれば基底イベントもある。技術イベントは時刻の列が「名前の最後の過去分詞_at」の一本だけである。
-業務上の妥当性（状態列、NULL、リソースの時刻）は判定しない。
+基準資料: 同梱の内部skill design-data-model の references/immutable-data-modeling.md（三つのテーブル、命名、時刻は occurred_at の一本、
+  業務が与えた値）と references/technical-process-lifecycle.md（技術処理の命名と時刻）。記法は write-doc の rdb-logical-data-modeling 型。
+入力: 標準入力の資料本文（Markdown）。または {"documents": [{"path", "content"}]} のJSON。
+正規化: 「リソース系とイベント系」の節の7列の表を分類として、「論理データモデル図」の節の erDiagram の実体と属性行
+  （型 名前 [PK|FK|UK...] "意味"）を列として、「論理テーブル定義」の節の ### `名前` を定義として読む。backtick は外して比べる。
+合格述語: 分類、図の実体、定義の見出しが同じテーブルの集合で、分類は一度ずつ。系列・性質・正式な定義が許可値で、根拠が空でない。
+  リソース系はイベント列を選ばない。イベント系は追加のみ・イベント列・性質が派生でなく、名前が _events で終わる。
+  イベント系の時刻の列（型が timestamptz / timestamp / date か、名前が _at で終わる列）は、基底イベント（_base_events）と技術イベントでは
+  occurred_at（timestamptz）の一本だけ、業務の詳細イベントでは無し。ただし意味が「業務が与えた値」で始まる列は時刻の列に数えない。
+  基底イベントと技術イベントの分類表の時刻の欄は occurred_at を示す。業務の詳細イベントがあれば基底イベントもある。
+失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。終了code 1。入力を読めなければ {"error"} と終了code 2。
+正例: revise-data-models/fixtures/valid.md と write-doc の rdb-logical-data-modeling の見本。
+反例: scripts/validate-structure.sh の、旧列名、イベントの更新宣言、未分類のテーブル、二本目の時刻、日付の二本目の時点、
+  _events で終わらないイベント表、occurred_at 以外の技術イベントの時刻。
+境界例: 状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。リソースの業務の日付は拒まない。
+  意味が「業務が与えた値」で始まる日付の列は詳細イベントに置ける。
+意味評価として残す範囲: 列が事実か業務が与えた値か導ける情報か、「業務が与えた値」の宣言が正しいか、保存表現の選択、資料間の意味の整合。
 """
 
 from __future__ import annotations
@@ -21,10 +33,12 @@ ALLOWED_SERIES = {"リソース系", "イベント系"}
 ALLOWED_NATURES = {"業務", "技術", "派生"}
 ALLOWED_SOURCES = {"現在状態", "有効期間履歴", "イベント列", "派生"}
 TABLE_HEADING = re.compile(r"^###\s+`([^`|]+)`")
-COLUMN_CELL = re.compile(r"^`([^`|]+)`(?:（[^）]+）)?$")
 TABLE_CELL = re.compile(r"^`([^`|]+)`$")
-BUSINESS_TIME = "occurred_at"
-SECOND_TIMES = {"created_at", "updated_at", "recorded_at"}
+OCCURRED_AT = "occurred_at"
+TIME_TYPES = {"timestamptz", "timestamp", "date"}
+GIVEN_VALUE = "業務が与えた値"
+ENTITY_OPEN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\{$")
+ATTRIBUTE = re.compile(r'^([A-Za-z_][A-Za-z0-9_\[\]]*)\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s+(?:PK|FK|UK)(?:\s*,\s*(?:PK|FK|UK))*)?(?:\s+"([^"]*)")?$')
 
 
 @dataclass
@@ -92,50 +106,73 @@ def parse_classification(lines: list[str], problems: list[Problem]) -> dict[str,
     return rows
 
 
-def parse_definitions(lines: list[str], problems: list[Problem]) -> dict[str, list[tuple[str, str, int]]]:
+def parse_headings(lines: list[str], problems: list[Problem]) -> list[str]:
     bounds = section(lines, "## 論理テーブル定義")
     if bounds is None:
-        problems.append(Problem("definitions", "『論理テーブル定義』節が無い", "全論理テーブルの定義を置く"))
+        problems.append(Problem("definitions", "『論理テーブル定義』節が無い", "テーブルごとに ### `名前` の節を置く"))
+        return []
+    start, end = bounds
+    return [m.group(1) for m in (TABLE_HEADING.match(lines[i]) for i in range(start + 1, end)) if m]
+
+
+def parse_er(lines: list[str], problems: list[Problem]) -> dict[str, list[dict]]:
+    """論理データモデル図の erDiagram から {実体: [{type, name, comment}]} を読む。"""
+    bounds = section(lines, "## 論理データモデル図")
+    if bounds is None:
+        problems.append(Problem("er", "『論理データモデル図』節が無い", "erDiagram で全テーブルと全列を描く"))
         return {}
     start, end = bounds
-    headings: list[tuple[str, int]] = []
-    for index in range(start + 1, end):
-        match = TABLE_HEADING.match(lines[index])
-        if match:
-            headings.append((match.group(1), index))
-    definitions: dict[str, list[tuple[str, str, int]]] = {}
-    for position, (name, heading_index) in enumerate(headings):
-        next_index = headings[position + 1][1] if position + 1 < len(headings) else end
-        columns: list[tuple[str, str, int]] = []
-        for index in range(heading_index + 1, next_index):
-            if not lines[index].lstrip().startswith("|"):
+    entities: dict[str, list[dict]] = {}
+    in_er = False
+    current = None
+    for line in lines[start + 1:end]:
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_er = False
+            current = None
+            continue
+        if stripped == "erDiagram":
+            in_er = True
+            continue
+        if not in_er:
+            continue
+        opened = ENTITY_OPEN.match(stripped)
+        if opened:
+            current = opened.group(1)
+            if current in entities:
+                problems.append(Problem(f"er.{current}", "erDiagram に同じ実体が2度ある", "実体は一度だけ描く"))
+            entities.setdefault(current, [])
+            continue
+        if stripped == "}":
+            current = None
+            continue
+        if current is not None:
+            attr = ATTRIBUTE.match(stripped)
+            if not attr:
+                problems.append(Problem(f"er.{current}", f"属性の行を読めない: {stripped}", "型 名前 [PK|FK] \"意味\" の形で書く"))
                 continue
-            cells = split_cells(lines[index])
-            if not cells:
-                continue
-            match = COLUMN_CELL.fullmatch(cells[0])
-            if match:
-                columns.append((match.group(1), " | ".join(cells), index + 1))
-        definitions[name] = columns
-    if not definitions:
-        problems.append(Problem("definitions", "テーブル見出しを読めない", "### `table_name`（業務上の名前）の形で定義する"))
-    return definitions
+            entities[current].append({"type": attr.group(1), "name": attr.group(2), "comment": attr.group(3) or ""})
+    if not entities:
+        problems.append(Problem("er", "erDiagram に実体が1つも無い", "erDiagram で全テーブルと全列を描く"))
+    return entities
 
 
 def check_document(markdown: str, label: str) -> list[Problem]:
     lines = markdown.splitlines()
     problems: list[Problem] = []
     classification = parse_classification(lines, problems)
-    definitions = parse_definitions(lines, problems)
+    entities = parse_er(lines, problems)
+    headings = parse_headings(lines, problems)
 
-    classified = set(classification)
-    defined = set(definitions)
-    for name in sorted(defined - classified):
-        problems.append(Problem(f"{label}.classification.{name}", "論理テーブルが分類表に無い", "系列・性質・正式な定義・時刻・変化・根拠を記載する"))
+    classified, drawn, defined = set(classification), set(entities), set(headings)
+    for name in sorted(drawn - classified):
+        problems.append(Problem(f"{label}.classification.{name}", "図のテーブルが分類表に無い", "系列・性質・正式な定義・時刻・変化・根拠を記載する"))
+    for name in sorted(classified - drawn):
+        problems.append(Problem(f"{label}.er.{name}", "分類したテーブルが図に無い", "erDiagram に実体と全列を描く"))
     for name in sorted(classified - defined):
-        problems.append(Problem(f"{label}.classification.{name}", "分類したテーブルの論理定義が無い", "論理テーブル定義を追加するか分類から外す"))
+        problems.append(Problem(f"{label}.definitions.{name}", "分類したテーブルの ### 節が論理テーブル定義に無い", "何を一つの行にまとめるかを書く節を置く"))
 
-    for name in sorted(classified & defined):
+    for name in sorted(classified & drawn):
         row = classification[name]
         prefix = f"{label}.{name}"
         if row["系列"] not in ALLOWED_SERIES:
@@ -146,45 +183,38 @@ def check_document(markdown: str, label: str) -> list[Problem]:
             problems.append(Problem(f"{prefix}.正式な定義", f"許可値ではない: {row['正式な定義']}", "分類表の「正式な定義」列を現在状態・有効期間履歴・イベント列・派生のいずれかにする"))
         if not row["根拠"] or row["根拠"] in {"-", "なし"}:
             problems.append(Problem(f"{prefix}.根拠", "業務知識または技術要件への根拠が無い", "対応する業務知識または技術要件の参照を記載する"))
-
-        columns = [column for column, _, _ in definitions[name]]
-        times = [column for column in columns if column.endswith("_at")]
         if row["系列"] == "リソース系" and row["正式な定義"] == "イベント列":
             problems.append(Problem(f"{prefix}.正式な定義", "リソース系の論理テーブルに対し、分類表の「正式な定義」列でイベント列を選択している", "「正式な定義」列を現在状態・有効期間履歴・派生のいずれかにする"))
-
-        if row["系列"] == "イベント系":
-            if row["変化"] != "追加のみ":
-                problems.append(Problem(f"{prefix}.変化", f"追加専用ではない: {row['変化']}", "イベント表は追加のみにする"))
-            if row["正式な定義"] != "イベント列":
-                problems.append(Problem(f"{prefix}.正式な定義", "イベント系の論理テーブルで「正式な定義」列がイベント列ではない", "「正式な定義」列をイベント列にする"))
-            if row["性質"] == "派生":
-                problems.append(Problem(f"{prefix}.性質", "派生物をイベント系に分類している", "業務イベントか技術イベントかを明示する"))
-            if not name.endswith("_events"):
-                problems.append(Problem(f"{prefix}.name", "イベント系のテーブル名が過去分詞の_eventsで終わらない", "<対象>_base_events、<対象>_<過去分詞>_events、<処理>_<過去分詞>_eventsのどれかにする"))
-                continue
-            for extra in sorted(set(times) & SECOND_TIMES):
-                problems.append(Problem(f"{prefix}.{extra}", f"イベント表に二本目の時刻 {extra} がある", "出来事の時刻は一本だけにする。別の時点が要るなら別のイベント表にする"))
-            if row["性質"] == "業務" and name.endswith("_base_events"):
-                expected = BUSINESS_TIME
-                if times != [expected]:
-                    problems.append(Problem(f"{prefix}.時刻", f"基底イベントの時刻の列が {expected} の一本ではない: {times}", f"時刻の列を {expected} だけにする"))
-            elif row["性質"] == "業務":
-                expected = None
-                if BUSINESS_TIME in times:
-                    problems.append(Problem(f"{prefix}.{BUSINESS_TIME}", "詳細イベントが基底イベントの時刻を重ねて持つ", "発生時刻は基底イベントにだけ置く"))
-            else:
-                verb = name[: -len("_events")].rsplit("_", 1)[-1]
-                expected = f"{verb}_at"
-                if times != [expected]:
-                    problems.append(Problem(f"{prefix}.時刻", f"技術イベントの時刻の列が {expected} の一本ではない: {times}", f"出来事の過去分詞に_atを付けた {expected} だけにする"))
-            if expected and expected not in row["時刻"]:
-                problems.append(Problem(f"{prefix}.時刻", f"分類表の時刻が {expected} を示さない", f"分類表の時刻に {expected} を書く"))
+        if row["系列"] != "イベント系":
+            continue
+        if row["変化"] != "追加のみ":
+            problems.append(Problem(f"{prefix}.変化", f"追加専用ではない: {row['変化']}", "イベント表は追加のみにする"))
+        if row["正式な定義"] != "イベント列":
+            problems.append(Problem(f"{prefix}.正式な定義", "イベント系の論理テーブルで「正式な定義」列がイベント列ではない", "「正式な定義」列をイベント列にする"))
+        if row["性質"] == "派生":
+            problems.append(Problem(f"{prefix}.性質", "派生物をイベント系に分類している", "業務イベントか技術イベントかを明示する"))
+        if not name.endswith("_events"):
+            problems.append(Problem(f"{prefix}.name", "イベント系のテーブル名が過去分詞の_eventsで終わらない", "<対象>_base_events、<対象>_<過去分詞>_events、<処理>_<過去分詞>_eventsのどれかにする"))
+            continue
+        times = [a for a in entities[name]
+                 if (a["type"] in TIME_TYPES or a["name"].endswith("_at")) and not a["comment"].startswith(GIVEN_VALUE)]
+        time_names = [a["name"] for a in times]
+        detail = row["性質"] == "業務" and not name.endswith("_base_events")
+        if detail:
+            if time_names:
+                problems.append(Problem(f"{prefix}.時刻", f"詳細イベントが時点の列を持つ: {time_names}", f"出来事の時点は基底イベントの{OCCURRED_AT}だけに置く。業務が与えた日付なら意味を「{GIVEN_VALUE}」で始める"))
+            continue
+        if time_names != [OCCURRED_AT]:
+            problems.append(Problem(f"{prefix}.時刻", f"時点の列が{OCCURRED_AT}の一本ではない: {time_names}", f"出来事の時点は{OCCURRED_AT}の一本だけにする。業務が与えた日付なら意味を「{GIVEN_VALUE}」で始める"))
+        elif times[0]["type"] != "timestamptz":
+            problems.append(Problem(f"{prefix}.{OCCURRED_AT}", f"{OCCURRED_AT}の型が timestamptz ではない: {times[0]['type']}", "出来事の時点は timestamptz で持つ"))
+        if OCCURRED_AT not in row["時刻"]:
+            problems.append(Problem(f"{prefix}.時刻", f"分類表の時刻が{OCCURRED_AT}を示さない", f"分類表の時刻に{OCCURRED_AT}を書く"))
 
     business_details = [n for n, r in classification.items() if r["系列"] == "イベント系" and r["性質"] == "業務" and n.endswith("_events") and not n.endswith("_base_events")]
     business_bases = [n for n, r in classification.items() if r["系列"] == "イベント系" and r["性質"] == "業務" and n.endswith("_base_events")]
     if business_details and not business_bases:
         problems.append(Problem(f"{label}.base_events", f"詳細イベント {business_details} に対応する基底イベントが無い", "<対象>_base_events を置き、詳細イベントの主キーを基底イベントの識別子にする"))
-
     return problems
 
 
