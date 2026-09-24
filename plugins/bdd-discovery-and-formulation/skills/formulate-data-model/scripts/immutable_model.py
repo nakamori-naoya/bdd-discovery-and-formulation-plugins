@@ -11,10 +11,12 @@
   イベント系の時刻の列（型が timestamptz / timestamp / date か、名前が _at で終わる列）は、基底イベント（_base_events）と技術イベントでは
   occurred_at（timestamptz）の一本だけ、業務の詳細イベントでは無し。ただし意味が「業務が与えた値」で始まる列は時刻の列に数えない。
   基底イベントと技術イベントの分類表の時刻の欄は occurred_at を示す。業務の詳細イベントがあれば基底イベントもある。
+  現在の状態の列は status（state、current_state、*_state を使わない）、リソースの現在の版は current_version（version などを使わない）、
+  業務の基底イベントは適用後の版 version を持つ。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。終了code 1。入力を読めなければ {"error"} と終了code 2。
 正例: revise-data-models/fixtures/valid.md と write-doc の rdb-logical-data-modeling の見本。
 反例: scripts/validate-structure.sh の、旧列名、イベントの更新宣言、未分類のテーブル、二本目の時刻、日付の二本目の時点、
-  _events で終わらないイベント表、occurred_at 以外の技術イベントの時刻。
+  _events で終わらないイベント表、occurred_at 以外の技術イベントの時刻、state の列、リソースの version、version の無い基底イベント。
 境界例: 状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。リソースの業務の日付は拒まない。
   意味が「業務が与えた値」で始まる日付の列は詳細イベントに置ける。
 意味評価として残す範囲: 列が事実か業務が与えた値か導ける情報か、「業務が与えた値」の宣言が正しいか、保存表現の選択、資料間の意味の整合。
@@ -37,6 +39,10 @@ TABLE_CELL = re.compile(r"^`([^`|]+)`$")
 OCCURRED_AT = "occurred_at"
 TIME_TYPES = {"timestamptz", "timestamp", "date"}
 GIVEN_VALUE = "業務が与えた値"
+STATUS = "status"
+STATE_NAMES = {"state", "current_state", "current_status"}
+CURRENT_VERSION = "current_version"
+VERSION_ALIASES = {"version", "last_version", "latest_version"}
 ENTITY_OPEN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\{$")
 ATTRIBUTE = re.compile(r'^([A-Za-z_][A-Za-z0-9_\[\]]*)\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s+(?:PK|FK|UK)(?:\s*,\s*(?:PK|FK|UK))*)?(?:\s+"([^"]*)")?$')
 
@@ -183,6 +189,14 @@ def check_document(markdown: str, label: str) -> list[Problem]:
             problems.append(Problem(f"{prefix}.正式な定義", f"許可値ではない: {row['正式な定義']}", "分類表の「正式な定義」列を現在状態・有効期間履歴・イベント列・派生のいずれかにする"))
         if not row["根拠"] or row["根拠"] in {"-", "なし"}:
             problems.append(Problem(f"{prefix}.根拠", "業務知識または技術要件への根拠が無い", "対応する業務知識または技術要件の参照を記載する"))
+        column_names = [a["name"] for a in entities[name]]
+        for column in column_names:
+            if column in STATE_NAMES or column.endswith("_state"):
+                problems.append(Problem(f"{prefix}.{column}", f"状態の列の名前が {STATUS} ではない: {column}", f"現在の状態の列は {STATUS} と名付ける"))
+        if row["系列"] == "リソース系" and set(column_names) & VERSION_ALIASES:
+            problems.append(Problem(f"{prefix}.version", f"リソースの版の列の名前が {CURRENT_VERSION} ではない: {sorted(set(column_names) & VERSION_ALIASES)}", f"リソースの現在の版は {CURRENT_VERSION} と名付ける"))
+        if row["系列"] == "イベント系" and row["性質"] == "業務" and name.endswith("_base_events") and "version" not in column_names:
+            problems.append(Problem(f"{prefix}.version", "基底イベントに適用後の版 version が無い", "基底イベントに、そのイベントを適用した後の版を version として置く"))
         if row["系列"] == "リソース系" and row["正式な定義"] == "イベント列":
             problems.append(Problem(f"{prefix}.正式な定義", "リソース系の論理テーブルに対し、分類表の「正式な定義」列でイベント列を選択している", "「正式な定義」列を現在状態・有効期間履歴・派生のいずれかにする"))
         if row["系列"] != "イベント系":

@@ -193,6 +193,13 @@ python3 "$immutable_model" check < "$data_model_entry/fixtures/conditional-null.
   && pass "immutable_model.pyは occurred_at 以外の技術イベントの時刻を拒否" || fail "immutable_model.pyが技術イベントの時刻名を拒否できない"
 (sed 's/reservation_base_events/reservation_header/g' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '_eventsで終わらない' >/dev/null \
   && pass "immutable_model.pyは_eventsで終わらないイベント表を拒否" || fail "immutable_model.pyが_eventsで終わらないイベント表を拒否できない"
+# 反例: 状態の列の名前が status でない、リソースの版の名前が current_version でない、基底イベントに version が無い
+(sed 's/text status "いまの状態"/text state "いまの状態"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '状態の列の名前が status ではない' >/dev/null \
+  && pass "immutable_model.pyは state の列を拒否" || fail "immutable_model.pyが state の列を拒否できない"
+(sed 's/bigint current_version "反映済みの最後の版"/bigint version "反映済みの最後の版"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F 'リソースの版の列の名前が current_version ではない' >/dev/null \
+  && pass "immutable_model.pyはリソースの version を拒否" || fail "immutable_model.pyがリソースの version を拒否できない"
+(sed '/bigint version "予約の中の順序"/d' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '基底イベントに適用後の版 version が無い' >/dev/null \
+  && pass "immutable_model.pyは version の無い基底イベントを拒否" || fail "immutable_model.pyが version の無い基底イベントを拒否できない"
 # 境界例: 意味が「業務が与えた値」で始まる日付は詳細イベントに置ける。リソースの業務の日付は拒まない（valid.md の use_on）
 perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        date judged_on "業務が与えた値。取消を判断した基準日"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
   && pass "immutable_model.pyは業務が与えた日付を詳細イベントに許す" || fail "immutable_model.pyが業務が与えた日付を誤検知"
