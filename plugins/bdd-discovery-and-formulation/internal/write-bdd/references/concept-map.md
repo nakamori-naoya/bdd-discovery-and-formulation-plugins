@@ -41,6 +41,7 @@ domain-ruleが所有するのは、業務の目的、役割、事実、状態、
 | API・連携契約 | endpoint、HTTP method、request・response、status code、DTO、topic、message schema | 境界の相手へ何を依頼し、どの業務事実を伝えるか | API・インテグレーション設計 |
 | データモデル・永続化 | テーブル、カラム、主外部キー、event store、Event Sourcing、更新禁止、CRUD、保存形式、`created_at`・`occurred_at` | 後の業務判断や説明に必要な事実と、その事実が業務上いつ成立したか | 論理・物理データモデル |
 | コード・アーキテクチャ | class、function、package、layer、service、repository、aggregateの実装形、配置単位 | 一貫して守る業務上の決まりと意味の境界 | ドメインモデル／ソフトウェア設計 |
+| 技術的な処理 | 業務イベントを受けて外部へ知らせる、要求を回収して送る、失敗を再試行する、食い違いを調停する | その処理が果たす業務上の約束（「延滞になったら利用者へ知らせる」）だけ。約束が業務の決まりでなければ何も残さない | 論理データモデル（技術処理のライフサイクル） |
 | 運用・非機能の実現方式 | cache、queue、batch、scheduler、監視、ログ、暗号方式、token、rate limit、timeout、可用性構成 | 業務上の締切、鮮度、証跡、継続性として当事者の判断を変える条件だけ | 品質要求・運用設計 |
 | テスト・開発工程 | test id、fixture、mock、自動化手順、QA手法、リリース手順 | 具体例が示す業務条件と観測可能な結果 | テスト設計・開発プロセス |
 
