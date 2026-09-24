@@ -19,3 +19,7 @@
 - 保守tool（root契約の構造検査、回帰検査、消費側lint、release、eval）の参照元は兄弟checkout `../harness-tools/`であり、このrepositoryは複製を持たない。`scripts/validate.sh`は`../harness-tools/tools`の実在を確認してから呼び、無ければ止まる。
 - 変更後は`bash scripts/validate.sh`と、workspace rootの`bash scripts/validate.sh <このrepositoryの絶対path>`を実行し、正常系だけでなく意図的に壊した負の試験が落ちることも確認する。
 - install cacheは編集せず、このsourceを参照元としてチューニングする。
+
+## 検査スクリプトは、意味が一意に決まることだけを判定する
+
+このrepositoryの検査スクリプト（validate、lint、verify、checkなど、名前を問わない）が判定してよいのは、ファイルや見出しの有無、識別子や版の一致、宣言と配置の対応、禁止された書き方の有無のように、入力と基準資料から意味が決定論的に一意に決まることだけである。読んで解釈しないと決まらないことや、件数や語の出現のような品質の代わりの指標は判定せず、エージェントが読んで評価する（意味評価）。判定が一意に決まることを宣言できない検査は作らず、詳しい条件は `/Users/naoya-nakamoriq/Documents/Github/harness-pluginsv2/.agents/rules/deterministic-validation.md` に従う。
