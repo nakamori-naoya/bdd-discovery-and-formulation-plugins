@@ -146,7 +146,7 @@ cmp -s "$PACKAGE/skills/discover-data-model/scripts/immutable_model.py" "$PACKAG
 # 合格述語: pathが対象repository配下の既存通常fileで重複せず、定義された全テーブルが一度だけ分類され、宣言した系列・正式な定義・時刻・変化の構造が一致する
 # 失敗時の診断: path/detail/howto
 # 正例: 対応する業務知識path、リソースと追加専用イベントを分類した本文
-# 反例: 対応資料の欠落、未分類テーブル、イベント行の「更新あり」宣言、廃止した旧列名
+# 反例: 対応資料の欠落、未分類テーブル、イベント行の「更新あり」宣言、廃止した旧列名、二本目の時刻、技術イベントの時刻名、_eventsで終わらないイベント表
 # 境界例: status・完了日時・削除フラグ・条件付きNULLを含んでも、それだけでは拒否しない
 # 意味評価として残す範囲: 業務知識が対象へ本当に対応するか、正式な定義の選択、業務/技術イベント、列の業務的妥当性、資料間の意味整合
 data_model_entry="$PACKAGE/skills/revise-data-models"
@@ -184,6 +184,16 @@ rejects python3 "$immutable_model" check < "$data_model_entry/fixtures/unclassif
   && pass "immutable_model.pyは未分類テーブルを拒否（exit 1）" || fail "immutable_model.pyが未分類テーブルを拒否できない"
 python3 "$immutable_model" check < "$data_model_entry/fixtures/conditional-null.md" >/dev/null \
   && pass "immutable_model.pyは意味評価対象の列名・NULLを拒否しない" || fail "immutable_model.pyが意味評価対象を誤検知"
+# 反例: イベント表の二本目の時刻、技術イベントの時刻名の不一致、基底イベントの無い詳細イベント
+(perl -pe 's/^(\| `occurred_at` \| NOT NULL \| 成立した時刻 \|)$/$1\n| `recorded_at` | NOT NULL | 記録した時刻 |/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '二本目の時刻 recorded_at' >/dev/null \
+  && pass "immutable_model.pyはイベント表の二本目の時刻を拒否" || fail "immutable_model.pyがイベント表の二本目の時刻を拒否できない"
+(sed 's/`requested_at`/`created_at`/g' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F 'requested_at の一本ではない' >/dev/null \
+  && pass "immutable_model.pyは技術イベントの時刻名の不一致を拒否" || fail "immutable_model.pyが技術イベントの時刻名の不一致を拒否できない"
+(sed 's/reservation_base_events/reservation_header/g' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '_eventsで終わらない' >/dev/null \
+  && pass "immutable_model.pyは_eventsで終わらないイベント表を拒否" || fail "immutable_model.pyが_eventsで終わらないイベント表を拒否できない"
+# 境界例: リソース系の時刻（業務が読む返却期限など）は判定しない
+perl -pe 's/^(\| `current_version` \| NOT NULL \| 反映済みの最後の版 \|)$/$1\n| `due_at` | NOT NULL | 返却期限 |/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
+  && pass "immutable_model.pyはリソースの業務時刻を拒否しない" || fail "immutable_model.pyがリソースの業務時刻を誤検知"
 python3 "$immutable_model" check </dev/null >/dev/null 2>&1; [ $? -eq 2 ] \
   && pass "immutable_model.pyの空stdinはexit 2" || fail "immutable_model.pyの空stdin終了code"
 

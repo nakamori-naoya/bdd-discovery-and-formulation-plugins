@@ -36,8 +36,8 @@ description: 対応する業務知識を根拠に、既存のBDD付きRDB論理�
 3. **ground。** 既存論理資料、依頼、決定、未決を根拠・仮説・未確認へ区別して`grounded_input`として保持する。
 4. **deepen-scenarios。** 同梱skillの判断規律で、業務シナリオを掲載順に再評価し、`scenario_selection`へ採用した永続化シナリオまたは対象外理由を記録する。採用した作成・更新・削除、履歴、保持、失敗時保証を永続化シナリオ、3操作の検討状況、条件マトリクスへ深化させる。
 5. **validate-scenarios（`scripts/scenario_matrix.py`）。** 条件マトリクスJSONを標準入力で検査する。終了code 0以外なら`deepen-scenarios`へ戻り、解消できなければ止まる。
-6. **revise-logical-model。** 確認済みの発見を論理構造とBDDへ戻し、`scenario_selection`を対応表へ反映する。採用した業務由来BDDを業務知識の掲載順で先に置き、永続化固有BDDを後へ置く。各BDDは固定した識別子、値、時刻、順序、失敗位置と一つのWhenを持ち、Before/Afterの両側へ全論理テーブルを同じ順序・全カラム見出しで置く。仮説を該当BDD・要素と未決へ明示した改訂本文を作り、更新先は既存論理資料と同じpathにする。
-7. **validate-immutable-structure（`scripts/immutable_model.py`）。** 改訂本文を標準入力で渡し、全論理テーブルの分類、時刻規約、イベント表の追加専用宣言という構造契約を検査する。意味は業務知識とBDDを読んだagentが判断する。
+6. **revise-logical-model。** 確認済みの発見を論理構造とBDDへ戻し、`scenario_selection`を対応表へ反映する。採用した業務由来BDDを業務知識の掲載順で先に置き、永続化固有BDDを後へ置く。各BDDは固定した識別子、値、時刻、順序、失敗位置と一つのWhenを持ち、Before/Afterの両側へ、そのWhenで読む・書くテーブルと、変わらないことを確かめるテーブルだけを、同じ順序・全カラム見出しで具体的な行として置く。仮説を該当BDD・要素と未決へ明示した改訂本文を作り、更新先は既存論理資料と同じpathにする。
+7. **validate-immutable-structure（`scripts/immutable_model.py`）。** 改訂本文を標準入力で渡し、全論理テーブルの分類、イベント表の名前と時刻の列、追加専用の宣言という構造契約を検査する。意味は業務知識とBDDを読んだagentが判断する。
 8. **guard-logical-update（`scripts/update-guard.py`）。** 既存論理資料と要求した更新先が同じ実体を指すことを検査し、返った`update_target`だけを保存先にする。
 9. **update-logical-document（`write-doc`）。** 改訂本文を`material: [{kind: text, content: <本文>}]`、`document_type: rdb-logical-data-modeling`、`update_target`、入力の`references`で保存する。`status: completed`かつ返却pathが`update_target`と一致した場合だけ完了する。
 

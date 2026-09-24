@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Validate the structural contract of immutable-aware logical models."""
+"""論理データモデル資料の分類表と論理テーブル定義が、イミュータブルデータモデルの型に構造上合うかを検査する。
+
+合格述語: 全論理テーブルが分類表に一度だけあり定義と対応する。系列・性質・正式な定義が許可値である。
+イベント系は追加のみ・イベント列で、名前が_eventsで終わり、created_at・updated_at・recorded_atを持たない。
+業務の基底イベント（_base_events）は時刻の列がoccurred_atの一本だけ、業務の詳細イベントはoccurred_atを持たず、
+詳細イベントがあれば基底イベントもある。技術イベントは時刻の列が「名前の最後の過去分詞_at」の一本だけである。
+業務上の妥当性（状態列、NULL、リソースの時刻）は判定しない。
+"""
 
 from __future__ import annotations
 
@@ -16,6 +23,8 @@ ALLOWED_SOURCES = {"現在状態", "有効期間履歴", "イベント列", "派
 TABLE_HEADING = re.compile(r"^###\s+`([^`|]+)`")
 COLUMN_CELL = re.compile(r"^`([^`|]+)`(?:（[^）]+）)?$")
 TABLE_CELL = re.compile(r"^`([^`|]+)`$")
+BUSINESS_TIME = "occurred_at"
+SECOND_TIMES = {"created_at", "updated_at", "recorded_at"}
 
 
 @dataclass
@@ -138,24 +147,43 @@ def check_document(markdown: str, label: str) -> list[Problem]:
         if not row["根拠"] or row["根拠"] in {"-", "なし"}:
             problems.append(Problem(f"{prefix}.根拠", "業務知識または技術要件への根拠が無い", "対応する業務知識または技術要件の参照を記載する"))
 
-        columns = {column for column, _, _ in definitions[name]}
-        if row["系列"] == "リソース系":
-            if "created_at" not in columns:
-                problems.append(Problem(f"{prefix}.created_at", "リソース系にcreated_atが無い", "リソース成立時刻をcreated_atで持つ"))
-            if "created_at" not in row["時刻"]:
-                problems.append(Problem(f"{prefix}.時刻", "分類表の時刻がcreated_atを示さない", "created_atの意味を記載する"))
-            if row["正式な定義"] == "イベント列":
-                problems.append(Problem(f"{prefix}.正式な定義", "リソース系の論理テーブルに対し、分類表の「正式な定義」列でイベント列を選択している", "「正式な定義」列を現在状態・有効期間履歴・派生のいずれかにする"))
+        columns = [column for column, _, _ in definitions[name]]
+        times = [column for column in columns if column.endswith("_at")]
+        if row["系列"] == "リソース系" and row["正式な定義"] == "イベント列":
+            problems.append(Problem(f"{prefix}.正式な定義", "リソース系の論理テーブルに対し、分類表の「正式な定義」列でイベント列を選択している", "「正式な定義」列を現在状態・有効期間履歴・派生のいずれかにする"))
 
         if row["系列"] == "イベント系":
-            if "occurred_at" not in row["時刻"]:
-                problems.append(Problem(f"{prefix}.時刻", "イベント系の業務上または技術上の成立時刻がoccurred_atではない", "occurred_atを記載する"))
             if row["変化"] != "追加のみ":
                 problems.append(Problem(f"{prefix}.変化", f"追加専用ではない: {row['変化']}", "イベント表は追加のみにする"))
             if row["正式な定義"] != "イベント列":
                 problems.append(Problem(f"{prefix}.正式な定義", "イベント系の論理テーブルで「正式な定義」列がイベント列ではない", "「正式な定義」列をイベント列にする"))
             if row["性質"] == "派生":
                 problems.append(Problem(f"{prefix}.性質", "派生物をイベント系に分類している", "業務イベントか技術イベントかを明示する"))
+            if not name.endswith("_events"):
+                problems.append(Problem(f"{prefix}.name", "イベント系のテーブル名が過去分詞の_eventsで終わらない", "<対象>_base_events、<対象>_<過去分詞>_events、<処理>_<過去分詞>_eventsのどれかにする"))
+                continue
+            for extra in sorted(set(times) & SECOND_TIMES):
+                problems.append(Problem(f"{prefix}.{extra}", f"イベント表に二本目の時刻 {extra} がある", "出来事の時刻は一本だけにする。別の時点が要るなら別のイベント表にする"))
+            if row["性質"] == "業務" and name.endswith("_base_events"):
+                expected = BUSINESS_TIME
+                if times != [expected]:
+                    problems.append(Problem(f"{prefix}.時刻", f"基底イベントの時刻の列が {expected} の一本ではない: {times}", f"時刻の列を {expected} だけにする"))
+            elif row["性質"] == "業務":
+                expected = None
+                if BUSINESS_TIME in times:
+                    problems.append(Problem(f"{prefix}.{BUSINESS_TIME}", "詳細イベントが基底イベントの時刻を重ねて持つ", "発生時刻は基底イベントにだけ置く"))
+            else:
+                verb = name[: -len("_events")].rsplit("_", 1)[-1]
+                expected = f"{verb}_at"
+                if times != [expected]:
+                    problems.append(Problem(f"{prefix}.時刻", f"技術イベントの時刻の列が {expected} の一本ではない: {times}", f"出来事の過去分詞に_atを付けた {expected} だけにする"))
+            if expected and expected not in row["時刻"]:
+                problems.append(Problem(f"{prefix}.時刻", f"分類表の時刻が {expected} を示さない", f"分類表の時刻に {expected} を書く"))
+
+    business_details = [n for n, r in classification.items() if r["系列"] == "イベント系" and r["性質"] == "業務" and n.endswith("_events") and not n.endswith("_base_events")]
+    business_bases = [n for n, r in classification.items() if r["系列"] == "イベント系" and r["性質"] == "業務" and n.endswith("_base_events")]
+    if business_details and not business_bases:
+        problems.append(Problem(f"{label}.base_events", f"詳細イベント {business_details} に対応する基底イベントが無い", "<対象>_base_events を置き、詳細イベントの主キーを基底イベントの識別子にする"))
 
     return problems
 
