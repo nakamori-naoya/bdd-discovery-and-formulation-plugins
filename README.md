@@ -1,76 +1,29 @@
 # BDD Discovery and Formulation
 
-BDDを使ってドメイン理解とRDBデータモデリングを探索・反証し、User Journeyを線引きしてユーザー目的達成BDDを発見・深化する、Claude Code/Codex両対応のmarketplaceである。公開入口は7つで、1つのpackage `bdd-discovery-and-formulation` に同梱する。
+業務の決まり、ユーザーの目的達成、残す事実の三つを、業務の言葉とBDDの具体例で書いた資料にするmarketplaceである。Claude CodeとCodexの両方で使える。資料を見た業務の人と開発者が、同じ例から同じ結論を出せるようにすることが目的で、実装方法やテストコードを先に決めるためのものではない。
 
-## BDDを使う場面
+## 資料の種類ごとに入口が一つある
 
-**業務上の正しさを、具体的な事前状態・出来事・判断・結果で共有したいときに使う。** 実装方法やテストコードを先に決めるためではなく、関係者が同じ例を見て同じ結論へ到達できる状態を作る。
+公開入口は三つで、どれも資料の種類に対応する。新しく作るときも、既存の資料へ反例を当てて深めるときも、同じ入口を使う。違いは、入口がgrillで何を問うかだけである。
 
-- 人によって業務ルールの説明が違う
-- 正常系は分かるが、境界値や拒否条件が決まっていない
-- 画面やAPIの話が先行し、何を守る業務なのか説明できない
-- DBへ何を残すべきか、業務上の根拠から決めたい
-- 個別機能は説明できるが、ユーザーが目的を達成する一連の流れがつながらない
+`model-domain-rule`は、コアドメインの業務知識をdomain-rule資料にする。業務の話かどうかを三つの問いで線引きし、業務の行いごとに誰が行えるか、成り立つ条件、拒む理由を一か所にそろえる。業務の言葉と英名の対応（ユビキタス言語）もこの資料が持つ。
 
-DiscoveryとFormulationは、資料の有無ではなく仕事の目的で選ぶ。断片的な資料や同種の既存資料があっても、業務イベント、役割、判断、場面、または残す事実を探索して新しい共通理解を作るならDiscoveryを使う。指定した既存の資料の主張へ反例を当て、確認した結果を同じpathへ戻すならFormulationを使う。
+`map-user-journey`は、1人の主たるユーザーが1つの目的を達成するまでを、ユーザーが観測できる場面の連なりとしてユーザー目的達成BDD資料にする。
 
-## 公開入口を選ぶ
-
-次の入口から依頼します。内部skillは入口の`playbook.yml`が必要な工程で呼び出します。保存先は依頼で示すか、示されなければ入口が既存資料の構成を読んで一度だけ提案します。
-
-| 今の状況 | 公開入口 | 得られるもの |
-|---|---|---|
-| 資料の有無にかかわらず、コアドメインの未知を探索してdomain-rule資料を作る | `discover-domain` | 代表BDDを含むdomain-rule資料 |
-| 既存のdomain-ruleへ境界例や拒否条件を足す | `formulate-domain` | 反証を反映した更新済みdomain-rule資料 |
-| 資料の有無にかかわらず、ユーザー目的達成の連続性を探索してJourney資料を作る | `discover-user-journey` | 複数場面を接続したユーザー目的達成BDDの資料 |
-| 既存のユーザー目的達成BDDを反証する | `formulate-user-journey` | 分岐・中断再開・役割移譲を戻した同一パスのJourney資料 |
-| 資料の有無にかかわらず、残す事実を探索して論理設計まで通す | `discover-data-model` | 検査済みBDD付きRDB論理設計 |
-| 既存のBDD付き論理設計を反証し、同じ論理データモデル資料へ戻す | `formulate-data-model` | QA観点で深化したBDD付きRDB論理設計 |
-| 対応する業務知識を根拠に複数の既存論理設計を横断改訂する | `revise-data-models` | 保存表現の選択とリソース系／イベント系分類を揃えた同一pathの論理設計群 |
-
-## 代表的なユースケース
-
-### 新しい業務ルールを整理する
-
-**業務イベントも境界も曖昧なら`discover-domain`を使う。** たとえば「キャンセルできる」という言葉だけがある場合、誰が、どの状態で、何を起こし、どの条件なら受理または拒否されるかまで具体化する。
+`model-logical-data`は、domain-rule資料を根拠に、何を時間を越えて残すかを決め、BDDごとにテーブルのBeforeとAfterを具体的な行で示したRDB論理データモデル資料にする。保存するのは起きた事実と業務が与えた値だけで、集計のような情報は持たない。RDB物理設計は別の`rdb-design` packageが受け持つ。
 
 ```text
-既存の用語集と要件資料を根拠に、予約取消の未知の業務イベントと判断を探索し、代表BDDを含む新しいコアドメイン資料として整理して。
+既存の用語集と要件資料を根拠に、予約取消の業務知識をBDD付きで整理して。
+既存の予約取消のdomain-rule資料を、締切時刻ちょうどと二重取消で深掘りして。
+注文確定・取消・返金のdomain-rule資料から、論理データモデルを作って。
+初回訪問者が商品を比較し、購入し、受取を確認するまでをユーザー目的達成BDDにして。
 ```
 
-### 既存BDDの抜けを探す
-
-**domain-rule資料がすでにあり、境界値や競合時の判断を深めるなら`formulate-domain`を使う。** 正常系を別資料へ作り直さず、反証結果を同じdomain-rule資料へ戻す。
-
-```text
-既存の予約取消domain-ruleを反証し、締切時刻ちょうどと二重取消のシナリオを検査して。
-```
-
-### 業務からDB設計へ進む
-
-**何を記録するか未確定なら、既存の論理設計や関連資料があっても`discover-data-model`を使う。** 対応する業務知識資料が必須であり、無ければ先に`discover-domain`で業務知識を作る。指定した既存論理設計を反証して同じpathへ戻す場合は`formulate-data-model`、複数の既存論理設計を同じ業務知識から横断改訂する場合は`revise-data-models`を使う。RDB物理設計は独立した`rdb-design` packageが担う。
-
-イベント列は既定ではない。業務知識から複数の意味ある業務イベントと、順序・履歴・取消・訂正を後から使う必要が読めるときに候補にする。イベントが無いか乏しく履歴を使わない場合は現在状態、設定や契約条件の過去時点の値を使う場合は有効期間履歴を候補にする。
-
-```text
-注文確定・取消・返金の業務シナリオから、BDD付きRDB論理データモデルを作って。
-```
-
-### ユーザーの目的達成を一続きにする
-
-**ユーザー目的達成の入口では、最初に何がJourneyで何がJourneyでないかを分ける。** 複数の意味ある場面が状態を受け渡し、観測可能な完了へ進む場合だけJourneyとして扱う。対象システム一つの責任ならユースケース、感情と接点ならUX Journey map、業務判断ならdomain、残す事実ならdata modelへ分ける。
-
-目的達成の連続性を探索して新しいJourney資料を作るなら、関連するJourney資料があっても`discover-user-journey`を使う。指定した既存のJourney資料を反証して同じpathへ戻すなら`formulate-user-journey`を使う。
-
-```text
-既存の画面案と別目的のJourneyを根拠に、初回訪問者が商品を比較し、購入し、受取を確認するまでを、新しいユーザー目的達成BDDの資料として発見して。
-```
+資料の節構成と記法は、write-docの文書型（`domain-rule`、`user-journey-bdd`、`rdb-logical-data-modeling`）のtemplateが持つ。このrepositoryはtemplateを持たない。どの入口も、止まるか進むかは各入口の`SKILL.md`の「停止条件」の節に従う。
 
 ## インストール
 
-インストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`です。外部の工程を実行するため、`grill@grill`、`write-doc@write-doc`も必要です。下のコマンドには、それらも含めています。
-
-内部skillは同梱されています。個別にインストールせず、公開入口から利用してください。
+インストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`です。各入口は問いを立てるのに`grill@grill`を、資料を保存するのに`write-doc@write-doc`を使うので、それらも必要です。下のコマンドには、それらも含めています。
 
 ### Codex
 
@@ -135,65 +88,10 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 
 コマンドは2026-09-06時点のCLIヘルプと、[Codexのmarketplace管理](https://developers.openai.com/plugins/build/plugins)、[Claude Codeの更新仕様](https://code.claude.com/docs/en/plugins-reference#plugin-update)を確認しています。
 
-## 公開インストール単位と内包する機能
-
-利用者がインストールするのは`bdd-discovery-and-formulation@bdd-discovery-and-formulation`だけである。packageは`plugins/bdd-discovery-and-formulation/`にあり、公開入口7つを`skills/<entry>/`に、2つ以上の公開入口が共有する判断規律を内部skillとして`internal/<name>/`に持つ。
-
-| 内部skill | 共有する公開入口 | 担う判断 |
-|---|---|---|
-| `explore-events` | discover-domain、discover-data-model | 業務で起きた事実を時系列に洗い出す |
-| `map-user-journey` | discover-user-journey、formulate-user-journey | 何がJourneyで何がJourneyでないかを判定し、両端と場面を決める |
-| `write-persistence-scenarios` | discover-data-model、formulate-data-model | 作成・更新・削除に関係する断面を永続化シナリオにする |
-| `design-data-model` | discover-data-model、formulate-data-model、revise-data-models | 対応する業務知識から記録すべき事実と保存表現を選び、BDD付きの論理設計本文を作る。手法は`fact-recording` / `normalized` / `dimensional`、または利用者の手法file |
-| `write-bdd` | 7入口すべて（同梱skillも適用する） | 入力の根拠づけ、業務の言葉（役割、業務イベント、ユビキタス言語）、BDDの前提・トリガー・失敗理由と条件マトリクス、定式化へ進める見極め、QA観点、`grill` / `write-doc`の呼び方という共通規律。成果物は作らず、各入口が手順に入る前に読んで全工程へ適用する |
-
-内部skillはmarketplaceの個別インストール対象にせず、公開入口の`playbook.yml`が`skill:`工程で呼ぶか、`write-bdd`のように入口の`SKILL.md`が手順に入る前に読んで全工程へ適用する。RDB物理設計は論理設計、負荷、品質要求、基盤制約を統合する独立責務として別packageへ分離した。
-
-各公開入口では、`playbook.yml`が工程順・依存・入出力という決定的な契約を持ち、`SKILL.md`が目的・入力・判断基準・手順・停止条件・出力を持ち、`references/execution-guidance.md`が背景・前提と各工程実行時の付加的な指示を持つ。入口が使うtool（`scripts/scenario.py`、`scripts/scenario_matrix.py`、`scripts/actor-coverage.py`、`scripts/update-guard.py`）は、入口directoryを基準にした相対pathで示し、入力・出力・終了code・失敗時の扱いをSKILL.mdの手順が1か所で宣言する。agentが作った本文は標準入力で渡し、保存済みの資料（業務知識の資料や、更新する既存の資料）だけをpath引数で渡す。検査のためだけの一時fileや後片付け工程は無い。停止条件は「止まる」と「仮説を明示して進む」に分かれる。設定fileは持たず、保存先と論理モデリングの手法は依頼と対話から決める。
-
-外部の段取り（`grill`、`write-doc`）は、内部skill `write-bdd`の`references/nested-playbook.md`に1か所で書いた入口・入力・出力だけで呼ぶ。`write-doc/write-doc`は版2を使い、型付き`material`と明示した保存先を直接渡す。新規作成には`output_directory`と`.md`の`name`、既存更新には`update_target`だけを渡す。`grill/grill`版1は契約objectを公開入口へ直接渡し、`decisions`と`open_questions`を持つ結果objectを直接受け取る。渡す`questions`は成果を左右する順に厳選し、対話の作法と問う数の上限は`grill`の公開契約に従う。上限で問われなかった論点は、返った`open_questions`の推奨を仮置きした未決として成果物へ載せる。各入口は任意入力`references`（追加で従う資料の絶対path配列）を持ち、手順の最初に読む。
-
-資料のtemplateはこのrepositoryに無い。各入口は本文を`kind: text`で組み立て、`write-doc`の`document_type`（`domain-rule` / `user-journey-bdd` / `rdb-logical-data-modeling`）で保存する。節構成と記法はwrite-docが所有するtemplateが定め、この入口のtoolが読む見出しと欄は、そのtemplateが機械検査の記法として宣言する。参照資料は1か所にだけ置き、入口間で複製しない。
-
-ハーネスが作る資料は、冒頭を読み手の既知の語で書いた本文段落から始め、型や確認日のようなメタ情報の一覧を置かない。中心の問い、扱う理由、役割×目的の一覧、Journeyから外した事項の送り先のような作業記録は報告に載せ、資料へ写さない。保存先と名前は利用者の既存資料構成に従い、日本語のdirectory名・file名を許す。
-
-## インストール済みである必要があるplugin
-
-このrepository外の依存だけを記載する。利用する工程に応じて、次がインストール済みである必要がある。
-
-- `grill@grill`
-- `write-doc@write-doc`
-
-公開入口は同じagentの利用可能Skill一覧と`requires`を照合する。契約IDと版が異なる、または必要な公開Skillが無い場合は停止する。consumerが依存先のroot、cache、設定、内部pathを探さない。
-
 ## 検証
 
 ```bash
 bash scripts/validate.sh
 ```
 
-`validate-structure.sh`は、両marketplaceと両runtime manifestのidentity、公開入口7つと内部skill5つの集合、`playbook.yml`の外部依存宣言と参照の実在、同名toolのbyte一致、参照資料がpackage内で1か所にだけあること、禁止参照形の不在を検査し、各toolの`self-test`またはfixtureを実行する。物理設計検査はこのrepositoryでは実行せず、独立した`rdb-design` packageが所有する。続けて兄弟checkoutの保守toolと依存先実配布物に対する消費側lintを両runtimeで実行する。
-
-workspace rootの`bash scripts/validate.sh <このrepositoryの絶対path>`が配置・manifest・隣接playbook.yml・禁止参照形の構造契約を検査する。構造検査の成功は、SKILL本文の判断規律や生成された資料の業務上の正しさを保証しない。
-
-install cacheは編集せず、このrepositoryを参照元として変更する。
-
-## repository保守用tool
-
-以下はsource repository自体の配布検証と保守の説明であり、公開入口が`grill`または`write-doc`を呼ぶ手順ではない。公開入口は設定解決runtimeを持たず、公開契約objectと直接結果だけを扱う。
-
-保守toolの参照元は兄弟checkout`../harness-tools/`（同ownerの`harness-tools` repository）であり、このrepositoryは複製も同期機構も持たない。呼び方はharness-toolsのREADME「各repositoryからの呼び方」に従い、対象repositoryは絶対pathの引数で渡す。
-
-- 診断: `python3 ../harness-tools/tools/doctor.py --repository <このrepositoryの絶対path>`は、CLIの有無、両runtime公開入口、全公開入口の外部依存を兄弟checkoutの実配布物に対して解決する読み取り専用診断を返す。
-- リリース: `python3 ../harness-tools/tools/release.py --repo <このrepositoryの絶対path> --plugin bdd-discovery-and-formulation --version <semver> --notes … --breaking … --migration … --checks <JSON> [--apply]`が両marketplaceと両runtime manifestのversionを同時に更新し、`releases/<plugin>-<version>.json`を書く。
-- eval: [意味評価fixture](evals/scenarios.json)は`bash ../harness-tools/scripts/run-evals.sh --model … --judge-model … <このrepositoryの絶対path>`で実行し、`evals/runs/<日付>/`へ記録する。モデルを更新したときにlocalで手動実行し、前回の記録と読み比べる（読み比べはagentの意味評価）。criterionの真偽は記録であり、CLIの合否にはしない。
-
-CIは`.github/workflows/validate.yml`が自repositoryを`<workspace>/<自分の名前>`に、`harness-tools`と依存provider（`grill-plugins`、`write-doc-plugins`）を`ref: main`で兄弟checkoutし、`bash harness-tools/ci/validate.sh "$GITHUB_WORKSPACE/<自分の名前>"`を呼ぶ。実行されるcommandはlocalの`scripts/validate.sh`と同じである。PR由来のrefを依存checkoutへ渡さない。
-
-### 破壊的変更
-
-公開入口を`plugins/bdd-discovery-and-formulation/skills/<entry>/`へ、内部skillを`internal/<name>/`へ移し、入口ごとのnested manifest、設定file（`<repo>/.harness-plugins/<entry>.config.yml`と同梱既定）、`prepare.sh` / `resolve.sh`による設定解決、`${.…}`マクロ、台帳scriptを廃止した。旧pathや設定fileを前提にした独自ランチャーは、公開manifestに列挙された入口と、SKILL.mdが宣言する入力へ切り替える。
-
-### 開発CLIの入力境界
-
-`doctor`、`release`、意味評価runnerは、操作者が明示したローカルsource、出力先、adapter argvを扱う開発CLIである。外部から受け取った文書やモデル出力をCLI引数へ自動変換しない。doctorは配布treeのsymlinkを読取・実行前に拒否する。評価の会話・fixture・モデル出力はadapterへstdinデータとして渡し、実行argvに混ぜない。各CLIの契約と自己検査はharness-toolsが持つ。
+package の配置とmanifestは、兄弟checkout`../harness-tools/`の保守toolが検査する。このrepositoryに固有の検査は、`model-logical-data`が保存した資料に一回かける`immutable_model.py`の正例・反例・境界例（`scripts/test-immutable-model.sh`）だけである。検査が通っても、資料の業務上の正しさは保証されないので、資料を読んで判断する。
