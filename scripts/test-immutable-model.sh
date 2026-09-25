@@ -59,6 +59,9 @@ fresh; perl -0pi -e 's/\| `reservation_id`、`status` \|/| `reservation_id` |/' 
 fresh; perl -0pi -e 's/\(valid\.md\)/(missing.md)/' "$work/m/reader.md"; rejects "実在しない持ち主を拒否" "持ち主の資料を読めない" "$work/m/reader.md"
 fresh; perl -0pi -e 's/(\| リソース系 \| 業務 \| `entries`[^\n]*\n)/$1| リソース系 | 業務 | `reservations` | 現在状態 | なし | 更新あり | 入室の業務知識 |\n/; s/\n\| `reservations` \| `reservation_id`、`status` \|[^\n]*//; s/^(### `entries`)/### `reservations`（予約）\n\n予約。\n\n$1/m' "$work/m/reader.md"
 rejects "二本の資料が同じテーブルを分類する組を拒否" "同じテーブルを二本の資料が分類している" "$work/m/valid.md" "$work/m/reader.md"
+fresh; edit 's/\| BDD-001 \| 対象外 \|/| BDD-001 | 対象外（拒否） |/'; rejects "許されない対応の欄を拒否" "この資料のBDDの欄が許された形ではない" "$work/m/valid.md"
+fresh; edit 's/\| BDD-001 \| 対象外 \|/| BDD-001 | BDD-009 |/'; rejects "この資料に無い BDD を指す対応を拒否" "この資料に BDD-009 が無い" "$work/m/valid.md"
+fresh; edit 's/\| 業務知識のBDD \| この資料のBDD \|/| 業務知識 | この資料 |/'; rejects "対応の表の無い資料を拒否" "対応の表が0個ある" "$work/m/valid.md"
 python3 "$checker" check >/dev/null 2>&1; [ $? -eq 2 ] && pass "引数の無い呼び出しは exit 2" || fail "引数の無い呼び出しの終了code"
 python3 "$checker" check "$work/none.md" >/dev/null 2>&1; [ $? -eq 2 ] && pass "読めない資料は exit 2" || fail "読めない資料の終了code"
 

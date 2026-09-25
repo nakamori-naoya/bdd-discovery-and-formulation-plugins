@@ -19,6 +19,8 @@
   <処理>_claimed_events は version の列を持つ。
   参照したテーブルは、図の列が読む列と同じ集合で、持ち主の資料が実在してそのテーブルを分類し、読む列が持ち主の図の列に含まれる。
   引数の資料の集合の中で、同じテーブルを分類した資料は一本だけである。
+  見出し行が「業務知識のBDD | この資料のBDD」の対応の表が一つだけあり、各行の左は BDD-<番号>（重複なし）、右は BDD-<番号> を「、」で
+  区切ったもの・対象外・クエリデータモデル のどれかで、右に書いた BDD はこの資料の「### [BDD-<番号>]」の見出しにある。
   いずれも宣言（分類表と参照の表の値、テーブルと列の名前、関係の行）から一意に決まることだけを見る。列の名前の語尾（_at など）から、
   その列が時点かどうかは判定しない。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。終了code 1。引数が無いかファイルを読めなければ {"error"} と終了code 2。
@@ -26,7 +28,7 @@
 反例: scripts/test-immutable-model.sh の、旧列名、イベントの更新宣言、未分類のテーブル、_events で終わらないイベント表、
   occurred_at の無い技術イベント、occurred_at を持つ詳細イベント、version の無い基底イベント、status か current_version の無いリソース、
   リソースと結ばれていない基底イベント、成功の無い要求、version の無い回収、時刻の欄が `occurred_at` と一致しない分類表、
-  分類の表が無いか二つある資料、持ち主の図に無い読む列、二本の資料が同じテーブルを分類する組。
+  分類の表が無いか二つある資料、持ち主の図に無い読む列、二本の資料が同じテーブルを分類する組、許されない対応の欄、この資料に無い BDD を指す対応。
 境界例: 見出しに結論を入れた資料や、見出しの名前を変えた資料は通る。状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。
   名前が _at で終わる列（詳細イベントの cancelled_at、基底イベントの recorded_at など）も、名前だけでは拒まない。
 意味評価として残す範囲: 列が事実か業務が与えた値か後から導けない技術上の判断か加工した情報か、イベント表に二本目の時点が無いか、
@@ -310,6 +312,41 @@ def check_model(label: str, model: Model, problems: list[Problem]) -> None:
         problems.append(Problem(f"{label}.base_events", f"詳細イベント {business_details} に対応する基底イベントが無い", "<対象>_base_events を置き、詳細イベントの主キーを基底イベントの識別子にする"))
 
 
+MAPPING_HEADERS = ["業務知識のBDD", "この資料のBDD"]
+BDD_ID = re.compile(r"^BDD-\d{3,}$")
+BDD_LIST = re.compile(r"^BDD-\d{3,}(?:\s*、\s*BDD-\d{3,})*$")
+OWN_BDD = re.compile(r"^###\s+\[(BDD-\d{3,})\]\s+\S")
+
+
+def check_mapping(label: str, prose: list[tuple[int, str]], words: set[str], problems: list[Problem]) -> None:
+    """業務知識のBDDとの対応の表を一つ読み、欄の形と、指したこの資料のBDDが実在するかを見る。"""
+    starts = [i for i, (_, line) in enumerate(prose) if line.lstrip().startswith("|") and [c.strip() for c in line.strip().strip("|").split("|")] == MAPPING_HEADERS]
+    if len(starts) != 1:
+        problems.append(Problem(f"{label}.mapping", f"見出し行が『| {' | '.join(MAPPING_HEADERS)} |』の対応の表が{len(starts)}個ある", "業務知識のBDDとの対応の表を資料に一つだけ置く"))
+        return
+    own = {m.group(1) for m in (OWN_BDD.match(line) for _, line in prose) if m}
+    seen: set[str] = set()
+    for number, line in prose[starts[0] + 2:]:
+        if not line.lstrip().startswith("|"):
+            break
+        row = [c.strip() for c in line.strip().strip("|").split("|")]
+        where = f"{label}.mapping.line[{number + 1}]"
+        if len(row) != 2 or not BDD_ID.fullmatch(row[0]):
+            problems.append(Problem(where, "対応の行が、BDD-<番号> と、この資料のBDDの欄の2列になっていない", "業務知識のBDDを一行に一つ、BDD-<番号> で書く"))
+            continue
+        if row[0] in seen:
+            problems.append(Problem(where, f"業務知識の {row[0]} が二行ある", "業務知識のBDDは一行だけに置く"))
+        seen.add(row[0])
+        if row[1] in words:
+            continue
+        if not BDD_LIST.fullmatch(row[1]):
+            problems.append(Problem(where, f"この資料のBDDの欄が許された形ではない: {row[1]}", f"BDD-<番号> を「、」で区切ったものか、{'・'.join(sorted(words))} のどれかにする。理由は表の後の本文に書く"))
+            continue
+        for target in re.findall(r"BDD-\d{3,}", row[1]):
+            if target not in own:
+                problems.append(Problem(where, f"この資料に {target} が無い", "この資料にある BDD の番号を書く"))
+
+
 def check_references(path: Path, model: Model, models: dict[Path, Model | None], problems: list[Problem]) -> None:
     for name, (read, link) in sorted(model.references.items()):
         target = (path.parent / link).resolve()
@@ -348,6 +385,7 @@ def main() -> int:
             print(json.dumps({"error": f"資料が空である: {path}"}, ensure_ascii=False))
             return 2
         models[path] = read_model(str(path), text, problems)
+        check_mapping(str(path), prose_lines(text.splitlines()), {"対象外", "クエリデータモデル"}, problems)
     owners: dict[str, Path] = {}
     for path in paths:
         model = models[path]
