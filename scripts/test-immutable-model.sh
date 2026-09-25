@@ -38,10 +38,12 @@ python3 "$immutable_model" check < "$fixtures/conditional-null.md" >/dev/null \
   && pass "immutable_model.pyは意味評価対象の列名・NULLを拒否しない" || fail "immutable_model.pyが意味評価対象を誤検知"
 (perl -pe 's/timestamptz occurred_at "要求した時点"/timestamptz requested_at "要求した時点"/' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F 'occurred_at の列が無い' >/dev/null \
   && pass "immutable_model.pyは occurred_at の無い技術イベントを拒否" || fail "immutable_model.pyが occurred_at の無い技術イベントを拒否できない"
-(perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        timestamptz cancelled_at "取り消した時点"/' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '詳細イベントが _at の列を持つ' >/dev/null \
-  && pass "immutable_model.pyは _at の列を持つ詳細イベントを拒否" || fail "immutable_model.pyが _at の列を持つ詳細イベントを拒否できない"
-(perl -pe 's/^(\s+timestamptz occurred_at "起きた時点")$/$1\n        timestamptz recorded_at "記録した時点"/' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '_at の列が occurred_at のほかにある' >/dev/null \
-  && pass "immutable_model.pyは occurred_at のほかの _at の列を拒否" || fail "immutable_model.pyが occurred_at のほかの _at の列を拒否できない"
+(perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        timestamptz occurred_at "取り消した時点"/' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '詳細イベントが occurred_at の列を持つ' >/dev/null \
+  && pass "immutable_model.pyは occurred_at を持つ詳細イベントを拒否" || fail "immutable_model.pyが occurred_at を持つ詳細イベントを拒否できない"
+perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        timestamptz cancelled_at "取り消した時点"/' "$fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
+  && pass "immutable_model.pyは名前が _at で終わるだけの詳細イベントの列を拒否しない（時点かは読んで評価する）" || fail "immutable_model.pyが列の名前の語尾で判定している"
+perl -pe 's/^(\s+timestamptz occurred_at "起きた時点")$/$1\n        timestamptz recorded_at "記録した時点"/' "$fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
+  && pass "immutable_model.pyは名前が _at で終わるだけの基底イベントの列を拒否しない（二本目の時点かは読んで評価する）" || fail "immutable_model.pyが列の名前の語尾で判定している"
 (sed 's/timestamptz occurred_at "起きた時点"/date occurred_at "起きた時点"/' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F 'occurred_at の型が timestamptz ではない' >/dev/null \
   && pass "immutable_model.pyは timestamptz でない occurred_at を拒否" || fail "immutable_model.pyが occurred_at の型を拒否できない"
 (perl -pe 's/\| `occurred_at` \|/| 起きた時点は`occurred_at` |/' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '時刻の欄が `occurred_at` と一致しない' >/dev/null \
