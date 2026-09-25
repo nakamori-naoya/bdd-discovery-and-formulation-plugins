@@ -3,12 +3,12 @@
   "owner": {
     "name": "NaoyaNakamori"
   },
-  "description": "domain-rule、ユーザー目的達成BDD、RDB論理データモデルの三つの資料をBDD付きで作り、深めるパッケージを配布するmarketplace",
+  "description": "業務知識、コマンドデータモデル、クエリデータモデル、ユーザー目的達成BDDの四つの資料をBDD付きで作り、深めるパッケージを配布するmarketplace",
   "plugins": [
     {
       "name": "bdd-discovery-and-formulation",
       "source": "./plugins/bdd-discovery-and-formulation",
-      "description": "domain-rule、ユーザー目的達成BDD、RDB論理データモデルの三つの資料を、BDD付きで作り、深める公開入口を提供する",
+      "description": "業務知識、コマンドデータモデル、クエリデータモデル、ユーザー目的達成BDDの四つの資料を、BDD付きで作り、深める公開入口を提供する",
       "version": "9.0.0"
     }
   ]
