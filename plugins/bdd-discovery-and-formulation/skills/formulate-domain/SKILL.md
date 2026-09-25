@@ -5,17 +5,17 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 
 # ドメインの振る舞いをBDDへ定式化する
 
-読み終えると、既存のdomain-ruleの正式な定義のコアドメインへQA観点の反例を当て、以前は説明できなかった境界を説明できる状態へ深化させ、確認済みの発見と未決を同じpathへ戻せる。作るのは更新後の正式な定義1本だけで、新しい資料は作らない。
+読み終えると、既存のdomain-rule資料のコアドメインへQA観点の反例を当て、以前は説明できなかった境界を説明できる状態へ深化させ、確認済みの発見と未決を同じpathへ戻せる。作るのは更新後のdomain-rule資料1本だけで、新しい資料は作らない。
 
-同じdirectoryの`playbook.yml`が工程順の定義である。このSKILLを読んだagentが、利用者の入力と既存の正式な定義を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。手順に入る前に同梱の内部skill `write-bdd`の`SKILL.md`を同じ文脈で読み、その規律（入力の根拠づけ、業務の言葉、`grill` / `write-doc`の呼び方、BDDの前提・トリガー・失敗理由と条件マトリクス、定式化へ進める見極め、QA観点）を全工程へ適用する。
+同じdirectoryの`playbook.yml`が工程順の定義である。このSKILLを読んだagentが、利用者の入力と既存のdomain-rule資料を保持したまま`steps`を宣言順に辿り、最後まで同じ文脈で判断する。`agent_work: invoking_agent`の工程はこのagentの認知工程、`script:`の工程は明示した入力から閉じた結果を返す決定論的tool、`playbook:`の工程は外部公開Skillの直接呼び出しである。工程間の値はこのagentが文脈に保持し、fileへ書き出して受け渡さない。手順に入る前に同梱の内部skill `write-bdd`の`SKILL.md`を同じ文脈で読み、その規律（入力の根拠づけ、業務の言葉、`grill` / `write-doc`の呼び方、BDDの前提・トリガー・失敗理由と条件マトリクス、定式化へ進める見極め、QA観点）を全工程へ適用する。
 
 ## 入力
 
 | 入力 | 内容 | 満たさないときの扱い |
 |---|---|---|
-| `user_input` | 依頼文。どの決まりを深めたいか、新しく分かったこと | 反証の焦点が読めなければ`challenge`の問いにする。決まらなければ既存の正式な定義のコアの決まり全体を対象に仮置きして進む |
+| `user_input` | 依頼文。どの決まりを深めたいか、新しく分かったこと | 反証の焦点が読めなければ`challenge`の問いにする。決まらなければ既存のdomain-rule資料のコアの決まり全体を対象に仮置きして進む |
 | `references` | 任意。追加で従う資料の絶対path配列。手順の最初に読む。プロジェクト固有の規約や文脈は、対象repositoryのAGENTS.md / CLAUDE.mdとこの入力で渡される | 相対path、読めないpath、symlinkは公開契約に反する入力として止まり、正しいpathを求める |
-| `existing_domain_rule_path` | 更新する既存の正式な定義の絶対path。symlinkではない既存file | 無い、複数ある、別pathへの出力を求められた場合は止まる |
+| `existing_domain_rule_path` | 更新する既存のdomain-rule資料の絶対path。symlinkではない既存file | 無い、複数ある、別pathへの出力を求められた場合は止まる |
 
 `write-bdd`の入力に根拠づける規律に従い、利用者の発言、明示された資料、`challenge`で確認した決定だけを確定事項にする。既存資料も仮説を含み得るため、記載済みという理由だけで確定事項にしない。[この入口の焦点](references/focus.md)のとおり、反証の対象はコアに限る。
 
@@ -23,7 +23,7 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 
 ### 定式化へ進めてよいか
 
-`write-bdd`の「定式化へ進める共通理解か」の基準で、既存の正式な定義からコアの代表的な業務を説明できるなら進める。どの入力から読み取れたかと、残る疑問が発見の不足ではなく反証で扱う深さである理由を短く書く。既存の正式な定義にコアの業務の行いと代表BDDが無く、反証の対象が存在しなければ、未決と回答責任者を示し、正式な定義を初めて作る入口（discover-domain）が該当すると報告して止まる。
+`write-bdd`の「定式化へ進める共通理解か」の基準で、既存のdomain-rule資料からコアの代表的な業務を説明できるなら進める。どの入力から読み取れたかと、残る疑問が発見の不足ではなく反証で扱う深さである理由を短く書く。既存のdomain-rule資料にコアの業務の行いと代表BDDが無く、反証の対象が存在しなければ、未決と回答責任者を示し、domain-rule資料を初めて作る入口（discover-domain）が該当すると報告して止まる。
 
 ### 何を反証するか
 
@@ -31,7 +31,7 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 
 ### 残すのは業務上の意味だけか
 
-既存の正式な定義と追加の材料は、`write-bdd`のdomain-ruleの所有境界に照らして、業務上の意味と実現方式に分ける。業務上の意味だけを用語、業務の行い、状態、BDDへ戻す。実現方式の具体は本文から外し、元の記述、理由、送り先を作業記録へ残す。既存の正式な定義に書かれていることを、残す理由にしない。
+既存のdomain-rule資料と追加の材料は、`write-bdd`のdomain-ruleの所有境界に照らして、業務上の意味と実現方式に分ける。業務上の意味だけを用語、業務の行い、状態、BDDへ戻す。実現方式の具体は本文から外し、元の記述、理由、送り先を作業記録へ残す。既存のdomain-rule資料に書かれていることを、残す理由にしない。
 
 ### 見つかった違いをどこへ戻すか
 
@@ -48,8 +48,8 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 ## 手順
 
 1. **challenge（`grill`）。** [実行指示書](references/execution-guidance.md)の「問いの選び方」と[QA観点の適用](references/qa-probes.md)、`write-bdd`の重要なシナリオを見つけるQA観点で、既存資料のどの主張を反証しているかを明らかにし、答えで本文の変更が一つに決まる問いを成果を左右する順に選んで推奨と理由を添え、`context`と`questions`に渡す。呼び方は`write-bdd`の入れ子の段取りを呼ぶ規律に従う。問う数の上限と対話の作法はgrillの公開契約に従い、返った`open_questions`と、上限で問えなかった論点は、停止条件の判断基準で扱う。返った`decisions`と`open_questions`を利用者入力・既存資料と突き合わせる。2回目の`grill`は、利用者が求めた場合か、決定なしでは更新を完成できない場合だけ行う。
-2. **ground。** 既存の正式な定義、依頼、決定、未決、停止条件で仮説として置いた推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持し、既存資料のコアの範囲を`core_scope`にする。
-3. **revise。** [シナリオの書き方](references/writing.md)、[Givenの選び方](references/given.md)、`write-bdd`のBDDの前提・トリガー・失敗理由とdomain-ruleの所有境界に従い、複数主体や知識差が結果を変える場合だけ[登場人物と情報差](references/actors.md)を読む。既存の正式な定義と追加材料を読み、確認済みの業務上の発見を既存の用語、業務の行い、状態、BDDへ対応を保って戻す。実現の関心は業務上の意味へ言い換えられる部分だけ戻し、具体は本文から外して元の記述、理由、送り先を作業記録に残す。`open_questions`と停止条件で仮説として置いた推奨を本文の該当箇所に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。変更するBDDごとに条件マトリクスを作り、BDD草案（Gherkin）、条件マトリクス、改訂本文を同じ文脈で完成させる。更新先は入力された既存資料と同じpathであり、これを`requested_output_path`にする。
+2. **ground。** 既存のdomain-rule資料、依頼、決定、未決、停止条件で仮説として置いた推奨を根拠・仮説・未確認へ区別して`grounded_input`として保持し、既存資料のコアの範囲を`core_scope`にする。
+3. **revise。** [シナリオの書き方](references/writing.md)、[Givenの選び方](references/given.md)、`write-bdd`のBDDの前提・トリガー・失敗理由とdomain-ruleの所有境界に従い、複数主体や知識差が結果を変える場合だけ[登場人物と情報差](references/actors.md)を読む。既存のdomain-rule資料と追加材料を読み、確認済みの業務上の発見を既存の用語、業務の行い、状態、BDDへ対応を保って戻す。実現の関心は業務上の意味へ言い換えられる部分だけ戻し、具体は本文から外して元の記述、理由、送り先を作業記録に残す。`open_questions`と停止条件で仮説として置いた推奨を本文の該当箇所に仮説と分かる形で書き、未決の節へ推奨・根拠・採らなかった解釈を並べる。変更するBDDごとに条件マトリクスを作り、BDD草案（Gherkin）、条件マトリクス、改訂本文を同じ文脈で完成させる。更新先は入力された既存資料と同じpathであり、これを`requested_output_path`にする。
 4. **validate（`scripts/scenario.py`）。** BDD草案（Gherkin本文）をそのまま標準入力で、条件マトリクスを`--matrix-json`引数のJSON文字列で`python3 scripts/scenario.py check`へ渡す。pathはこのSKILLと同じdirectoryを基準にし、fileは介さない。stdoutにJSONを1行ずつ返し、終了codeは0が違反なし、1が違反あり（各行が`line` / `kind` / `detail` / `howto`）、2が入力を読めない（標準入力が空、`--matrix-json`がJSONでないかobjectでない）。0以外なら更新へ進まず、診断に従って`revise`へ戻る。
 
    ```bash
@@ -66,12 +66,12 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
    EOF
    ```
 
-5. **guard-update（`scripts/update-guard.py`）。** `python3 scripts/update-guard.py check --existing <既存の正式な定義の絶対path> --output <requested_output_path>`を実行する。引数は2つのpathだけで本文は渡さない。既存fileがsymlinkでない通常fileで、両pathが同じ実体を指すときだけ終了code 0で`{"update_target": <絶対path>}`をstdoutへ返す。それ以外は終了code 1で`{"error": <診断>}`を返すので、既存の正式な定義を変えずに止まる。
+5. **guard-update（`scripts/update-guard.py`）。** `python3 scripts/update-guard.py check --existing <既存のdomain-rule資料の絶対path> --output <requested_output_path>`を実行する。引数は2つのpathだけで本文は渡さない。既存fileがsymlinkでない通常fileで、両pathが同じ実体を指すときだけ終了code 0で`{"update_target": <絶対path>}`をstdoutへ返す。それ以外は終了code 1で`{"error": <診断>}`を返すので、既存のdomain-rule資料を変えずに止まる。
 6. **document（`write-doc`）。** 改訂本文を`{kind: text, content: <完成本文>}`の1要素配列で`material`に、`domain-rule`を`document_type`に、`update_target`をそのまま渡す。新規作成用の`output_directory`と`name`は渡さない。`references`には入力の`references`をそのまま渡す（空なら空配列）。返った結果の`status`が`completed`で、`path`が`update_target`と一致することを確かめ、その`path`を`updated_domain_rule_path`にする。`failed`、結果欠落、path不一致なら理由を報告して止まる。
 
 ## 停止条件
 
-分からないこと（入力の不足、曖昧な記述、誤りと思われる記述、想定外の値、`grill`で決まらなかった問いと問えなかった論点）に出会ったら、それがこの資料の結論を変えるかどうかで、止まるか進むかを決める。この資料の結論は、既存の正式な定義の業務ルール、不変条件、誰が行えるか、BDDの条件と結果とその後の状態である。
+分からないこと（入力の不足、曖昧な記述、誤りと思われる記述、想定外の値、`grill`で決まらなかった問いと問えなかった論点）に出会ったら、それがこの資料の結論を変えるかどうかで、止まるか進むかを決める。この資料の結論は、既存のdomain-rule資料の業務ルール、不変条件、誰が行えるか、BDDの条件と結果とその後の状態である。
 
 答えによって結論が変わるなら、推測で埋めずに止まる。既存資料を変更せず、何が分からないか、それで結論のどこが変わるか、推奨する答えとその根拠を返して判断を求める。反証で見つかった違いに回答が無く、既存のBDDの結果や新しい境界のBDDの結果が決まらないときが、これに当たる。既存資料の記載も仮説でありうるので、記載済みであることを根拠に確定扱いしない。
 
@@ -79,8 +79,8 @@ description: コアドメインの既存domain-rule資料をQA観点で反証し
 
 これとは別に、次の場合は止まる。成果が無意味になる必須入力の欠落、公開契約に反する入力、toolの失敗である。止まるときは既存資料を変更せず、どこまで確定し、何が分かれば続けられるかを返す。
 
-- 既存の正式な定義のpathが無い、symlinkである、複数ある、または別pathへの出力を求められた
-- 既存の正式な定義にコアの業務ルールと代表BDDが無く、反証の対象が存在しない。未決と回答責任者を示し、正式な定義を初めて作る入口が該当すると報告する
+- 既存のdomain-rule資料のpathが無い、symlinkである、複数ある、または別pathへの出力を求められた
+- 既存のdomain-rule資料にコアの業務ルールと代表BDDが無く、反証の対象が存在しない。未決と回答責任者を示し、domain-rule資料を初めて作る入口が該当すると報告する
 - `references`に相対path、読めないpath、symlinkがある
 - `grill`が`completed`以外を返した、または`decisions` / `open_questions`が配列でない
 - `scenario.py` / `update-guard.py`が0以外で終了し、`revise`へ戻しても解消しない
