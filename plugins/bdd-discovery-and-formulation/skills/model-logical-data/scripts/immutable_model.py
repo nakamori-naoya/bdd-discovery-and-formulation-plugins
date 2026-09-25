@@ -9,16 +9,18 @@
   ### の直後が backtick で囲んだテーブル名で始まる見出しを定義として読む。どれも資料のどの見出しの下にあってもよい。backtick は外して比べる。
 合格述語: 分類の表が資料に一つだけあり、分類、図の実体、定義の見出しが同じテーブルの集合で、分類は一度ずつ。系列・性質・保存表現が許可値で、根拠が空でない。
   リソース系はイベント列を選ばない。イベント系は追加のみ・イベント列・性質が派生でなく、名前が _events で終わる。
-  イベント系の表で名前が _at で終わる列は、業務の基底イベント（_base_events）と技術イベントでは occurred_at（型は timestamptz）だけで、
-  必ずある。分類表の時刻の欄は `occurred_at` と完全に一致する（backtick は外す）。業務の詳細イベントは _at で終わる列を持たない。業務の基底イベントは version の列を持つ。業務の詳細イベントがあれば基底イベントもある。
-  いずれも宣言（分類表の値、テーブルと列の名前）から一意に決まることだけを見る。
+  業務の基底イベント（_base_events）と技術イベントは occurred_at（型は timestamptz）の列を持ち、分類表の時刻の欄は `occurred_at` と
+  完全に一致する（backtick は外す）。業務の詳細イベントは occurred_at の列を持たない。業務の基底イベントは version の列を持つ。
+  業務の詳細イベントがあれば基底イベントもある。
+  いずれも宣言（分類表の値、テーブルと列の名前）から一意に決まることだけを見る。列の名前の語尾（_at など）から、その列が時点かどうかは判定しない。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。終了code 1。入力を読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/logical-data-model/valid.md と write-doc の rdb-logical-data-modeling の見本。
-反例: scripts/validate-structure.sh の、旧列名、イベントの更新宣言、未分類のテーブル、_events で終わらないイベント表、
-  occurred_at の無い技術イベント、_at の列を持つ詳細イベント、occurred_at のほかの _at の列、version の無い基底イベント、
+反例: scripts/test-immutable-model.sh の、旧列名、イベントの更新宣言、未分類のテーブル、_events で終わらないイベント表、
+  occurred_at の無い技術イベント、occurred_at を持つ詳細イベント、version の無い基底イベント、
   時刻の欄が `occurred_at` と一致しない分類表、分類の表が無いか二つある資料。
-境界例: 見出しに結論を入れた資料や、見出しの名前を変えた資料は通る。状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。名前が _at で終わらない日付の列（返却期限の due_on など）は拒まない。
-意味評価として残す範囲: 列が事実か業務が与えた値か加工した情報か、イベント表に二本目の時点が無いか（日付の列が出来事の時点の写しでないか）、
+境界例: 見出しに結論を入れた資料や、見出しの名前を変えた資料は通る。状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。
+  名前が _at で終わる列（詳細イベントの cancelled_at、基底イベントの recorded_at など）も、名前だけでは拒まない。
+意味評価として残す範囲: 列が事実か業務が与えた値か加工した情報か、イベント表に二本目の時点が無いか（ほかの列が出来事の時点の写しでないか）、
   状態と版の列の名前が status・current_version になっているか、保存表現の選択、資料間の意味の整合。
 """
 
@@ -189,16 +191,12 @@ def check_document(markdown: str, label: str) -> list[Problem]:
         if not name.endswith("_events"):
             problems.append(Problem(f"{prefix}.name", "イベント系のテーブル名が過去分詞の_eventsで終わらない", "<対象>_base_events、<対象>_<過去分詞>_events、<処理>_<過去分詞>_eventsのどれかにする"))
             continue
-        at_columns = [a for a in entities[name] if a["name"].endswith("_at")]
+        occurred = [a for a in entities[name] if a["name"] == OCCURRED_AT]
         detail = row["性質"] == "業務" and not name.endswith("_base_events")
         if detail:
-            if at_columns:
-                problems.append(Problem(f"{prefix}.時刻", f"詳細イベントが _at の列を持つ: {[a['name'] for a in at_columns]}", f"出来事の時点は基底イベントの {OCCURRED_AT} にだけ置く"))
+            if occurred:
+                problems.append(Problem(f"{prefix}.時刻", f"詳細イベントが {OCCURRED_AT} の列を持つ", f"出来事の時点は基底イベントの {OCCURRED_AT} にだけ置く"))
             continue
-        extra = [a["name"] for a in at_columns if a["name"] != OCCURRED_AT]
-        if extra:
-            problems.append(Problem(f"{prefix}.時刻", f"_at の列が {OCCURRED_AT} のほかにある: {extra}", f"イベント表の _at の列は {OCCURRED_AT} だけにする"))
-        occurred = [a for a in at_columns if a["name"] == OCCURRED_AT]
         if not occurred:
             problems.append(Problem(f"{prefix}.{OCCURRED_AT}", f"{OCCURRED_AT} の列が無い", f"出来事が起きた時点を {OCCURRED_AT} として置く"))
         elif occurred[0]["type"] != "timestamptz":
