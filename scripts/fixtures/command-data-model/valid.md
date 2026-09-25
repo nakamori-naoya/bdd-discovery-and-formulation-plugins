@@ -1,4 +1,4 @@
-# RDB論理設計 — 予約
+# 予約のコマンドデータモデル
 
 ## リソース系とイベント系
 
@@ -8,8 +8,10 @@
 | イベント系 | 業務 | `reservation_base_events` | イベント列 | `occurred_at` | 追加のみ | 予約の業務知識 |
 | イベント系 | 業務 | `reservation_cancelled_events` | イベント列 | なし | 追加のみ | 予約取消の業務知識 |
 | イベント系 | 技術 | `cancel_notice_requested_events` | イベント列 | `occurred_at` | 追加のみ | 取消を知らせる要求 |
+| イベント系 | 技術 | `cancel_notice_claimed_events` | イベント列 | `occurred_at` | 追加のみ | 取消を知らせる要求 |
+| イベント系 | 技術 | `cancel_notice_succeeded_events` | イベント列 | `occurred_at` | 追加のみ | 取消を知らせる要求 |
 
-## 論理データモデル図
+## データモデル図
 
 ```mermaid
 erDiagram
@@ -36,11 +38,23 @@ erDiagram
         uuid source_event_id FK "起因の基底イベント"
         timestamptz occurred_at "要求した時点"
     }
+    cancel_notice_claimed_events {
+        uuid claim_id PK "回収"
+        uuid request_id FK "要求"
+        bigint version "要求の中の回収の順序"
+        text worker_id "引き受けた担い手"
+        timestamptz occurred_at "回収した時点"
+    }
+    cancel_notice_succeeded_events {
+        uuid request_id PK, FK "要求"
+        uuid claim_id FK "終えた回収"
+        timestamptz occurred_at "終えた時点"
+    }
     reservations ||--|{ reservation_base_events : "起きたこと"
     reservation_base_events ||--o| reservation_cancelled_events : "取消の事実"
 ```
 
-## 論理テーブル定義
+## テーブル定義
 
 ### `reservations`（予約）
 
@@ -57,5 +71,13 @@ erDiagram
 ### `cancel_notice_requested_events`（取消の通知の要求）
 
 取消を知らせる要求。
+
+### `cancel_notice_claimed_events`（取消の通知の回収）
+
+担い手が要求を引き受けた事実。
+
+### `cancel_notice_succeeded_events`（取消の通知の成功）
+
+知らせ終えた事実。
 
 ## BDD
