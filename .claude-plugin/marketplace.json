@@ -9,7 +9,7 @@
       "name": "bdd-discovery-and-formulation",
       "source": "./plugins/bdd-discovery-and-formulation",
       "description": "domain-rule、ユーザー目的達成BDD、RDB論理データモデルの三つの資料を、BDD付きで作り、深める公開入口を提供する",
-      "version": "8.0.0"
+      "version": "9.0.0"
     }
   ]
 }
