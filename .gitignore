@@ -17,4 +17,3 @@ __pycache__/
 !/README.md
 !/VALIDATION.md
 !/.gitignore
-!/releases/
