@@ -1,25 +1,28 @@
 # BDD Discovery and Formulation
 
-業務の決まり、ユーザーの目的達成、残す事実の三つを、業務の言葉とBDDの具体例で書いた資料にするmarketplaceである。Claude CodeとCodexの両方で使える。資料を見た業務の人と開発者が、同じ例から同じ結論を出せるようにすることが目的で、実装方法やテストコードを先に決めるためのものではない。
+業務の決まり、書き込みで残す事実、読み取りの実現、ユーザーの目的達成の四つを、業務の言葉とBDDの具体例で書いた資料にするmarketplaceである。Claude CodeとCodexの両方で使える。資料を見た業務の人と開発者が、同じ例から同じ結論を出せるようにすることが目的で、実装方法やテストコードを先に決めるためのものではない。
 
 ## 資料の種類ごとに入口が一つある
 
-公開入口は三つで、どれも資料の種類に対応する。新しく作るときも、既存の資料へ反例を当てて深めるときも、同じ入口を使う。違いは、入口がgrillで何を問うかだけである。
+公開入口は四つで、どれも資料の種類に対応する。新しく作るときも、既存の資料へ反例を当てて深めるときも、同じ入口を使う。違いは、入口がgrillで何を問うかだけである。
 
-`model-domain-rule`は、コアドメインの業務知識をdomain-rule資料にする。業務の話かどうかを三つの問いで線引きし、業務の行いごとに誰が行えるか、成り立つ条件、拒む理由を一か所にそろえる。業務の言葉と英名の対応（ユビキタス言語）もこの資料が持つ。
+`write-business-knowledge`は、業務の行いと決まりを業務知識の資料にする。コマンドには誰が行えるか、成り立つ条件、拒む理由を、クエリには何を表示しどの順で並べるかを書く。業務の言葉と英名の対応（ユビキタス言語）もこの資料が持ち、業務をまたぐ語は、それを作る業務の資料が持つ。
+
+`model-command-data`は、業務知識のコマンドを根拠に、作成・更新・削除で何を残すかを決め、BDDごとにテーブルのBeforeとAfterを具体的な行で示したコマンドデータモデルの資料にする。保存するのは起きた事実と、その時点で決めた値だけで、集計のような情報は持たない。Outboxで分けた技術処理もここに書く。
+
+`model-query-data`は、コマンドデータモデルのデータから業務知識のクエリが実現できるかを、Beforeのデータと取得結果のBDDで確かめ、クエリデータモデルの資料にする。実現できない読み取りは、コマンドデータモデルの欠けとして差し戻す。
 
 `map-user-journey`は、1人の主たるユーザーが1つの目的を達成するまでを、ユーザーが観測できる場面の連なりとしてユーザー目的達成BDD資料にする。
 
-`model-logical-data`は、domain-rule資料を根拠に、何を時間を越えて残すかを決め、BDDごとにテーブルのBeforeとAfterを具体的な行で示したRDB論理データモデル資料にする。保存するのは起きた事実と業務が与えた値だけで、集計のような情報は持たない。RDB物理設計は別の`rdb-design` packageが受け持つ。
-
 ```text
 既存の用語集と要件資料を根拠に、予約取消の業務知識をBDD付きで整理して。
-既存の予約取消のdomain-rule資料を、締切時刻ちょうどと二重取消で深掘りして。
-注文確定・取消・返金のdomain-rule資料から、論理データモデルを作って。
+既存の予約取消の業務知識を、締切時刻ちょうどと二重取消で深掘りして。
+注文確定・取消・返金の業務知識から、コマンドデータモデルを作って。
+注文の一覧のクエリが、注文のコマンドデータモデルで実現できるか確かめて。
 初回訪問者が商品を比較し、購入し、受取を確認するまでをユーザー目的達成BDDにして。
 ```
 
-資料の節構成と記法は、write-docの文書型（`domain-rule`、`user-journey-bdd`、`rdb-logical-data-modeling`）のtemplateが持つ。このrepositoryはtemplateを持たない。どの入口も、止まるか進むかは各入口の`SKILL.md`の「停止条件」の節に従う。
+資料の節構成と記法は、write-docの文書型（`business-knowledge`、`command-data-model`、`query-data-model`、`user-journey-bdd`）のtemplateが持つ。このrepositoryはtemplateを持たない。どの入口も、止まるか進むかは各入口の`SKILL.md`の「停止条件」の節に従う。RDB物理設計は別の`rdb-design` packageが受け持つ。
 
 ## インストール
 
@@ -94,4 +97,4 @@ marketplaceの取得と、インストール済みパッケージの更新は分
 bash scripts/validate.sh
 ```
 
-package の配置とmanifestは、兄弟checkout`../harness-tools/`の保守toolが検査する。このrepositoryに固有の検査は、`model-logical-data`が保存した資料に一回かける`immutable_model.py`の正例・反例・境界例（`scripts/test-immutable-model.sh`）だけである。検査が通っても、資料の業務上の正しさは保証されないので、資料を読んで判断する。
+package の配置とmanifestは、兄弟checkout`../harness-tools/`の保守toolが検査する。このrepositoryに固有の検査は、入口が保存した資料に一回かける三つの検査スクリプト（`business_knowledge.py`、`immutable_model.py`、`query_model.py`）の正例・反例・境界例（`scripts/test-business-knowledge.sh`、`scripts/test-immutable-model.sh`、`scripts/test-query-model.sh`）である。検査が通っても、資料の業務上の正しさは保証されないので、資料を読んで判断する。

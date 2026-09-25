@@ -1,65 +1,66 @@
 #!/usr/bin/env bash
-# immutable_model.py（model-logical-data が保存した論理データモデル資料に一回かける検査）を、正例・反例・境界例で確かめる。
-# fixture は scripts/fixtures/logical-data-model/ にあり、反例はそこから一行だけ変えて作る。
+# immutable_model.py（model-command-data が保存したコマンドデータモデルに一回かける検査）を、正例・反例・境界例で確かめる。
+# fixture は scripts/fixtures/command-data-model/ にあり、反例は一時ディレクトリへ写した fixture を一か所だけ変えて作る。
 # 反例の合格述語は「検査が違反として exit 1 を返し、診断に決まった文言が出る」だけにする。exit 2（入力を読めない）を拒否と誤認しない。
 set -uo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-immutable_model="$ROOT/plugins/bdd-discovery-and-formulation/skills/model-logical-data/scripts/immutable_model.py"
-fixtures="$ROOT/scripts/fixtures/logical-data-model"
+checker="$ROOT/plugins/bdd-discovery-and-formulation/skills/model-command-data/scripts/immutable_model.py"
+fixtures="$ROOT/scripts/fixtures/command-data-model"
 passed=0 failed=0
 pass() { printf 'PASS: %s\n' "$1"; passed=$((passed + 1)); }
 fail() { printf 'FAIL: %s\n' "$1"; failed=$((failed + 1)); }
-rejects() { "$@" >/dev/null 2>&1; [ "$?" -eq 1 ]; }
-for cmd in python3 perl sed rg; do
+for cmd in python3 perl rg; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "[error] command $cmd が無い" >&2; exit 2; }
 done
 export PYTHONDONTWRITEBYTECODE=1
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
 
-python3 "$immutable_model" check < "$fixtures/valid.md" >/dev/null \
-  && pass "immutable_model.pyの構造正例" || fail "immutable_model.pyの構造正例"
-sed "s/| 保存表現 |/| 保存の形 |/" "$fixtures/valid.md" | python3 "$immutable_model" check >/dev/null 2>&1
-header_status=${PIPESTATUS[1]}
-[ "$header_status" -eq 1 ] \
-  && pass "immutable_model.pyは列名が契約と違う分類表を拒否（exit 1）" || fail "immutable_model.pyが列名の違う分類表を拒否できない"
-resource_event_output=$(sed 's/| 現在状態 |/| イベント列 |/' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1)
-resource_event_status=$?
-if [ "$resource_event_status" -eq 1 ] \
-  && rg -F 'リソース系の論理テーブルに対し、分類表の「保存表現」列でイベント列を選択している' <<< "$resource_event_output" >/dev/null; then
-  pass "immutable_model.pyはリソース系と保存表現の不整合を対象・関係・値が明確な診断で拒否"
-else
-  fail "immutable_model.pyのリソース系と保存表現の不整合診断"
-fi
-rejects python3 "$immutable_model" check < "$fixtures/event-updated.md" \
-  && pass "immutable_model.pyはイベントの更新宣言を拒否（exit 1）" || fail "immutable_model.pyがイベントの更新宣言を拒否できない"
-rejects python3 "$immutable_model" check < "$fixtures/unclassified.md" \
-  && pass "immutable_model.pyは未分類テーブルを拒否（exit 1）" || fail "immutable_model.pyが未分類テーブルを拒否できない"
-python3 "$immutable_model" check < "$fixtures/conditional-null.md" >/dev/null \
-  && pass "immutable_model.pyは意味評価対象の列名・NULLを拒否しない" || fail "immutable_model.pyが意味評価対象を誤検知"
-(perl -pe 's/timestamptz occurred_at "要求した時点"/timestamptz requested_at "要求した時点"/' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F 'occurred_at の列が無い' >/dev/null \
-  && pass "immutable_model.pyは occurred_at の無い技術イベントを拒否" || fail "immutable_model.pyが occurred_at の無い技術イベントを拒否できない"
-(perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        timestamptz occurred_at "取り消した時点"/' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '詳細イベントが occurred_at の列を持つ' >/dev/null \
-  && pass "immutable_model.pyは occurred_at を持つ詳細イベントを拒否" || fail "immutable_model.pyが occurred_at を持つ詳細イベントを拒否できない"
-perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        timestamptz cancelled_at "取り消した時点"/' "$fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
-  && pass "immutable_model.pyは名前が _at で終わるだけの詳細イベントの列を拒否しない（時点かは読んで評価する）" || fail "immutable_model.pyが列の名前の語尾で判定している"
-perl -pe 's/^(\s+timestamptz occurred_at "起きた時点")$/$1\n        timestamptz recorded_at "記録した時点"/' "$fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
-  && pass "immutable_model.pyは名前が _at で終わるだけの基底イベントの列を拒否しない（二本目の時点かは読んで評価する）" || fail "immutable_model.pyが列の名前の語尾で判定している"
-(sed 's/timestamptz occurred_at "起きた時点"/date occurred_at "起きた時点"/' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F 'occurred_at の型が timestamptz ではない' >/dev/null \
-  && pass "immutable_model.pyは timestamptz でない occurred_at を拒否" || fail "immutable_model.pyが occurred_at の型を拒否できない"
-(perl -pe 's/\| `occurred_at` \|/| 起きた時点は`occurred_at` |/' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '時刻の欄が `occurred_at` と一致しない' >/dev/null \
-  && pass "immutable_model.pyは時刻の欄が occurred_at と一致しない分類表を拒否" || fail "immutable_model.pyが時刻の欄の不一致を拒否できない"
-(sed 's/reservation_base_events/reservation_header/g' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '_eventsで終わらない' >/dev/null \
-  && pass "immutable_model.pyは_eventsで終わらないイベント表を拒否" || fail "immutable_model.pyが_eventsで終わらないイベント表を拒否できない"
-(sed '/bigint version "予約の中の順序"/d' "$fixtures/valid.md" | python3 "$immutable_model" check 2>&1; true) | rg -F '基底イベントに適用後の版 version が無い' >/dev/null \
-  && pass "immutable_model.pyは version の無い基底イベントを拒否" || fail "immutable_model.pyが version の無い基底イベントを拒否できない"
-perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        date refund_due_on "返金の期限"/' "$fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
-  && pass "immutable_model.pyは詳細イベントの日付の列を拒否しない" || fail "immutable_model.pyが詳細イベントの日付の列を誤検知"
-sed -e 's/^## リソース系とイベント系$/## 予約は現在状態、出来事はイベント列で残す/' -e 's/^## 論理データモデル図$/## 予約と二つのイベント表/' -e 's/^## 論理テーブル定義$/## 一つの行にまとめるもの/' "$fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
-  && pass "immutable_model.pyは見出しの文言に依らず目印で読む" || fail "immutable_model.pyが見出しの文言に依存している"
-perl -0pe 's/(\| 系列 \| 性質 \| 論理テーブル \| 保存表現 \| 時刻 \| 変化 \| 根拠 \|\n)/$1/; $_ .= "\n| 系列 | 性質 | 論理テーブル | 保存表現 | 時刻 | 変化 | 根拠 |\n|---|---|---|---|---|---|---|\n"' "$fixtures/valid.md" | (python3 "$immutable_model" check 2>&1; true) | rg -F '分類表が2個ある' >/dev/null \
-  && pass "immutable_model.pyは分類の表が二つある資料を拒否" || fail "immutable_model.pyが分類の表の重複を拒否できない"
-python3 "$immutable_model" check </dev/null >/dev/null 2>&1; [ $? -eq 2 ] \
-  && pass "immutable_model.pyの空stdinはexit 2" || fail "immutable_model.pyの空stdin終了code"
+# fresh: fixture を一時ディレクトリへ写し直す。
+fresh() { rm -rf "$work/m"; mkdir -p "$work/m"; cp "$fixtures"/*.md "$work/m/"; }
+# accepts <名前> <資料...>: exit 0 なら合格。
+accepts() { local name=$1; shift; python3 "$checker" check "$@" >/dev/null 2>&1 && pass "$name" || fail "$name"; }
+# rejects <名前> <診断の文言> <資料...>: exit 1 で、診断に文言が出れば合格。
+rejects() {
+  local name=$1 expected=$2; shift 2
+  local output status
+  output=$(python3 "$checker" check "$@" 2>&1); status=$?
+  if [ "$status" -eq 1 ] && rg -F -- "$expected" <<< "$output" >/dev/null; then pass "$name"; else fail "$name（exit $status）"; fi
+}
+# edit <perl の置換>: 一時ディレクトリの valid.md を書き換える。
+edit() { perl -0pi -e "$1" "$work/m/valid.md"; }
+
+fresh; accepts "構造の正例" "$work/m/valid.md"
+fresh; accepts "持ち主を参照する資料との組の正例" "$work/m/valid.md" "$work/m/reader.md"
+fresh; accepts "条件付きNULL・状態・削除フラグを含むだけでは拒まない" "$work/m/conditional-null.md"
+fresh; edit 's/\| 保存表現 \|/| 保存の形 |/'; rejects "列名が契約と違う分類表を拒否" "分類表が0個ある" "$work/m/valid.md"
+fresh; edit 's/\| 現在状態 \|/| イベント列 |/'; rejects "リソース系でイベント列を選んだ分類を拒否" "リソース系の論理テーブルに対し、分類表の「保存表現」列でイベント列を選択している" "$work/m/valid.md"
+fresh; rejects "イベントの更新宣言を拒否" "追加専用ではない" "$work/m/event-updated.md"
+fresh; rejects "未分類のテーブルを拒否" "図のテーブルが分類表にも参照の表にも無い" "$work/m/unclassified.md"
+fresh; edit 's/timestamptz occurred_at "要求した時点"/timestamptz requested_at "要求した時点"/'; rejects "occurred_at の無い技術イベントを拒否" "occurred_at の列が無い" "$work/m/valid.md"
+fresh; edit 's/(\s+text reason "取消の理由")/$1\n        timestamptz occurred_at "取り消した時点"/'; rejects "occurred_at を持つ詳細イベントを拒否" "詳細イベントが occurred_at の列を持つ" "$work/m/valid.md"
+fresh; edit 's/(\s+text reason "取消の理由")/$1\n        timestamptz cancelled_at "取り消した時点"/'; accepts "名前が _at で終わるだけの詳細イベントの列は拒まない" "$work/m/valid.md"
+fresh; edit 's/(\s+timestamptz occurred_at "起きた時点")/$1\n        timestamptz recorded_at "記録した時点"/'; accepts "名前が _at で終わるだけの基底イベントの列は拒まない" "$work/m/valid.md"
+fresh; edit 's/timestamptz occurred_at "起きた時点"/date occurred_at "起きた時点"/'; rejects "timestamptz でない occurred_at を拒否" "occurred_at の型が timestamptz ではない" "$work/m/valid.md"
+fresh; edit 's/\| `occurred_at` \| 追加のみ \| 予約の業務知識 \|/| 起きた時点は`occurred_at` | 追加のみ | 予約の業務知識 |/'; rejects "時刻の欄が occurred_at と一致しない分類表を拒否" "時刻の欄が \`occurred_at\` と一致しない" "$work/m/valid.md"
+fresh; edit 's/reservation_base_events/reservation_header/g'; rejects "_events で終わらないイベント表を拒否" "_eventsで終わらない" "$work/m/valid.md"
+fresh; edit 's/\n\s+bigint version "予約の中の順序"//'; rejects "version の無い基底イベントを拒否" "基底イベントに適用後の版 version が無い" "$work/m/valid.md"
+fresh; edit 's/\n\s+bigint current_version "反映済みの最後の版"//'; rejects "current_version の無いリソースを拒否" "current_version の列が無い" "$work/m/valid.md"
+fresh; edit 's/\n\s+text status "いまの状態"//'; rejects "status の無いリソースを拒否" "status の列が無い" "$work/m/valid.md"
+fresh; edit 's/\n\s+reservations \|\|--\|\{ reservation_base_events : "起きたこと"//'; rejects "リソースと結ばれていない基底イベントを拒否" "リソース系・業務のテーブルと結ばれていない" "$work/m/valid.md"
+fresh; edit 's/\n\| イベント系 \| 技術 \| `cancel_notice_succeeded_events`[^\n]*//; s/\n\s+cancel_notice_succeeded_events \{[^}]*\}//; s/\n### `cancel_notice_succeeded_events`[^\n]*\n\n[^\n]*\n//'; rejects "成功の表の無い要求を拒否" "cancel_notice_succeeded_events が技術イベントとして分類されていない" "$work/m/valid.md"
+fresh; edit 's/\n\s+bigint version "要求の中の回収の順序"//'; rejects "version の無い回収を拒否" "回収の表に要求の中での回収の版 version が無い" "$work/m/valid.md"
+fresh; edit 's/(\s+text reason "取消の理由")/$1\n        date refund_due_on "返金の期限"/'; accepts "詳細イベントの日付の列は拒まない" "$work/m/valid.md"
+fresh; edit 's/^## リソース系とイベント系$/## 予約は現在状態、出来事はイベント列で残す/m; s/^## データモデル図$/## 予約と二つのイベント表/m'; accepts "見出しの文言に依らず目印で読む" "$work/m/valid.md"
+fresh; printf '\n| 系列 | 性質 | 論理テーブル | 保存表現 | 時刻 | 変化 | 根拠 |\n|---|---|---|---|---|---|---|\n' >> "$work/m/valid.md"; rejects "分類の表が二つある資料を拒否" "分類表が2個ある" "$work/m/valid.md"
+fresh; perl -0pi -e 's/`reservation_id`、`status`/`reservation_id`、`guest_name`/; s/text status "いまの状態"\n    \}\n    entries/text guest_name "予約した人"\n    }\n    entries/' "$work/m/reader.md"; rejects "持ち主の図に無い読む列を拒否" "読む列が持ち主の図に無い" "$work/m/reader.md"
+fresh; perl -0pi -e 's/\| `reservation_id`、`status` \|/| `reservation_id` |/' "$work/m/reader.md"; rejects "読む列と図の列が違う参照を拒否" "参照したテーブルの図の列が読む列と一致しない" "$work/m/reader.md"
+fresh; perl -0pi -e 's/\(valid\.md\)/(missing.md)/' "$work/m/reader.md"; rejects "実在しない持ち主を拒否" "持ち主の資料を読めない" "$work/m/reader.md"
+fresh; perl -0pi -e 's/(\| リソース系 \| 業務 \| `entries`[^\n]*\n)/$1| リソース系 | 業務 | `reservations` | 現在状態 | なし | 更新あり | 入室の業務知識 |\n/; s/\n\| `reservations` \| `reservation_id`、`status` \|[^\n]*//; s/^(### `entries`)/### `reservations`（予約）\n\n予約。\n\n$1/m' "$work/m/reader.md"
+rejects "二本の資料が同じテーブルを分類する組を拒否" "同じテーブルを二本の資料が分類している" "$work/m/valid.md" "$work/m/reader.md"
+python3 "$checker" check >/dev/null 2>&1; [ $? -eq 2 ] && pass "引数の無い呼び出しは exit 2" || fail "引数の無い呼び出しの終了code"
+python3 "$checker" check "$work/none.md" >/dev/null 2>&1; [ $? -eq 2 ] && pass "読めない資料は exit 2" || fail "読めない資料の終了code"
 
 printf '\nimmutable_model.py: %d passed, %d failed\n' "$passed" "$failed"
 [ "$failed" -eq 0 ]
