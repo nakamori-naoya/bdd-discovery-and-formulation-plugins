@@ -2,11 +2,12 @@
 """論理データモデル資料が、イミュータブルデータモデルの型に構造上合うかを検査する。
 
 基準資料: 同梱の内部skill design-data-model の references/immutable-data-modeling.md（三つのテーブル、命名、時刻は occurred_at の一本、
-  業務が与えた値）と references/technical-process-lifecycle.md（技術処理の命名と時刻）。記法は write-doc の rdb-logical-data-modeling 型。
+  業務が与えた値）と references/technical-process-lifecycle.md（技術処理の命名と時刻）。記法は write-doc の公開契約が rdb-logical-data-modeling 型について宣言した「検査が読む目印」。見出しの文言は読まない。
 入力: 標準入力の資料本文（Markdown）。または {"documents": [{"path", "content"}]} のJSON。
-正規化: 「リソース系とイベント系」の節の7列の表を分類として、「論理データモデル図」の節の erDiagram の実体と属性行
-  （型 名前 [PK|FK|UK...] "意味"）を列として、「論理テーブル定義」の節の ### `名前` を定義として読む。backtick は外して比べる。
-合格述語: 分類、図の実体、定義の見出しが同じテーブルの集合で、分類は一度ずつ。系列・性質・正式な定義が許可値で、根拠が空でない。
+正規化: コードブロックの外で見出し行が「系列 | 性質 | 論理テーブル | 正式な定義 | 時刻 | 変化 | 根拠」の表を分類として、
+  1行目が erDiagram の Mermaid ブロックの実体と属性行（型 名前 [PK|FK|UK...] "意味"）を列として、
+  ### の直後が backtick で囲んだテーブル名で始まる見出しを定義として読む。どれも資料のどの見出しの下にあってもよい。backtick は外して比べる。
+合格述語: 分類の表が資料に一つだけあり、分類、図の実体、定義の見出しが同じテーブルの集合で、分類は一度ずつ。系列・性質・正式な定義が許可値で、根拠が空でない。
   リソース系はイベント列を選ばない。イベント系は追加のみ・イベント列・性質が派生でなく、名前が _events で終わる。
   イベント系の表で名前が _at で終わる列は、業務の基底イベント（_base_events）と技術イベントでは occurred_at（型は timestamptz）だけで、
   必ずある。分類表の時刻の欄は `occurred_at` と完全に一致する（backtick は外す）。業務の詳細イベントは _at で終わる列を持たない。業務の基底イベントは version の列を持つ。業務の詳細イベントがあれば基底イベントもある。
@@ -15,8 +16,8 @@
 正例: revise-data-models/fixtures/valid.md と write-doc の rdb-logical-data-modeling の見本。
 反例: scripts/validate-structure.sh の、旧列名、イベントの更新宣言、未分類のテーブル、_events で終わらないイベント表、
   occurred_at の無い技術イベント、_at の列を持つ詳細イベント、occurred_at のほかの _at の列、version の無い基底イベント、
-  時刻の欄が `occurred_at` と一致しない分類表。
-境界例: 状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。名前が _at で終わらない日付の列（返却期限の due_on など）は拒まない。
+  時刻の欄が `occurred_at` と一致しない分類表、分類の表が無いか二つある資料。
+境界例: 見出しに結論を入れた資料や、見出しの名前を変えた資料は通る。状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。名前が _at で終わらない日付の列（返却期限の due_on など）は拒まない。
 意味評価として残す範囲: 列が事実か業務が与えた値か加工した情報か、イベント表に二本目の時点が無いか（日付の列が出来事の時点の写しでないか）、
   状態と版の列の名前が status・current_version になっているか、保存表現の選択、資料間の意味の整合。
 """
@@ -54,40 +55,31 @@ def split_cells(line: str) -> list[str]:
     return [cell.strip() for cell in line.strip().strip("|").split("|")]
 
 
-def section(lines: list[str], heading: str) -> tuple[int, int] | None:
-    try:
-        start = lines.index(heading)
-    except ValueError:
-        return None
-    end = len(lines)
-    for index in range(start + 1, len(lines)):
-        if lines[index].startswith("## "):
-            end = index
-            break
-    return start, end
+def prose_lines(lines: list[str]) -> list[tuple[int, str]]:
+    """コードブロックの外の行を (行番号, 行) で返す。"""
+    result: list[tuple[int, str]] = []
+    in_code = False
+    for number, line in enumerate(lines):
+        if line.strip().startswith("```"):
+            in_code = not in_code
+            continue
+        if not in_code:
+            result.append((number, line))
+    return result
 
 
 def parse_classification(lines: list[str], problems: list[Problem]) -> dict[str, dict[str, str]]:
-    bounds = section(lines, "## リソース系とイベント系")
-    if bounds is None:
-        problems.append(Problem("classification", "『リソース系とイベント系』節が無い", "必須の分類表を置く"))
+    """見出し行が契約の7列の表を資料全体から一つ探し、分類として読む。"""
+    prose = prose_lines(lines)
+    starts = [i for i, (_, line) in enumerate(prose) if line.lstrip().startswith("|") and split_cells(line) == REQUIRED_HEADERS]
+    if len(starts) != 1:
+        problems.append(Problem("classification", f"見出し行が『| {' | '.join(REQUIRED_HEADERS)} |』の分類表が{len(starts)}個ある", "分類表を資料に一つだけ置く"))
         return {}
-    start, end = bounds
-    header_index = next((i for i in range(start + 1, end) if lines[i].lstrip().startswith("|")), None)
-    if header_index is None or header_index + 1 >= end:
-        problems.append(Problem("classification", "分類表を読めない", "指定された7列のMarkdown表を置く"))
-        return {}
-    headers = split_cells(lines[header_index])
-    if headers != REQUIRED_HEADERS:
-        problems.append(Problem("classification.headers", f"列が契約と一致しない: {headers}", f"{REQUIRED_HEADERS}の順で置く"))
-        return {}
+    headers = REQUIRED_HEADERS
     rows: dict[str, dict[str, str]] = {}
-    for line_number in range(header_index + 2, end):
-        line = lines[line_number]
+    for line_number, line in prose[starts[0] + 2:]:
         if not line.lstrip().startswith("|"):
-            if rows:
-                break
-            continue
+            break
         cells = split_cells(line)
         if len(cells) != len(headers):
             problems.append(Problem(f"classification.line[{line_number + 1}]", "列数が分類表headerと一致しない", "各行を7列にする"))
@@ -106,53 +98,52 @@ def parse_classification(lines: list[str], problems: list[Problem]) -> dict[str,
 
 
 def parse_headings(lines: list[str], problems: list[Problem]) -> list[str]:
-    bounds = section(lines, "## 論理テーブル定義")
-    if bounds is None:
-        problems.append(Problem("definitions", "『論理テーブル定義』節が無い", "テーブルごとに ### `名前` の節を置く"))
-        return []
-    start, end = bounds
-    return [m.group(1) for m in (TABLE_HEADING.match(lines[i]) for i in range(start + 1, end)) if m]
+    """### の直後が backtick で囲んだテーブル名で始まる見出しを、テーブルの定義として読む。"""
+    return [m.group(1) for m in (TABLE_HEADING.match(line) for _, line in prose_lines(lines)) if m]
 
 
 def parse_er(lines: list[str], problems: list[Problem]) -> dict[str, list[dict]]:
-    """論理データモデル図の erDiagram から {実体: [{type, name, comment}]} を読む。"""
-    bounds = section(lines, "## 論理データモデル図")
-    if bounds is None:
-        problems.append(Problem("er", "『論理データモデル図』節が無い", "erDiagram で全テーブルと全列を描く"))
-        return {}
-    start, end = bounds
+    """1行目が erDiagram の Mermaid ブロックから {実体: [{type, name, comment}]} を読む。複数のブロックは合わせて読む。"""
     entities: dict[str, list[dict]] = {}
-    in_er = False
-    current = None
-    for line in lines[start + 1:end]:
+    fence: list[str] | None = None
+    language = ""
+    blocks: list[list[str]] = []
+    for line in lines:
         stripped = line.strip()
+        if fence is not None:
+            if stripped.startswith("```"):
+                if language == "mermaid":
+                    blocks.append(fence)
+                fence = None
+            else:
+                fence.append(stripped)
+            continue
         if stripped.startswith("```"):
-            in_er = False
-            current = None
+            fence, language = [], stripped[3:].strip()
+    for block in blocks:
+        content = [line for line in block if line and not line.startswith("%%")]
+        if not content or content[0] != "erDiagram":
             continue
-        if stripped == "erDiagram":
-            in_er = True
-            continue
-        if not in_er:
-            continue
-        opened = ENTITY_OPEN.match(stripped)
-        if opened:
-            current = opened.group(1)
-            if current in entities:
-                problems.append(Problem(f"er.{current}", "erDiagram に同じ実体が2度ある", "実体は一度だけ描く"))
-            entities.setdefault(current, [])
-            continue
-        if stripped == "}":
-            current = None
-            continue
-        if current is not None:
-            attr = ATTRIBUTE.match(stripped)
-            if not attr:
-                problems.append(Problem(f"er.{current}", f"属性の行を読めない: {stripped}", "型 名前 [PK|FK] \"意味\" の形で書く"))
+        current = None
+        for stripped in content[1:]:
+            opened = ENTITY_OPEN.match(stripped)
+            if opened:
+                current = opened.group(1)
+                if current in entities:
+                    problems.append(Problem(f"er.{current}", "erDiagram に同じ実体が2度ある", "実体は一度だけ描く"))
+                entities.setdefault(current, [])
                 continue
-            entities[current].append({"type": attr.group(1), "name": attr.group(2), "comment": attr.group(3) or ""})
+            if stripped == "}":
+                current = None
+                continue
+            if current is not None:
+                attr = ATTRIBUTE.match(stripped)
+                if not attr:
+                    problems.append(Problem(f"er.{current}", f"属性の行を読めない: {stripped}", "型 名前 [PK|FK] \"意味\" の形で書く"))
+                    continue
+                entities[current].append({"type": attr.group(1), "name": attr.group(2), "comment": attr.group(3) or ""})
     if not entities:
-        problems.append(Problem("er", "erDiagram に実体が1つも無い", "erDiagram で全テーブルと全列を描く"))
+        problems.append(Problem("er", "erDiagram に実体が1つも無い", "1行目が erDiagram の Mermaid ブロックで全テーブルと全列を描く"))
     return entities
 
 
@@ -169,7 +160,7 @@ def check_document(markdown: str, label: str) -> list[Problem]:
     for name in sorted(classified - drawn):
         problems.append(Problem(f"{label}.er.{name}", "分類したテーブルが図に無い", "erDiagram に実体と全列を描く"))
     for name in sorted(classified - defined):
-        problems.append(Problem(f"{label}.definitions.{name}", "分類したテーブルの ### 節が論理テーブル定義に無い", "何を一つの行にまとめるかを書く節を置く"))
+        problems.append(Problem(f"{label}.definitions.{name}", "分類したテーブルの ### `名前` の見出しが無い", "何を一つの行にまとめるかを書く節を置く"))
 
     for name in sorted(classified & drawn):
         row = classification[name]
