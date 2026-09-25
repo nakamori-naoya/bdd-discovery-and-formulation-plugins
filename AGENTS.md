@@ -1,4 +1,4 @@
-> 作業を始める前に、workspace規約入口 `/Users/naoya-nakamoriq/Documents/Github/harness-pluginsv2/AGENTS.md` を読み、そこから指定される共通規約とこのrepository固有の規則を適用する。
+> 共通の規約は /Users/naoya-nakamoriq/Documents/Github/harness-pluginsv2/AGENTS.md にある。ここには、この repository だけの規則を置く。
 
 # AGENTS.md
 
@@ -16,10 +16,3 @@
 - ユーザー入力、明示された資料、grillで確認した決定にない用語・イベント・役割・状態・制約を確定事項として作らない。不明点のうち成果を左右するものを外部`grill@grill`を呼ぶ先頭工程で厳選して確認し（問う数の上限と対話の作法はgrillの公開契約に従う）、上限で問えなかった論点と決まらなかった論点は、各公開入口の停止条件の判断基準で扱う。2回目のgrillは利用者が求めた場合か、決定なしでは成果物を完成できない場合だけ行う。
 - `write-doc`と`grill`は同梱せず、別repositoryへは`playbook.yml`の`requires`と`playbook:`工程だけで依存する。相手の内部の部品名、工程、script、参考資料、設定へ触れず、依存versionも固定しない。呼び方は同梱の内部skill `write-bdd`の`references/nested-playbook.md`が1か所で定め、各入口はその規律を適用する。
 - Slack、meeting、session収集、digest、cadence、agent-run、PR関連を追加しない。
-- 保守tool（root契約の構造検査、回帰検査、消費側lint、release、eval）の参照元は兄弟checkout `../harness-tools/`であり、このrepositoryは複製を持たない。`scripts/validate.sh`は`../harness-tools/tools`の実在を確認してから呼び、無ければ止まる。
-- 変更後は`bash scripts/validate.sh`と、workspace rootの`bash scripts/validate.sh <このrepositoryの絶対path>`を実行し、正常系だけでなく意図的に壊した負の試験が落ちることも確認する。
-- install cacheは編集せず、このsourceを参照元としてチューニングする。
-
-## 検査スクリプトは、意味が一意に決まることだけを判定する
-
-このrepositoryの検査スクリプト（validate、lint、verify、checkなど、名前を問わない）が判定してよいのは、ファイルや見出しの有無、識別子や版の一致、宣言と配置の対応、禁止された書き方の有無のように、入力と基準資料から意味が決定論的に一意に決まることだけである。読んで解釈しないと決まらないことや、件数や語の出現のような品質の代わりの指標は判定せず、エージェントが読んで評価する（意味評価）。判定が一意に決まることを宣言できない検査は作らず、詳しい条件は `/Users/naoya-nakamoriq/Documents/Github/harness-pluginsv2/.agents/rules/deterministic-validation.md` に従う。
