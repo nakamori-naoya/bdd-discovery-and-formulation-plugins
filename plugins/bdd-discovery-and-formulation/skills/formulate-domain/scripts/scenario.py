@@ -202,7 +202,7 @@ def check(doc, allow_background, matrix):
                             "条件マトリクスで確定した失敗理由を写す")
                 if fields.get("source") != expected_note.get("source"):
                     bad(note["line"], "NOTE", "sourceが条件マトリクスと一致しない",
-                        "外部正式な定義なら相対Markdownリンクを写し、同じ資料ならSourceを省略する")
+                        "別資料なら相対Markdownリンクを写し、同じ資料ならSourceを省略する")
                 content_lines = [s["line"] for s in sc["steps"]] + [e["line"] for e in sc["examples"]]
                 if content_lines and note["line"] <= max(content_lines):
                     bad(note["line"], "NOTE", "Thenの途中にある", "すべてのThenとAndの直後へ移す")

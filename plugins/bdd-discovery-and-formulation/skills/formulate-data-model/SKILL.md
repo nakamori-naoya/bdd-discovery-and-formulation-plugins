@@ -16,7 +16,7 @@ description: 対応する業務知識を根拠に、既存のBDD付きRDB論理�
 | `user_input` | 依頼文。深めたい永続化の主張、新しく分かったこと | 反証の焦点が読めなければ`challenge-persistence`の問いにする。決まらなければ作成・更新・削除のBDD全体を対象に仮置きして進む |
 | `business_knowledge_paths` | 必須。対象repositoryに追跡済みで、既存論理資料の各設計対象に対応する業務知識資料の絶対path配列 | 無い、空、未追跡、repository外、相対path、読めないpath、symlinkなら既存論理資料を変更せず止まる |
 | `references` | 任意。追加で従う資料の絶対path配列 | 相対path、読めないpath、symlinkなら止まる |
-| `existing_logical_document_path` | 更新する既存`rdb-logical-data-modeling`正式な定義の絶対path | 無い、複数、symlink、BDDまたは論理テーブル定義が無い、別pathへの出力要求なら止まる |
+| `existing_logical_document_path` | 更新する既存の`rdb-logical-data-modeling`資料の絶対path | 無い、複数、symlink、BDDまたは論理テーブル定義が無い、別pathへの出力要求なら止まる |
 | `modeling_method` | 論理構造への配置方法。同梱の`fact-recording` / `normalized` / `dimensional`、または利用者の手法fileの絶対path | 既存資料、依頼、文脈、確認結果の順で決める。決まらなければ最も筋の良い手法を仮説として選び、根拠と採らなかった解釈を未決へ書く。指した手法fileが無ければ止まる |
 
 ## 判断基準
@@ -59,7 +59,7 @@ description: 対応する業務知識を根拠に、既存のBDD付きRDB論理�
 
 ## 出力
 
-- `updated_logical_document_path`: 同じpathへ更新したBDD付きRDB論理データモデルの正式な定義の絶対path
+- `updated_logical_document_path`: 同じpathへ更新したBDD付きRDB論理データモデル資料の絶対path
 - QA反証で変化した永続化の理解、追加・修正したBDD、未回答の問い、採用した仮説と根拠の報告
 - 業務知識の掲載順を保ったデータモデルBDDの採用結果と、永続化が関与しないため対象外にしたシナリオの理由
-- 物理設計へ渡すが論理モデルの正式な定義には混ぜなかった技術論点
+- 物理設計へ渡すが論理データモデル資料には混ぜなかった技術論点

@@ -60,7 +60,7 @@ def validate(data):
         if expected not in EXPECTED:
             problems.append(problem(f"{base}.expected", f"不正な期待結果: {expected!r}", f"{sorted(EXPECTED)}から選ぶ"))
         if not nonempty(scenario.get("rule")):
-            problems.append(problem(f"{base}.rule", "対象業務ルールが無い", "BDDより上または外部正式な定義の業務ルールを書く"))
+            problems.append(problem(f"{base}.rule", "対象業務ルールが無い", "BDDより上の節か別資料の業務ルールを書く"))
 
         source = scenario.get("source")
         if source is not None and (not nonempty(source) or not RELATIVE_LINK.match(source.strip())):

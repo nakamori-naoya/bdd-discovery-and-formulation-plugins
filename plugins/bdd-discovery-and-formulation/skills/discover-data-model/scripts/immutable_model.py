@@ -4,10 +4,10 @@
 基準資料: 同梱の内部skill design-data-model の references/immutable-data-modeling.md（三つのテーブル、命名、時刻は occurred_at の一本、
   業務が与えた値）と references/technical-process-lifecycle.md（技術処理の命名と時刻）。記法は write-doc の公開契約が rdb-logical-data-modeling 型について宣言した「検査が読む目印」。見出しの文言は読まない。
 入力: 標準入力の資料本文（Markdown）。または {"documents": [{"path", "content"}]} のJSON。
-正規化: コードブロックの外で見出し行が「系列 | 性質 | 論理テーブル | 正式な定義 | 時刻 | 変化 | 根拠」の表を分類として、
+正規化: コードブロックの外で見出し行が「系列 | 性質 | 論理テーブル | 保存表現 | 時刻 | 変化 | 根拠」の表を分類として、
   1行目が erDiagram の Mermaid ブロックの実体と属性行（型 名前 [PK|FK|UK...] "意味"）を列として、
   ### の直後が backtick で囲んだテーブル名で始まる見出しを定義として読む。どれも資料のどの見出しの下にあってもよい。backtick は外して比べる。
-合格述語: 分類の表が資料に一つだけあり、分類、図の実体、定義の見出しが同じテーブルの集合で、分類は一度ずつ。系列・性質・正式な定義が許可値で、根拠が空でない。
+合格述語: 分類の表が資料に一つだけあり、分類、図の実体、定義の見出しが同じテーブルの集合で、分類は一度ずつ。系列・性質・保存表現が許可値で、根拠が空でない。
   リソース系はイベント列を選ばない。イベント系は追加のみ・イベント列・性質が派生でなく、名前が _events で終わる。
   イベント系の表で名前が _at で終わる列は、業務の基底イベント（_base_events）と技術イベントでは occurred_at（型は timestamptz）だけで、
   必ずある。分類表の時刻の欄は `occurred_at` と完全に一致する（backtick は外す）。業務の詳細イベントは _at で終わる列を持たない。業務の基底イベントは version の列を持つ。業務の詳細イベントがあれば基底イベントもある。
@@ -30,7 +30,7 @@ import sys
 from dataclasses import dataclass
 
 
-REQUIRED_HEADERS = ["系列", "性質", "論理テーブル", "正式な定義", "時刻", "変化", "根拠"]
+REQUIRED_HEADERS = ["系列", "性質", "論理テーブル", "保存表現", "時刻", "変化", "根拠"]
 ALLOWED_SERIES = {"リソース系", "イベント系"}
 ALLOWED_NATURES = {"業務", "技術", "派生"}
 ALLOWED_SOURCES = {"現在状態", "有効期間履歴", "イベント列", "派生"}
@@ -156,7 +156,7 @@ def check_document(markdown: str, label: str) -> list[Problem]:
 
     classified, drawn, defined = set(classification), set(entities), set(headings)
     for name in sorted(drawn - classified):
-        problems.append(Problem(f"{label}.classification.{name}", "図のテーブルが分類表に無い", "系列・性質・正式な定義・時刻・変化・根拠を記載する"))
+        problems.append(Problem(f"{label}.classification.{name}", "図のテーブルが分類表に無い", "系列・性質・保存表現・時刻・変化・根拠を記載する"))
     for name in sorted(classified - drawn):
         problems.append(Problem(f"{label}.er.{name}", "分類したテーブルが図に無い", "erDiagram に実体と全列を描く"))
     for name in sorted(classified - defined):
@@ -169,21 +169,21 @@ def check_document(markdown: str, label: str) -> list[Problem]:
             problems.append(Problem(f"{prefix}.系列", f"許可値ではない: {row['系列']}", "リソース系またはイベント系にする"))
         if row["性質"] not in ALLOWED_NATURES:
             problems.append(Problem(f"{prefix}.性質", f"許可値ではない: {row['性質']}", "業務・技術・派生のいずれかにする"))
-        if row["正式な定義"] not in ALLOWED_SOURCES:
-            problems.append(Problem(f"{prefix}.正式な定義", f"許可値ではない: {row['正式な定義']}", "分類表の「正式な定義」列を現在状態・有効期間履歴・イベント列・派生のいずれかにする"))
+        if row["保存表現"] not in ALLOWED_SOURCES:
+            problems.append(Problem(f"{prefix}.保存表現", f"許可値ではない: {row['保存表現']}", "分類表の「保存表現」列を現在状態・有効期間履歴・イベント列・派生のいずれかにする"))
         if not row["根拠"] or row["根拠"] in {"-", "なし"}:
             problems.append(Problem(f"{prefix}.根拠", "分類表の根拠の欄が空か「-」「なし」である", "対応する業務知識または技術要件の参照を記載する"))
         column_names = [a["name"] for a in entities[name]]
         if row["系列"] == "イベント系" and row["性質"] == "業務" and name.endswith("_base_events") and "version" not in column_names:
             problems.append(Problem(f"{prefix}.version", "基底イベントに適用後の版 version が無い", "基底イベントに、そのイベントを適用した後の版を version として置く"))
-        if row["系列"] == "リソース系" and row["正式な定義"] == "イベント列":
-            problems.append(Problem(f"{prefix}.正式な定義", "リソース系の論理テーブルに対し、分類表の「正式な定義」列でイベント列を選択している", "「正式な定義」列を現在状態・有効期間履歴・派生のいずれかにする"))
+        if row["系列"] == "リソース系" and row["保存表現"] == "イベント列":
+            problems.append(Problem(f"{prefix}.保存表現", "リソース系の論理テーブルに対し、分類表の「保存表現」列でイベント列を選択している", "「保存表現」列を現在状態・有効期間履歴・派生のいずれかにする"))
         if row["系列"] != "イベント系":
             continue
         if row["変化"] != "追加のみ":
             problems.append(Problem(f"{prefix}.変化", f"追加専用ではない: {row['変化']}", "イベント表は追加のみにする"))
-        if row["正式な定義"] != "イベント列":
-            problems.append(Problem(f"{prefix}.正式な定義", "イベント系の論理テーブルで「正式な定義」列がイベント列ではない", "「正式な定義」列をイベント列にする"))
+        if row["保存表現"] != "イベント列":
+            problems.append(Problem(f"{prefix}.保存表現", "イベント系の論理テーブルで「保存表現」列がイベント列ではない", "「保存表現」列をイベント列にする"))
         if row["性質"] == "派生":
             problems.append(Problem(f"{prefix}.性質", "派生物をイベント系に分類している", "業務イベントか技術イベントかを明示する"))
         if not name.endswith("_events"):

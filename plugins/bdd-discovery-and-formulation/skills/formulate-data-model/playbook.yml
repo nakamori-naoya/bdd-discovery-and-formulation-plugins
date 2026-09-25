@@ -1,6 +1,6 @@
 version: 2
 name: formulate-data-model
-description: 対応する業務知識から既存のBDD付きRDB論理データモデルを反証し、確認済みの発見を同じ正式な定義へ更新する
+description: 対応する業務知識から既存のBDD付きRDB論理データモデルを反証し、確認済みの発見を同じ論理データモデル資料へ更新する
 inputs: [user_input, business_knowledge_paths, references, existing_logical_document_path, modeling_method]
 
 requires:
