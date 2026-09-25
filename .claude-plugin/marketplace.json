@@ -3,12 +3,12 @@
   "owner": {
     "name": "NaoyaNakamori"
   },
-  "description": "BDDによるドメイン理解、データモデリング、User Journeyの発見と深化を一つのPlaybookパッケージとして配布するmarketplace",
+  "description": "domain-rule、ユーザー目的達成BDD、RDB論理データモデルの三つの資料をBDD付きで作り、深めるパッケージを配布するmarketplace",
   "plugins": [
     {
       "name": "bdd-discovery-and-formulation",
       "source": "./plugins/bdd-discovery-and-formulation",
-      "description": "ドメイン、データモデル、User JourneyのBDD発見・深化の公開入口を一括提供する",
+      "description": "domain-rule、ユーザー目的達成BDD、RDB論理データモデルの三つの資料を、BDD付きで作り、深める公開入口を提供する",
       "version": "8.0.0"
     }
   ]
