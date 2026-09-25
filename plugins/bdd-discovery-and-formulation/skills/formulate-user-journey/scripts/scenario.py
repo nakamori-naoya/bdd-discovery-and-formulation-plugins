@@ -146,7 +146,7 @@ def check(text, matrix):
                 expected_note = matrix_item.get("note") or {}
                 for field in ("rule", "source", "reason"):
                     if fields.get(field) != expected_note.get(field):
-                        add(notes[0]["line"], "NOTE", f"{field}が条件マトリクスと一致しない", "外部正式な定義を含む確定済みの失敗理由を写す")
+                        add(notes[0]["line"], "NOTE", f"{field}が条件マトリクスと一致しない", "別資料の決まりを含む確定済みの失敗理由を写す")
                 last_step = max(step["line"] for step in scene["steps"]) if scene["steps"] else scene["line"]
                 if notes[0]["line"] <= last_step:
                     add(notes[0]["line"], "NOTE", "Thenの途中にある", "すべてのThenとAndの直後へ移す")

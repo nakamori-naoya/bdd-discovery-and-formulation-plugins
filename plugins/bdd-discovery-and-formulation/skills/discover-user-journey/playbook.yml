@@ -1,6 +1,6 @@
 version: 2
 name: discover-user-journey
-description: 資料の有無にかかわらず、1人の主たるユーザーが1つの目的を達成するまでを発見し、接続した場面の新しいBDDの正式な定義を作る
+description: 資料の有無にかかわらず、1人の主たるユーザーが1つの目的を達成するまでを発見し、接続した場面のBDDの資料を新しく作る
 inputs: [user_input, references, output_directory, name]
 
 requires:
@@ -10,7 +10,7 @@ requires:
 steps:
   - id: settle
     playbook: grill
-    purpose: 目的を持って始める役割と各役割の目的、主たるユーザー、開始地点、最終地点、完了条件、途中で関わる役割のうち、入力から分からず正式な定義の骨格を左右する点を成果を左右する順に厳選して確かめる
+    purpose: 目的を持って始める役割と各役割の目的、主たるユーザー、開始地点、最終地点、完了条件、途中で関わる役割のうち、入力から分からず資料の骨格を左右する点を成果を左右する順に厳選して確かめる
     needs: [user_input, references]
     provides: [decisions, open_questions]
 
@@ -22,7 +22,7 @@ steps:
 
   - id: select-journey
     agent_work: invoking_agent
-    purpose: 同じagentが役割×目的の一覧から、今回作る1本と残りの順番を決める。一覧は作業記録であり正式な定義へ書かない
+    purpose: 同じagentが役割×目的の一覧から、今回作る1本と残りの順番を決める。一覧は作業記録であり資料へ書かない
     needs: [grounded_input]
     provides: [journey_set]
 
@@ -46,7 +46,7 @@ steps:
 
   - id: document
     playbook: write-doc
-    purpose: 同じagentが保持した検査済みの完成本文をtext materialとして渡し、未使用の出力先へMarkdownの正式な定義を1本保存する
+    purpose: 同じagentが保持した検査済みの完成本文をtext materialとして渡し、未使用の出力先へMarkdownの資料を1本保存する
     input:
       document_type: user-journey-bdd
     needs: [final_markdown, validation_report, output_directory, name, references]

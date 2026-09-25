@@ -1,6 +1,6 @@
 version: 2
 name: discover-domain
-description: 業務で起きる事実から、コアの業務ルール、誰が行えるか、代表BDDを共通理解にして1本の正式な定義にする
+description: 業務で起きる事実から、コアの業務ルール、誰が行えるか、代表BDDを共通理解にして1本のdomain-rule資料にする
 inputs: [user_input, references, output_directory, name]
 
 requires:
@@ -10,7 +10,7 @@ requires:
 steps:
   - id: settle
     playbook: grill
-    purpose: 入力だけでは不明で正式な定義の骨格を左右する業務の事実、役割、決まり、誰が行えるかを成果を左右する順に厳選して利用者へ確かめ、決定と未決を残す
+    purpose: 入力だけでは不明で資料の骨格を左右する業務の事実、役割、決まり、誰が行えるかを成果を左右する順に厳選して利用者へ確かめ、決定と未決を残す
     needs: [user_input, references]
     provides: [decisions, open_questions]
 
@@ -46,7 +46,7 @@ steps:
 
   - id: document
     playbook: write-doc
-    purpose: 同じagentが保持した確認済みの理解と検査済みBDDをtext materialとして渡し、domain-ruleの正式な定義を1本保存する
+    purpose: 同じagentが保持した確認済みの理解と検査済みBDDをtext materialとして渡し、domain-rule資料を1本保存する
     input:
       document_type: domain-rule
     needs: [final_markdown, validation_report, output_directory, name, references]

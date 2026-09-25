@@ -2,7 +2,7 @@
 # Scenario: BDD packageが7公開入口と5内部skillだけを配布し、入口のtoolが正例・反例・境界例で決まった結果を返す
 #
 # 基準資料: 両marketplace、両runtime manifest、入口の playbook.yml。入口ごとの scripts/ に置く同名toolは、playbook.yml の script: が入口の scripts/ 配下を要求するための複製であり、互いにbyte一致する。
-# 入力: このrepositoryの配布物と、ここで作る fixture（検査toolへは標準入力または正式な定義のpathで渡し、tool専用の一時fileは置かない）。
+# 入力: このrepositoryの配布物と、ここで作る fixture（検査toolへは標準入力または入力資料のpathで渡し、tool専用の一時fileは置かない）。
 # 合格述語: identityと集合の一致、同名toolのbyte一致、外部依存の宣言形、各toolの self-test と exit code と診断。参照資料（references/*.md）は1か所にだけ置くので複製のbyte一致は検査しない。
 # 意味評価として残す範囲: SKILL本文の判断規律、参照資料の内容、内部skill write-bdd の規律へ各入口が到達できること、生成された資料の業務上の正しさ。
 set -uo pipefail
@@ -143,12 +143,12 @@ cmp -s "$PACKAGE/skills/discover-data-model/scripts/immutable_model.py" "$PACKAG
 # 基準資料: 3入口のSKILL.mdが宣言する入力契約と、rdb-logical-data-modeling本文の分類表契約
 # 入力: 対象repository配下として明示された絶対pathのJSON、または完成したMarkdown本文
 # 正規化: JSONはparserで、Markdownは必須節・分類表・論理テーブル見出しで読む
-# 合格述語: pathが対象repository配下の既存通常fileで重複せず、定義された全テーブルが一度だけ分類され、宣言した系列・正式な定義・時刻・変化の構造が一致する
+# 合格述語: pathが対象repository配下の既存通常fileで重複せず、定義された全テーブルが一度だけ分類され、宣言した系列・保存表現・時刻・変化の構造が一致する
 # 失敗時の診断: path/detail/howto
 # 正例: 対応する業務知識path、リソースと追加専用イベントを分類した本文
 # 反例: 対応資料の欠落、未分類テーブル、イベント行の「更新あり」宣言、廃止した旧列名、occurred_at の有無、_eventsで終わらないイベント表、version の無い基底イベント
 # 境界例: status・完了日時・削除フラグ・条件付きNULLを含んでも、それだけでは拒否しない
-# 意味評価として残す範囲: 業務知識が対象へ本当に対応するか、正式な定義の選択、業務/技術イベント、列の業務的妥当性、資料間の意味整合
+# 意味評価として残す範囲: 業務知識が対象へ本当に対応するか、保存表現の選択、業務/技術イベント、列の業務的妥当性、資料間の意味整合
 data_model_entry="$PACKAGE/skills/revise-data-models"
 domain_input="$data_model_entry/scripts/domain_input.py"
 immutable_model="$data_model_entry/scripts/immutable_model.py"
@@ -165,18 +165,17 @@ python3 "$domain_input" check </dev/null >/dev/null 2>&1; [ $? -eq 2 ] \
   && pass "domain_input.pyの空stdinはexit 2" || fail "domain_input.pyの空stdin終了code"
 python3 "$immutable_model" check < "$data_model_entry/fixtures/valid.md" >/dev/null \
   && pass "immutable_model.pyの構造正例" || fail "immutable_model.pyの構造正例"
-legacy_header=$(printf '\u6b63\u672c')
-sed "s/正式な定義/$legacy_header/" "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check >/dev/null 2>&1
-legacy_status=${PIPESTATUS[1]}
-[ "$legacy_status" -eq 1 ] \
-  && pass "immutable_model.pyは廃止した旧列名を拒否（exit 1）" || fail "immutable_model.pyが廃止した旧列名を拒否できない"
+sed "s/| 保存表現 |/| 保存の形 |/" "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check >/dev/null 2>&1
+header_status=${PIPESTATUS[1]}
+[ "$header_status" -eq 1 ] \
+  && pass "immutable_model.pyは列名が契約と違う分類表を拒否（exit 1）" || fail "immutable_model.pyが列名の違う分類表を拒否できない"
 resource_event_output=$(sed 's/| 現在状態 |/| イベント列 |/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check 2>&1)
 resource_event_status=$?
 if [ "$resource_event_status" -eq 1 ] \
-  && rg -F 'リソース系の論理テーブルに対し、分類表の「正式な定義」列でイベント列を選択している' <<< "$resource_event_output" >/dev/null; then
-  pass "immutable_model.pyはリソース系と正式な定義の不整合を対象・関係・値が明確な診断で拒否"
+  && rg -F 'リソース系の論理テーブルに対し、分類表の「保存表現」列でイベント列を選択している' <<< "$resource_event_output" >/dev/null; then
+  pass "immutable_model.pyはリソース系と保存表現の不整合を対象・関係・値が明確な診断で拒否"
 else
-  fail "immutable_model.pyのリソース系と正式な定義の不整合診断"
+  fail "immutable_model.pyのリソース系と保存表現の不整合診断"
 fi
 rejects python3 "$immutable_model" check < "$data_model_entry/fixtures/event-updated.md" \
   && pass "immutable_model.pyはイベントの更新宣言を拒否（exit 1）" || fail "immutable_model.pyがイベントの更新宣言を拒否できない"
@@ -206,7 +205,7 @@ perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        date refund_due_on 
 sed -e 's/^## リソース系とイベント系$/## 予約は現在状態、出来事はイベント列で残す/' -e 's/^## 論理データモデル図$/## 予約と二つのイベント表/' -e 's/^## 論理テーブル定義$/## 一つの行にまとめるもの/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
   && pass "immutable_model.pyは見出しの文言に依らず目印で読む" || fail "immutable_model.pyが見出しの文言に依存している"
 # 反例: 分類の表が二つある
-perl -0pe 's/(\| 系列 \| 性質 \| 論理テーブル \| 正式な定義 \| 時刻 \| 変化 \| 根拠 \|\n)/$1/; $_ .= "\n| 系列 | 性質 | 論理テーブル | 正式な定義 | 時刻 | 変化 | 根拠 |\n|---|---|---|---|---|---|---|\n"' "$data_model_entry/fixtures/valid.md" | (python3 "$immutable_model" check 2>&1; true) | rg -F '分類表が2個ある' >/dev/null \
+perl -0pe 's/(\| 系列 \| 性質 \| 論理テーブル \| 保存表現 \| 時刻 \| 変化 \| 根拠 \|\n)/$1/; $_ .= "\n| 系列 | 性質 | 論理テーブル | 保存表現 | 時刻 | 変化 | 根拠 |\n|---|---|---|---|---|---|---|\n"' "$data_model_entry/fixtures/valid.md" | (python3 "$immutable_model" check 2>&1; true) | rg -F '分類表が2個ある' >/dev/null \
   && pass "immutable_model.pyは分類の表が二つある資料を拒否" || fail "immutable_model.pyが分類の表の重複を拒否できない"
 python3 "$immutable_model" check </dev/null >/dev/null 2>&1; [ $? -eq 2 ] \
   && pass "immutable_model.pyの空stdinはexit 2" || fail "immutable_model.pyの空stdin終了code"

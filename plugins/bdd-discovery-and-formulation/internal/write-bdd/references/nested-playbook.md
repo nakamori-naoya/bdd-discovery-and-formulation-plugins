@@ -43,7 +43,7 @@
 
 新規作成では `output_directory` と `name` の両方を渡す。`output_directory` は既存の書き込み可能な絶対directory、`name` はパス要素を含まない `.md` ファイル名とする。日本語名を許す。保存先が不明なら利用者へ確認し、推測や相手の既定値で補わない。同名ファイルがあれば上書きしない。
 
-既存の正式な定義の更新では、同一パス検査で得た `update_target` だけを渡す。新規用の `output_directory` と `name` は渡さない。更新先は既存の Markdown ファイルである。
+既存の資料の更新では、同一パス検査で得た `update_target` だけを渡す。新規用の `output_directory` と `name` は渡さない。更新先は既存の Markdown ファイルである。
 
 ### 直接返された結果を工程成果へ対応させる
 

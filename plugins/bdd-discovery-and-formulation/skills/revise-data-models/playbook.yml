@@ -13,7 +13,7 @@ steps:
 
   - id: analyze-domains
     agent_work: invoking_agent
-    purpose: 同じagentが各業務知識の正式な定義から業務イベント、後の問い、履歴を失う損失を分析し、分類表の正式な定義列へ置く保存表現を現在状態・有効期間履歴・イベント列・派生から選ぶ
+    purpose: 同じagentが各業務知識の資料から業務イベント、後の問い、履歴を失う損失を分析し、分類表の保存表現列へ置く保存表現を現在状態・有効期間履歴・イベント列・派生から選ぶ
     needs: [user_input, validated_targets]
     provides: [modeling_decisions]
 
