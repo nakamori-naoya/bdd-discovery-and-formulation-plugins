@@ -10,7 +10,6 @@ __pycache__/
 !/.github/
 !/.agents/
 !/.claude-plugin/
-!/.harness-plugins/
 !/plugins/
 !/scripts/
 !/AGENTS.md
