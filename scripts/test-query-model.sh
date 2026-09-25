@@ -38,6 +38,8 @@ fresh; edit 's/(\*\*取得結果\*\*\n)/$1\n| 会議室 |\n|---|\n| A |\n\n$1/';
 fresh; edit 's/\[BDD-002\]/[BDD-001]/'; rejects "BDD 番号の重複を拒否" "BDD の番号が" "$doc"
 fresh; printf '\n| 系列 | 性質 | 論理テーブル | 保存表現 | 時刻 | 変化 | 根拠 |\n|---|---|---|---|---|---|---|\n' >> "$doc"; rejects "分類の表を持つ資料を拒否" "クエリデータモデルが分類の表を持っている" "$doc"
 fresh; edit 's/^## 読むテーブル$/## 予約のテーブルだけを読む/m'; accepts "見出しの文言に依らず目印で読む" "$doc"
+fresh; edit 's/\| BDD-005 \| 対象外 \|/| BDD-005 | クエリデータモデル |/'; rejects "許されない対応の欄を拒否" "この資料のBDDの欄が許された形ではない" "$doc"
+fresh; edit 's/\| BDD-004 \| BDD-002 \|/| BDD-004 | BDD-002、BDD-007 |/'; rejects "この資料に無い BDD を指す対応を拒否" "この資料に BDD-007 が無い" "$doc"
 python3 "$checker" check >/dev/null 2>&1; [ $? -eq 2 ] && pass "引数の無い呼び出しは exit 2" || fail "引数の無い呼び出しの終了code"
 
 printf '\nquery_model.py: %d passed, %d failed\n' "$passed" "$failed"
