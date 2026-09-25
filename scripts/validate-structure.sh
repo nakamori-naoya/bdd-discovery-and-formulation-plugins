@@ -202,6 +202,12 @@ python3 "$immutable_model" check < "$data_model_entry/fixtures/conditional-null.
 # 境界例: 名前が _at で終わらない日付の列（返却期限など）は詳細イベントにもリソースにも置ける（意味は読んで評価する）
 perl -pe 's/^(\s+text reason "取消の理由")$/$1\n        date refund_due_on "返金の期限"/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
   && pass "immutable_model.pyは詳細イベントの日付の列を拒否しない" || fail "immutable_model.pyが詳細イベントの日付の列を誤検知"
+# 境界例: 見出しの文言は読まない。節の見出しを結論に変えても、分類の表・erDiagram・### `名前` の目印で通る
+sed -e 's/^## リソース系とイベント系$/## 予約は現在状態、出来事はイベント列で残す/' -e 's/^## 論理データモデル図$/## 予約と二つのイベント表/' -e 's/^## 論理テーブル定義$/## 一つの行にまとめるもの/' "$data_model_entry/fixtures/valid.md" | python3 "$immutable_model" check >/dev/null \
+  && pass "immutable_model.pyは見出しの文言に依らず目印で読む" || fail "immutable_model.pyが見出しの文言に依存している"
+# 反例: 分類の表が二つある
+perl -0pe 's/(\| 系列 \| 性質 \| 論理テーブル \| 正式な定義 \| 時刻 \| 変化 \| 根拠 \|\n)/$1/; $_ .= "\n| 系列 | 性質 | 論理テーブル | 正式な定義 | 時刻 | 変化 | 根拠 |\n|---|---|---|---|---|---|---|\n"' "$data_model_entry/fixtures/valid.md" | (python3 "$immutable_model" check 2>&1; true) | rg -F '分類表が2個ある' >/dev/null \
+  && pass "immutable_model.pyは分類の表が二つある資料を拒否" || fail "immutable_model.pyが分類の表の重複を拒否できない"
 python3 "$immutable_model" check </dev/null >/dev/null 2>&1; [ $? -eq 2 ] \
   && pass "immutable_model.pyの空stdinはexit 2" || fail "immutable_model.pyの空stdin終了code"
 
