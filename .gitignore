@@ -17,3 +17,6 @@ __pycache__/
 !/README.md
 !/VALIDATION.md
 !/.gitignore
+
+# claude plugin eval の実行結果
+/plugins/*/evals/results/
