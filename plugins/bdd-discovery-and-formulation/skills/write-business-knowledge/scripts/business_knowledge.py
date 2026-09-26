@@ -8,21 +8,23 @@
   持ち主の欄のリンクは、判定する資料のディレクトリから解決して読む。
 合格述語:
   ユビキタス言語の表（見出し行が「業務の言葉 | 英名 | 種類 | 持ち主」）がコードブロックの外に一つだけある。
-  各行の種類は 業務用語・業務イベント・概念・コマンド・クエリ のどれかで、業務の言葉と英名は空でなく、一つの言葉は一行だけにある。
+  各行の種類は 業務用語・業務イベント・概念・状態・コマンド・クエリ のどれかで、業務の言葉と英名は空でなく、一つの言葉は一行だけにある。
   英名は、語ごとに先頭だけを大文字にしてつないだ形（正規表現 ^(?:[A-Z][a-z0-9]*)+$ に合い、大文字が二つ続かない）か、仮置きの印「未定」である。
   「未定」は持ち主がリンクの行にだけ置け、持ち主の資料があるのに「未定」が残っていれば違反である。
-  持ち主の欄は「この資料」か相対 Markdown リンクで、リンク先の資料があれば、その表に同じ言葉が「この資料」の行として
+  持ち主の欄は「この資料」か、相対 Markdown リンクか、範囲の外の持ち主を宣言する「範囲の外: [正本](パス)」で、
+  範囲の外の行は照合せず、英名が「未定」でもよい。リンクの行は、リンク先の資料があれば、その表に同じ言葉が「この資料」の行として
   同じ英名・同じ種類で載っている。リンク先の資料が無いことは未確認として報告し、合否に数えない。
   判定する資料が「この資料」として決めた言葉を、隣の資料も「この資料」として決めていない。判定する資料の英名が、隣の資料で違う言葉に付いていない。
   隣の資料そのものの形の違反は判定しない。check-set では、集合がそろった後も読めない持ち主のリンクを違反に数える。
   1行目が --- の Mermaid ブロックと stateDiagram-v2 を含む Mermaid ブロックは、先頭が ---、title: <名前>、---、stateDiagram-v2 の四行である。
   BDD の見出しは「### [BDD-<3桁以上の数字>] <本文>」の形で、番号は資料の中で一意である。
+  「### 同時に起きること: <名前>」の見出しごとに、次の見出しまでの本文に BDD-<番号> があり、その番号がこの資料の BDD の見出しにある。
   「#### 拒む理由: <名前>」の名前は資料の中で一意で、gherkin ブロックの「Rule: <名前>」はそのどれかと一致する。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"} で出し、最後に
   {"status", "subject", "problems", "unverified"} を一行出す。違反があれば終了code 1、未確認だけなら 0。引数が無いかファイルを読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/business-knowledge/ の資料の組。
 反例: scripts/test-business-knowledge.sh の、種類の許可値の外、大文字が続く英名、持ち主の資料があるのに残った未定、集合の検査で残った未確認、同じ言葉の二行、持ち主の英名の食い違い、持ち主の資料に無い言葉、
-  隣の資料と同じ言葉を決める、同じ英名が違う言葉に付く、状態遷移図の先頭の欠け、BDD 番号の重複、宣言に無い Rule。
+  隣の資料と同じ言葉を決める、同じ英名が違う言葉に付く、状態遷移図の先頭の欠け、BDD 番号の重複、宣言に無い Rule、BDD の番号の無い同時に起きることの項目、資料に無い BDD を指す項目。
 意味評価として残す範囲: 語が業務の人の言葉か、状態名や業務イベントの名前が作った語でないか、どの資料が語の持ち主であるべきか、
   値が業務の判断を変えるか、決まりと BDD の業務上の正しさ。
 """
@@ -37,12 +39,16 @@ from pathlib import Path
 
 
 HEADERS = ["業務の言葉", "英名", "種類", "持ち主"]
-KINDS = {"業務用語", "業務イベント", "概念", "コマンド", "クエリ"}
+KINDS = {"業務用語", "業務イベント", "概念", "状態", "コマンド", "クエリ"}
 OWN = "この資料"
 PENDING = "未定"
 ENGLISH = re.compile(r"^(?:[A-Z][a-z0-9]*)+$")
 DOUBLE_CAPITAL = re.compile(r"[A-Z]{2}")
 LINK = re.compile(r"^\[[^\]]*\]\(([^)\s]+)\)$")
+OUTSIDE = re.compile(r"^範囲の外:\s*\[[^\]]*\]\(([^)\s]+)\)$")
+CONCURRENT = re.compile(r"^###\s+同時に起きること:\s*(.+?)\s*$")
+HEADING = re.compile(r"^#{1,6}\s")
+BDD_REF = re.compile(r"BDD-\d{3,}")
 BDD_ANY = re.compile(r"^###\s+\[BDD-")
 BDD = re.compile(r"^###\s+\[BDD-(\d{3,})\]\s+\S")
 REASON = re.compile(r"^####\s+拒む理由:\s*(.+?)\s*$")
@@ -112,13 +118,13 @@ def read_terms(label: str, prose: list[tuple[int, str]], problems: list[Problem]
             problems.append(Problem(f"{label}.line[{number + 1}]", "業務の言葉か英名が空である", "業務の言葉ごとに英名を一つ書く"))
             continue
         if kind not in KINDS:
-            problems.append(Problem(f"{label}.{word}.種類", f"許可値ではない: {kind}", "業務用語・業務イベント・概念・コマンド・クエリのどれか一つにする"))
+            problems.append(Problem(f"{label}.{word}.種類", f"許可値ではない: {kind}", "業務用語・業務イベント・概念・状態・コマンド・クエリのどれか一つにする"))
         if english == PENDING and owner == OWN:
             problems.append(Problem(f"{label}.{word}.英名", f"この資料が決める語の英名が「{PENDING}」である", f"「{PENDING}」は、持ち主の資料がまだ無い参照の行にだけ使う"))
         elif english != PENDING and (not ENGLISH.fullmatch(english) or DOUBLE_CAPITAL.search(english)):
             problems.append(Problem(f"{label}.{word}.英名", f"英名が語ごとに先頭だけを大文字にした形ではない: {english}", "語ごとに先頭だけを大文字にしてつなぎ、略語も一語として先頭だけを大文字にする（OrderId）"))
-        if owner != OWN and not LINK.match(owner):
-            problems.append(Problem(f"{label}.{word}.持ち主", f"「{OWN}」でも相対 Markdown リンクでもない: {owner}", f"この資料で決めた語は「{OWN}」、ほかの資料の語は持ち主の資料へのリンクにする"))
+        if owner != OWN and not LINK.match(owner) and not OUTSIDE.match(owner):
+            problems.append(Problem(f"{label}.{word}.持ち主", f"「{OWN}」でも、相対 Markdown リンクでも、「範囲の外: [正本](パス)」でもない: {owner}", f"この資料で決めた語は「{OWN}」、ほかの資料の語は持ち主の資料へのリンク、範囲の外の持ち主の語は「範囲の外: [正本](パス)」にする"))
         terms.append(Term(word, english, kind, owner, number + 1))
     seen: set[str] = set()
     for term in terms:
@@ -175,6 +181,27 @@ def check_bdd_and_reasons(label: str, prose: list[tuple[int, str]], found: list[
                 problems.append(Problem(f"{label}.Rule.{name}", "BDD の Rule が「#### 拒む理由: <名前>」のどれとも一致しない", "Rule には、業務の行いの節で宣言した拒む理由の名前をそのまま書く"))
 
 
+def check_concurrency(label: str, prose: list[tuple[int, str]], problems: list[Problem]) -> None:
+    """「### 同時に起きること: <名前>」の項目ごとに、この資料にある BDD の番号が書かれているかを見る。"""
+    own = {m.group(1) for m in (BDD.match(line) for _, line in prose) if m}
+    own = {f"BDD-{n}" for n in own}
+    for index, (number, line) in enumerate(prose):
+        match = CONCURRENT.match(line)
+        if not match:
+            continue
+        body: list[str] = []
+        for _, following in prose[index + 1:]:
+            if HEADING.match(following):
+                break
+            body.append(following)
+        refs = BDD_REF.findall("\n".join(body))
+        if not refs:
+            problems.append(Problem(f"{label}.同時に起きること.{match.group(1)}", "同時に起きることの項目に BDD の番号が無い", "項目の段落に、どちらが通るかを示す BDD の番号を書く"))
+        for ref in refs:
+            if ref not in own:
+                problems.append(Problem(f"{label}.同時に起きること.{match.group(1)}", f"この資料に {ref} が無い", "この資料にある BDD の番号を書く"))
+
+
 def load(path: Path, cache: dict[Path, list[Term] | None]) -> list[Term] | None:
     if path not in cache:
         try:
@@ -219,6 +246,7 @@ def judge(subject: Path, others: list[Path], texts: dict[Path, str]) -> tuple[li
     cache[subject] = terms
     check_state_diagrams(label, found, problems)
     check_bdd_and_reasons(label, prose, found, problems)
+    check_concurrency(label, prose, problems)
     for path in others:
         if path == subject:
             continue

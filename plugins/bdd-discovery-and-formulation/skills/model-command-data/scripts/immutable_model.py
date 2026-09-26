@@ -19,7 +19,8 @@
   技術の <処理>_requested_events があれば、同じ接頭辞の <処理>_claimed_events と <処理>_succeeded_events も技術として分類され、
   <処理>_claimed_events は version の列を持つ。
   参照したテーブルは、図の列が読む列と同じ集合で、持ち主の資料があれば、そのテーブルを分類し、読む列が持ち主の図の列に含まれる。
-  持ち主の資料が無いことは未確認として報告し、合否に数えない（check-set では違反に数える）。読む列が仮置きの印「未定」の参照は図に描かず、
+  持ち主の資料が無いことは未確認として報告し、合否に数えない（check-set では違反に数える）。持ち主の資料の欄が「範囲の外: [正本](パス)」の参照は、
+  置かれない持ち主の宣言なので照合せず、未確認にも数えない。テーブル名が「未定」なら読む列も「未定」である。読む列が仮置きの印「未定」の参照は図に描かず、
   持ち主の資料があるのに「未定」が残っていれば違反である。判定する資料が分類したテーブルを、残りの引数の資料が分類していない。
   技術の <処理>_<単位>_completed_events があれば、同じ接頭辞の <処理>_<単位>_planned_events も技術として分類されている。
   業務のリソースとその詳細イベント（同じ基底イベントと関係の行で結ばれたもの）の両方にキーでない同じ名前の列があれば、違反ではなく警告を出す。
@@ -60,6 +61,7 @@ TABLE_HEADING = re.compile(r"^###\s+`([^`|]+)`")
 TABLE_CELL = re.compile(r"^`([^`|]+)`$")
 COLUMN_LIST = re.compile(r"^`[^`]+`(?:\s*、\s*`[^`]+`)*$")
 LINK = re.compile(r"^\[[^\]]*\]\(([^)\s]+)\)$")
+OUTSIDE = re.compile(r"^範囲の外:\s*\[[^\]]*\]\(([^)\s]+)\)$")
 OCCURRED_AT = "occurred_at"
 ENTITY_OPEN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\{$")
 ATTRIBUTE = re.compile(r'^([A-Za-z_][A-Za-z0-9_\[\]]*)\s+([A-Za-z_][A-Za-z0-9_]*)(\s+(?:PK|FK|UK)(?:\s*,\s*(?:PK|FK|UK))*)?(?:\s+"([^"]*)")?$')
@@ -151,14 +153,20 @@ def parse_references(label: str, prose: list[tuple[int, str]], problems: list[Pr
             problems.append(Problem(where, "列数が参照の表の見出しと一致しない", "各行を3列にする"))
             continue
         table, columns, owner = cells
+        pending_table = table.strip("`") == PENDING
         match = TABLE_CELL.fullmatch(table)
-        if not match or not (COLUMN_LIST.fullmatch(columns) or columns == PENDING) or not LINK.fullmatch(owner):
-            problems.append(Problem(where, "参照の行が、backtick のテーブル名、backtick の列名を「、」で区切った並び、持ち主の資料への相対 Markdown リンクになっていない", "参照するテーブル、読む列、持ち主の資料をこの形で書く"))
+        if not (match or pending_table) or not (COLUMN_LIST.fullmatch(columns) or columns == PENDING) or not (LINK.fullmatch(owner) or OUTSIDE.fullmatch(owner)):
+            problems.append(Problem(where, "参照の行が、backtick のテーブル名か「未定」、backtick の列名を「、」で区切った並びか「未定」、持ち主の資料への相対 Markdown リンクか「範囲の外: [正本](パス)」になっていない", "参照するテーブル、読む列、持ち主の資料をこの形で書く"))
             continue
-        if match.group(1) in references:
+        if pending_table and columns != PENDING:
+            problems.append(Problem(where, f"テーブル名が「{PENDING}」なのに読む列が書かれている", f"持ち主が決めるテーブル名が分からないなら、読む列も「{PENDING}」にする"))
+            continue
+        name = f"{PENDING}@line{line_number + 1}" if pending_table else match.group(1)
+        if name in references:
             problems.append(Problem(where, "同じテーブルの参照が二行ある", "一つのテーブルは一行で参照する"))
             continue
-        references[match.group(1)] = ([PENDING] if columns == PENDING else re.findall(r"`([^`]+)`", columns), LINK.fullmatch(owner).group(1))
+        link = LINK.fullmatch(owner)
+        references[name] = ([PENDING] if columns == PENDING else re.findall(r"`([^`]+)`", columns), link.group(1) if link else "")
     return references
 
 
@@ -376,6 +384,8 @@ def check_mapping(label: str, prose: list[tuple[int, str]], words: set[str], pro
 
 def check_references(path: Path, model: Model, models: dict[Path, Model | None], problems: list[Problem], unverified: list[dict]) -> None:
     for name, (read, link) in sorted(model.references.items()):
+        if not link:
+            continue
         target = (path.parent / link).resolve()
         if target not in models:
             try:
@@ -388,7 +398,7 @@ def check_references(path: Path, model: Model, models: dict[Path, Model | None],
             unverified.append({"unverified": str(target), "detail": f"持ち主の資料がまだ無いので、`{name}` の読む列を照合していない"})
             continue
         if read == [PENDING]:
-            problems.append(Problem(where, f"持ち主の資料があるのに読む列が「{PENDING}」のまま残っている: {target}", "同じ入口で深めて、持ち主の列に替える"))
+            problems.append(Problem(where, f"持ち主の資料があるのに「{PENDING}」のまま残っている: {target}", "同じ入口で深めて、持ち主の列に替える"))
             continue
         if name not in owner.classification:
             problems.append(Problem(where, f"持ち主の資料がこのテーブルを分類していない: {target}", "リンクを、このテーブルへ書く業務のコマンドデータモデルに直す"))

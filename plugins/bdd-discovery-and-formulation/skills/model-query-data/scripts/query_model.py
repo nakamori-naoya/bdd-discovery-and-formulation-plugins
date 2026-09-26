@@ -10,6 +10,8 @@
   実体と属性行の名前を読む。backtick は外して比べる。
 合格述語: 読むテーブルの表が一つだけあり、各行は backtick のテーブル名と相対 Markdown リンクで、同じテーブルは一行だけである。
   分類の表と erDiagram のブロックを持たない。BDD の見出しは「### [BDD-<3桁以上の数字>] <本文>」で、番号は資料の中で一意である。
+  見出し行が「所与の読み取り元 | 読む事実 | 持ち主と正本」の表は無いか一つで、各行の持ち主と正本は「範囲の外: [正本](パス)」の形である。
+  BDD の「**所与: <名前>**」の名前は、その表にある。所与の読み取り元だけを読む資料は、読むテーブルの表を持たなくてよい。
   各 BDD に「**取得結果**」の行がちょうど一つあり、その後に表がある。BDD に出たテーブルはすべて読むテーブルの表にあり、
   リンク先の資料があれば、そのテーブルを分類しており、BDD の表の見出しの列名はすべて、持ち主の erDiagram のそのテーブルの列にある。
   リンク先の資料が無いことは未確認として報告し、合否に数えない（check-set では違反に数える）。
@@ -41,6 +43,9 @@ BDD_ANY = re.compile(r"^###\s+\[BDD-")
 BDD = re.compile(r"^###\s+\[BDD-(\d{3,})\]\s+\S")
 HEADING = re.compile(r"^#{1,6}\s")
 TABLE_LABEL = re.compile(r"^\*\*`([^`|]+)`\*\*\s*$")
+GIVEN_LABEL = re.compile(r"^\*\*所与:\s*(.+?)\*\*\s*$")
+GIVEN_HEADERS = ["所与の読み取り元", "読む事実", "持ち主と正本"]
+OUTSIDE = re.compile(r"^範囲の外:\s*\[[^\]]*\]\(([^)\s]+)\)$")
 RESULT_LABEL = "**取得結果**"
 ENTITY_OPEN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\{$")
 ATTRIBUTE = re.compile(r'^[A-Za-z_][A-Za-z0-9_\[\]]*\s+([A-Za-z_][A-Za-z0-9_]*)\b')
@@ -143,11 +148,25 @@ def check(path: Path, text: str, owners: dict[Path, Owner | None], problems: lis
     if er_blocks(found):
         problems.append(Problem(f"{label}.er", "クエリデータモデルが erDiagram を持っている", "テーブルの形はコマンドデータモデルの図にだけ描く"))
 
+    given: set[str] = set()
+    given_starts = header_rows(prose, GIVEN_HEADERS)
+    if len(given_starts) > 1:
+        problems.append(Problem(f"{label}.given_sources", f"見出し行が『| {' | '.join(GIVEN_HEADERS)} |』の表が{len(given_starts)}個ある", "所与の読み取り元の表は資料に一つだけ置く"))
+    for number, line in (prose[given_starts[0] + 2:] if given_starts else []):
+        if not line.lstrip().startswith("|"):
+            break
+        row = cells(line)
+        where = f"{label}.given_sources.line[{number + 1}]"
+        if len(row) != 3 or not row[0].strip("`") or not row[1] or not OUTSIDE.fullmatch(row[2]):
+            problems.append(Problem(where, "所与の読み取り元の行が、名前、読む事実、「範囲の外: [正本](パス)」の3列になっていない", "範囲の外の持ち主が持つ読み取り元を、名前と読む事実と正本で書く"))
+            continue
+        given.add(row[0].strip("`"))
+
     starts = header_rows(prose, READ_HEADERS)
     reads: dict[str, str] = {}
-    if len(starts) != 1:
-        problems.append(Problem(f"{label}.read_tables", f"見出し行が『| {' | '.join(READ_HEADERS)} |』の表が{len(starts)}個ある", "読むテーブルの表を資料に一つだけ置く"))
-    else:
+    if len(starts) > 1 or (not starts and not given):
+        problems.append(Problem(f"{label}.read_tables", f"見出し行が『| {' | '.join(READ_HEADERS)} |』の表が{len(starts)}個ある", "読むテーブルの表を資料に一つだけ置く（所与の読み取り元だけを読む資料なら置かなくてよい）"))
+    elif starts:
         for number, line in prose[starts[0] + 2:]:
             if not line.lstrip().startswith("|"):
                 break
@@ -191,6 +210,10 @@ def check(path: Path, text: str, owners: dict[Path, Owner | None], problems: lis
             following = [text_line for _, text_line in section[results[0] + 1:] if text_line.strip()]
             if not following or not following[0].lstrip().startswith("|"):
                 problems.append(Problem(f"{label}.{name}.取得結果", "取得結果の後に表が無い", "取得結果の下に返る結果の表を置く。0件なら（行なし）の行を一つ置く"))
+        for _, text_line in section:
+            source = GIVEN_LABEL.match(text_line.strip())
+            if source and source.group(1).strip("`") not in given:
+                problems.append(Problem(f"{label}.{name}.所与.{source.group(1)}", "BDD の所与の読み取り元が、所与の読み取り元の表に無い", "所与の読み取り元の表に、名前と読む事実と正本を書く"))
         for i, (_, text_line) in enumerate(section):
             table = TABLE_LABEL.match(text_line.strip())
             if not table:
