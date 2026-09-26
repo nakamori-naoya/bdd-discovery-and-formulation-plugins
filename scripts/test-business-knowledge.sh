@@ -23,8 +23,9 @@ fresh() { rm -rf "$work/k"; mkdir -p "$work/k"; cp -R "$fixtures"/. "$work/k/"; 
 accepts() { local name=$1; shift; python3 "$checker" check "$@" >/dev/null 2>&1 && pass "$name" || fail "$name"; }
 rejects() {
   local name=$1 expected=$2; shift 2
-  local output status
-  output=$(python3 "$checker" check "$@" 2>&1); status=$?
+  local output status mode=check
+  if [ "$1" = check-set ]; then mode=check-set; shift; fi
+  output=$(python3 "$checker" "$mode" "$@" 2>&1); status=$?
   if [ "$status" -eq 1 ] && rg -F -- "$expected" <<< "$output" >/dev/null; then pass "$name"; else fail "$name（exit $status）"; fi
 }
 edit() { perl -0pi -e "$2" "$1"; }
@@ -45,6 +46,14 @@ fresh; edit "$owner" 's/\[BDD-002\]/[BDD-001]/'; rejects "BDD 番号の重複を
 fresh; edit "$owner" 's/\[BDD-002\]/[BDD-2]/'; rejects "3桁未満の BDD 番号を拒否" "3桁以上の数字" "$owner"
 fresh; edit "$owner" 's/Rule: 本人ではない/Rule: 他人の予約/'; rejects "宣言に無い Rule を拒否" "拒む理由: <名前>」のどれとも一致しない" "$owner"
 fresh; edit "$owner" 's/^## 予約$/## 予約は取り消すまで続く/m'; accepts "見出しの文言に依らず目印で読む" "$owner"
+fresh; edit "$owner" 's/\| 予約 \| Reservation \|/| 予約 | ReservationID |/'; rejects "大文字が続く英名を拒否" "先頭だけを大文字にした形ではない" "$owner"
+fresh; edit "$user" 's/\| 予約 \| Reservation \| 業務用語 \| \[予約の業務知識\]\(\.\.\/予約\/business-knowledge\.md\)/| 予約 | 未定 | 業務用語 | [予約の業務知識](..\/無い\/business-knowledge.md)/'
+output=$(python3 "$checker" check "$user" 2>&1); status=$?
+[ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "持ち主の資料が無い間の未定は未確認として通す" || fail "持ち主の資料が無い間の未定（exit $status）"
+rejects "集合の検査は残った未確認を違反に数える" "集合がそろった後も持ち主の資料が無い" check-set "$owner" "$user"
+fresh; edit "$user" 's/\| 予約 \| Reservation \|/| 予約 | 未定 |/'; rejects "持ち主の資料があるのに残った未定を拒否" "英名が「未定」のまま残っている" "$user"
+fresh; edit "$owner" 's/\| 予約 \| Reservation \|/| 予約 | 未定 |/'; rejects "この資料が決める語の未定を拒否" "この資料が決める語の英名が「未定」である" "$owner"
+fresh; python3 "$checker" check-set "$owner" "$user" >/dev/null 2>&1 && pass "そろった集合の検査の正例" || fail "そろった集合の検査の正例"
 python3 "$checker" check >/dev/null 2>&1; [ $? -eq 2 ] && pass "引数の無い呼び出しは exit 2" || fail "引数の無い呼び出しの終了code"
 
 printf '\nbusiness_knowledge.py: %d passed, %d failed\n' "$passed" "$failed"
