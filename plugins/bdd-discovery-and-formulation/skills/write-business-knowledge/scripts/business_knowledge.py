@@ -3,22 +3,25 @@
 
 基準資料: write-doc の business-knowledge 型の「検査が読む目印」と、この入口の references/ubiquitous-language.md の
   「一つの語は、業務をまたいでも一か所で決める」。見出しの文言は読まない。
-入力: 引数に並べた資料のパス。最初の一本が判定する資料（保存した資料）で、残りは隣の業務知識として重複の照合に読むだけである。
+入力: check は、引数に並べた資料のパス。最初の一本が判定する資料（保存した資料）で、残りは隣の業務知識として重複の照合に読むだけである。
+  check-set は、置き場の全業務知識のパス。それぞれを順に判定する資料にし、残りを隣の資料にして同じ判定をする。
   持ち主の欄のリンクは、判定する資料のディレクトリから解決して読む。
 合格述語:
   ユビキタス言語の表（見出し行が「業務の言葉 | 英名 | 種類 | 持ち主」）がコードブロックの外に一つだけある。
   各行の種類は 業務用語・業務イベント・概念・コマンド・クエリ のどれかで、業務の言葉と英名は空でなく、一つの言葉は一行だけにある。
+  英名は、語ごとに先頭だけを大文字にしてつないだ形（正規表現 ^(?:[A-Z][a-z0-9]*)+$ に合い、大文字が二つ続かない）か、仮置きの印「未定」である。
+  「未定」は持ち主がリンクの行にだけ置け、持ち主の資料があるのに「未定」が残っていれば違反である。
   持ち主の欄は「この資料」か相対 Markdown リンクで、リンク先の資料があれば、その表に同じ言葉が「この資料」の行として
   同じ英名・同じ種類で載っている。リンク先の資料が無いことは未確認として報告し、合否に数えない。
   判定する資料が「この資料」として決めた言葉を、隣の資料も「この資料」として決めていない。判定する資料の英名が、隣の資料で違う言葉に付いていない。
-  隣の資料そのものの形の違反は判定しない。
+  隣の資料そのものの形の違反は判定しない。check-set では、集合がそろった後も読めない持ち主のリンクを違反に数える。
   1行目が --- の Mermaid ブロックと stateDiagram-v2 を含む Mermaid ブロックは、先頭が ---、title: <名前>、---、stateDiagram-v2 の四行である。
   BDD の見出しは「### [BDD-<3桁以上の数字>] <本文>」の形で、番号は資料の中で一意である。
   「#### 拒む理由: <名前>」の名前は資料の中で一意で、gherkin ブロックの「Rule: <名前>」はそのどれかと一致する。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"} で出し、最後に
   {"status", "subject", "problems", "unverified"} を一行出す。違反があれば終了code 1、未確認だけなら 0。引数が無いかファイルを読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/business-knowledge/ の資料の組。
-反例: scripts/test-business-knowledge.sh の、種類の許可値の外、同じ言葉の二行、持ち主の英名の食い違い、持ち主の資料に無い言葉、
+反例: scripts/test-business-knowledge.sh の、種類の許可値の外、大文字が続く英名、持ち主の資料があるのに残った未定、集合の検査で残った未確認、同じ言葉の二行、持ち主の英名の食い違い、持ち主の資料に無い言葉、
   隣の資料と同じ言葉を決める、同じ英名が違う言葉に付く、状態遷移図の先頭の欠け、BDD 番号の重複、宣言に無い Rule。
 意味評価として残す範囲: 語が業務の人の言葉か、状態名や業務イベントの名前が作った語でないか、どの資料が語の持ち主であるべきか、
   値が業務の判断を変えるか、決まりと BDD の業務上の正しさ。
@@ -36,6 +39,9 @@ from pathlib import Path
 HEADERS = ["業務の言葉", "英名", "種類", "持ち主"]
 KINDS = {"業務用語", "業務イベント", "概念", "コマンド", "クエリ"}
 OWN = "この資料"
+PENDING = "未定"
+ENGLISH = re.compile(r"^(?:[A-Z][a-z0-9]*)+$")
+DOUBLE_CAPITAL = re.compile(r"[A-Z]{2}")
 LINK = re.compile(r"^\[[^\]]*\]\(([^)\s]+)\)$")
 BDD_ANY = re.compile(r"^###\s+\[BDD-")
 BDD = re.compile(r"^###\s+\[BDD-(\d{3,})\]\s+\S")
@@ -107,6 +113,10 @@ def read_terms(label: str, prose: list[tuple[int, str]], problems: list[Problem]
             continue
         if kind not in KINDS:
             problems.append(Problem(f"{label}.{word}.種類", f"許可値ではない: {kind}", "業務用語・業務イベント・概念・コマンド・クエリのどれか一つにする"))
+        if english == PENDING and owner == OWN:
+            problems.append(Problem(f"{label}.{word}.英名", f"この資料が決める語の英名が「{PENDING}」である", f"「{PENDING}」は、持ち主の資料がまだ無い参照の行にだけ使う"))
+        elif english != PENDING and (not ENGLISH.fullmatch(english) or DOUBLE_CAPITAL.search(english)):
+            problems.append(Problem(f"{label}.{word}.英名", f"英名が語ごとに先頭だけを大文字にした形ではない: {english}", "語ごとに先頭だけを大文字にしてつなぎ、略語も一語として先頭だけを大文字にする（OrderId）"))
         if owner != OWN and not LINK.match(owner):
             problems.append(Problem(f"{label}.{word}.持ち主", f"「{OWN}」でも相対 Markdown リンクでもない: {owner}", f"この資料で決めた語は「{OWN}」、ほかの資料の語は持ち主の資料へのリンクにする"))
         terms.append(Term(word, english, kind, owner, number + 1))
@@ -187,6 +197,9 @@ def check_owners(path: Path, terms: list[Term], cache: dict[Path, list[Term] | N
         if owner_terms is None:
             unverified.append({"unverified": str(target), "detail": f"持ち主の資料がまだ無いので、「{term.word}」の英名と種類を照合していない"})
             continue
+        if term.english == PENDING:
+            problems.append(Problem(f"{path}.{term.word}.英名", f"持ち主の資料があるのに英名が「{PENDING}」のまま残っている: {target}", "同じ入口で深めて、持ち主の英名に替える"))
+            continue
         owned = [t for t in owner_terms if t.word == term.word and t.owner == OWN]
         if not owned:
             problems.append(Problem(f"{path}.{term.word}.持ち主", f"持ち主の資料がこの言葉を「{OWN}」として決めていない: {target}", "持ち主を、その語を決めた資料に直すか、持ち主の資料への変更案として返す"))
@@ -195,19 +208,8 @@ def check_owners(path: Path, terms: list[Term], cache: dict[Path, list[Term] | N
             problems.append(Problem(f"{path}.{term.word}", f"持ち主の資料と英名か種類が違う: 持ち主は {owned[0].english}（{owned[0].kind}）", "持ち主の資料と同じ英名と種類を使う。持ち主を変えたいなら変更案として返す"))
 
 
-def main() -> int:
-    if len(sys.argv) < 3 or sys.argv[1] != "check":
-        print(json.dumps({"error": "usage: business_knowledge.py check <保存した資料のパス> [<隣の業務知識のパス>...]"}, ensure_ascii=False))
-        return 2
-    paths = [Path(arg).resolve() for arg in sys.argv[2:]]
-    texts: dict[Path, str] = {}
-    for path in paths:
-        try:
-            texts[path] = path.read_text(encoding="utf-8")
-        except OSError as error:
-            print(json.dumps({"error": f"読めない: {path}: {error}"}, ensure_ascii=False))
-            return 2
-    subject = paths[0]
+def judge(subject: Path, others: list[Path], texts: dict[Path, str]) -> tuple[list[Problem], list[dict]]:
+    """subject だけを判定し、others は重複の照合に読む。"""
     label = str(subject)
     problems: list[Problem] = []
     unverified: list[dict] = []
@@ -217,23 +219,59 @@ def main() -> int:
     cache[subject] = terms
     check_state_diagrams(label, found, problems)
     check_bdd_and_reasons(label, prose, found, problems)
-    for path in paths[1:]:
+    for path in others:
         if path == subject:
             continue
-        others = load(path, cache) or []
+        other_prose, _ = blocks(texts[path].splitlines())
+        other_terms = read_terms(str(path), other_prose, [])
+        cache[path] = other_terms
         for term in terms:
-            for other in others:
+            for other in other_terms:
                 if term.owner == OWN and other.owner == OWN and term.word == other.word:
                     problems.append(Problem(f"{label}.{term.word}", f"同じ言葉を隣の資料も決めている: {path}", "言葉は、それが指すものを作り、変える業務の資料一本だけで決める。分け方の一覧で自分が持ち主なら相手への変更案として返し、そうでなければ持ち主へのリンクの行にする"))
-                if term.english == other.english and term.word != other.word:
+                if term.english == other.english and term.english != PENDING and term.word != other.word:
                     problems.append(Problem(f"{label}.{term.word}", f"英名 {term.english} が隣の資料で別の言葉「{other.word}」に付いている: {path}", "一つの英名は一つの言葉にだけ付ける"))
     check_owners(subject, terms, cache, problems, unverified)
-    for problem in problems:
-        print(problem.emit())
-    for item in unverified:
-        print(json.dumps(item, ensure_ascii=False))
-    print(json.dumps({"status": "ng" if problems else "ok", "subject": label, "problems": len(problems), "unverified": len(unverified)}, ensure_ascii=False))
-    return 1 if problems else 0
+    return problems, unverified
+
+
+def read_all(paths: list[Path]) -> dict[Path, str] | None:
+    texts: dict[Path, str] = {}
+    for path in paths:
+        try:
+            texts[path] = path.read_text(encoding="utf-8")
+        except OSError as error:
+            print(json.dumps({"error": f"読めない: {path}: {error}"}, ensure_ascii=False))
+            return None
+    return texts
+
+
+def main() -> int:
+    if len(sys.argv) < 3 or sys.argv[1] not in {"check", "check-set"}:
+        print(json.dumps({"error": "usage: business_knowledge.py check <保存した資料のパス> [<隣の業務知識のパス>...] | check-set <置き場の全業務知識のパス>..."}, ensure_ascii=False))
+        return 2
+    paths = [Path(arg).resolve() for arg in sys.argv[2:]]
+    texts = read_all(paths)
+    if texts is None:
+        return 2
+    if sys.argv[1] == "check":
+        problems, unverified = judge(paths[0], paths[1:], texts)
+        for problem in problems:
+            print(problem.emit())
+        for item in unverified:
+            print(json.dumps(item, ensure_ascii=False))
+        print(json.dumps({"status": "ng" if problems else "ok", "subject": str(paths[0]), "problems": len(problems), "unverified": len(unverified)}, ensure_ascii=False))
+        return 1 if problems else 0
+    total = 0
+    for subject in paths:
+        problems, unverified = judge(subject, paths, texts)
+        for problem in problems:
+            print(problem.emit())
+        for item in unverified:
+            print(Problem(f"{subject}.持ち主", f"集合がそろった後も持ち主の資料が無い: {item['unverified']}", "持ち主の資料を置くか、持ち主の欄のリンクを直す").emit())
+        total += len(problems) + len(unverified)
+    print(json.dumps({"status": "ng" if total else "ok", "documents": len(paths), "problems": total}, ensure_ascii=False))
+    return 1 if total else 0
 
 
 if __name__ == "__main__":
