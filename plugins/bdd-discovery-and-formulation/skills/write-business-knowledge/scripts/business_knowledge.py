@@ -11,7 +11,7 @@
   各行の種類は 業務用語・業務イベント・概念・状態・コマンド・クエリ のどれかで、業務の言葉と英名は空でなく、一つの言葉は一行だけにある。
   英名は、語ごとに先頭だけを大文字にしてつないだ形（正規表現 ^(?:[A-Z][a-z0-9]*)+$ に合い、大文字が二つ続かない）か、仮置きの印「未定」である。
   「未定」は持ち主がリンクの行にだけ置け、持ち主の資料があるのに「未定」が残っていれば違反である。
-  持ち主の欄は「この資料」か、相対 Markdown リンクか、範囲の外の持ち主を宣言する「範囲の外: [持ち主の資料](パス)」で、
+  持ち主の欄は「この資料」か、相対 Markdown リンクか、範囲の外の持ち主を宣言する「範囲の外: [持ち主の資料の名前](パスかURL)」で、
   範囲の外の行は照合せず、英名が「未定」でもよい。リンクの行は、リンク先の資料があれば、その表に同じ言葉が「この資料」の行として
   同じ英名・同じ種類で載っている。リンク先の資料が無いことは未確認として報告し、合否に数えない。
   判定する資料が「この資料」として決めた言葉を、隣の資料も「この資料」として決めていない。判定する資料の英名が、隣の資料で違う言葉に付いていない。
@@ -124,7 +124,7 @@ def read_terms(label: str, prose: list[tuple[int, str]], problems: list[Problem]
         elif english != PENDING and (not ENGLISH.fullmatch(english) or DOUBLE_CAPITAL.search(english)):
             problems.append(Problem(f"{label}.{word}.英名", f"英名が語ごとに先頭だけを大文字にした形ではない: {english}", "語ごとに先頭だけを大文字にしてつなぎ、略語も一語として先頭だけを大文字にする（OrderId）"))
         if owner != OWN and not LINK.match(owner) and not OUTSIDE.match(owner):
-            problems.append(Problem(f"{label}.{word}.持ち主", f"「{OWN}」でも、相対 Markdown リンクでも、「範囲の外: [持ち主の資料](パス)」でもない: {owner}", f"この資料で決めた語は「{OWN}」、ほかの資料の語は持ち主の資料へのリンク、範囲の外の持ち主の語は「範囲の外: [持ち主の資料](パス)」にする"))
+            problems.append(Problem(f"{label}.{word}.持ち主", f"「{OWN}」でも、相対 Markdown リンクでも、「範囲の外: [持ち主の資料の名前](パスかURL)」でもない: {owner}", f"この資料で決めた語は「{OWN}」、ほかの資料の語は持ち主の資料へのリンク、範囲の外の持ち主の語は「範囲の外: [持ち主の資料の名前](パスかURL)」にする"))
         terms.append(Term(word, english, kind, owner, number + 1))
     seen: set[str] = set()
     for term in terms:
