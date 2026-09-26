@@ -2,22 +2,24 @@
 """クエリデータモデルの資料（query-data-model）の BDD が読むテーブルと列が、コマンドデータモデルに実在するかを検査する。
 
 基準資料: write-doc の query-data-model 型と command-data-model 型の「検査が読む目印」。見出しの文言は読まない。
-入力: 引数に並べたクエリデータモデルのパス（一本以上）。読むテーブルの表の持ち主のリンクは、その資料のディレクトリから解決して読む。
+入力: 判定するクエリデータモデル（保存した資料）のパス一本。読むテーブルの表の持ち主のリンクは、その資料のディレクトリから解決して読む。
 正規化: クエリデータモデルでは、コードブロックの外で見出し行が「読むテーブル | 持ち主の資料」の表を読むテーブルとして、
   「### [BDD-<数字>]」の見出しから次の見出しまでを一件の BDD として、その中の「**`<テーブル名>`**」の行に続く表の見出し行を読む列として、
   「**取得結果**」の行を取得結果の目印として読む。持ち主のコマンドデータモデルでは、見出し行が
-  「系列 | 性質 | 論理テーブル | 保存表現 | 時刻 | 変化 | 根拠」の表の論理テーブルの欄と、1行目が erDiagram の Mermaid ブロックの
+  「系列 | 性質 | 論理テーブル | 保存表現 | 根拠」の表の論理テーブルの欄と、1行目が erDiagram の Mermaid ブロックの
   実体と属性行の名前を読む。backtick は外して比べる。
 合格述語: 読むテーブルの表が一つだけあり、各行は backtick のテーブル名と相対 Markdown リンクで、同じテーブルは一行だけである。
   分類の表と erDiagram のブロックを持たない。BDD の見出しは「### [BDD-<3桁以上の数字>] <本文>」で、番号は資料の中で一意である。
   各 BDD に「**取得結果**」の行がちょうど一つあり、その後に表がある。BDD に出たテーブルはすべて読むテーブルの表にあり、
-  リンク先の資料が実在してそのテーブルを分類しており、BDD の表の見出しの列名はすべて、持ち主の erDiagram のそのテーブルの列にある。
+  リンク先の資料があれば、そのテーブルを分類しており、BDD の表の見出しの列名はすべて、持ち主の erDiagram のそのテーブルの列にある。
+  リンク先の資料が無いことは未確認として報告し、合否に数えない。
   見出し行が「業務知識のBDD | この資料のBDD」の対応の表が一つだけあり、各行の左は BDD-<番号>（重複なし）、右は BDD-<番号> を「、」で
   区切ったものか 対象外 で、右に書いた BDD はこの資料の「### [BDD-<番号>]」の見出しにある。
-失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。終了code 1。引数が無いかファイルを読めなければ {"error"} と終了code 2。
+失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"} で出し、最後に
+  {"status", "subject", "problems", "unverified"} を一行出す。違反があれば終了code 1、未確認だけなら 0。引数が無いかファイルを読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/query-data-model/valid.md（持ち主は scripts/fixtures/command-data-model/valid.md）。
 反例: scripts/test-query-model.sh の、持ち主の図に無い列、読むテーブルの表に無いテーブル、持ち主が分類していないテーブル、
-  実在しない持ち主、取得結果の無い BDD と二つある BDD、BDD 番号の重複、分類の表を持つ資料、許されない対応の欄、この資料に無い BDD を指す対応。
+  取得結果の無い BDD と二つある BDD、BDD 番号の重複、分類の表を持つ資料、許されない対応の欄、この資料に無い BDD を指す対応。
 意味評価として残す範囲: 取得結果が業務知識の表示対象と並び順に合うか、範囲の行の書き方が正しいか、読み取りが本当に実現できるか、
   境界の例が足りるか、物理設計の関心が混ざっていないか。
 """
@@ -32,7 +34,7 @@ from pathlib import Path
 
 
 READ_HEADERS = ["読むテーブル", "持ち主の資料"]
-CLASSIFICATION_HEADERS = ["系列", "性質", "論理テーブル", "保存表現", "時刻", "変化", "根拠"]
+CLASSIFICATION_HEADERS = ["系列", "性質", "論理テーブル", "保存表現", "根拠"]
 TABLE_CELL = re.compile(r"^`([^`|]+)`$")
 LINK = re.compile(r"^\[[^\]]*\]\(([^)\s]+)\)$")
 BDD_ANY = re.compile(r"^###\s+\[BDD-")
@@ -132,7 +134,7 @@ def read_owner(path: Path) -> Owner | None:
     return Owner(classified, columns)
 
 
-def check(path: Path, text: str, owners: dict[Path, Owner | None], problems: list[Problem]) -> None:
+def check(path: Path, text: str, owners: dict[Path, Owner | None], problems: list[Problem], unverified: list[dict]) -> None:
     label = str(path)
     prose, found = split(text.splitlines())
     check_mapping(label, prose, {"対象外"}, problems)
@@ -210,7 +212,7 @@ def check(path: Path, text: str, owners: dict[Path, Owner | None], problems: lis
             owners[target] = read_owner(target)
         owner = owners[target]
         if owner is None:
-            problems.append(Problem(where, f"持ち主の資料を読めない: {target}", "リンクを、実在するコマンドデータモデルへの相対パスにする"))
+            unverified.append({"unverified": str(target), "detail": f"持ち主の資料がまだ無いので、`{table}` の列を照合していない"})
             continue
         if table not in owner.classified:
             problems.append(Problem(where, f"持ち主の資料がこのテーブルを分類していない: {target}", "リンクを、このテーブルを定義したコマンドデータモデルに直す"))
@@ -256,25 +258,24 @@ def check_mapping(label: str, prose: list[tuple[int, str]], words: set[str], pro
 
 
 def main() -> int:
-    if len(sys.argv) < 3 or sys.argv[1] != "check":
-        print(json.dumps({"error": "usage: query_model.py check <クエリデータモデルのパス>..."}, ensure_ascii=False))
+    if len(sys.argv) != 3 or sys.argv[1] != "check":
+        print(json.dumps({"error": "usage: query_model.py check <保存した資料のパス>"}, ensure_ascii=False))
+        return 2
+    path = Path(sys.argv[2]).resolve()
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as error:
+        print(json.dumps({"error": f"読めない: {path}: {error}"}, ensure_ascii=False))
         return 2
     problems: list[Problem] = []
-    owners: dict[Path, Owner | None] = {}
-    paths = [Path(arg).resolve() for arg in sys.argv[2:]]
-    for path in paths:
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError as error:
-            print(json.dumps({"error": f"読めない: {path}: {error}"}, ensure_ascii=False))
-            return 2
-        check(path, text, owners, problems)
-    if problems:
-        for problem in problems:
-            print(problem.emit())
-        return 1
-    print(json.dumps({"status": "ok", "documents": len(paths)}, ensure_ascii=False))
-    return 0
+    unverified: list[dict] = []
+    check(path, text, {}, problems, unverified)
+    for problem in problems:
+        print(problem.emit())
+    for item in unverified:
+        print(json.dumps(item, ensure_ascii=False))
+    print(json.dumps({"status": "ng" if problems else "ok", "subject": str(path), "problems": len(problems), "unverified": len(unverified)}, ensure_ascii=False))
+    return 1 if problems else 0
 
 
 if __name__ == "__main__":
