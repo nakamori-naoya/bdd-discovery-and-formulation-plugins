@@ -4,32 +4,34 @@
 基準資料: この入口の SKILL.md が書くイミュータブルデータモデルの型（三つのテーブル、命名、時刻は occurred_at の一本、
   リソースの status と current_version）とテーブルの持ち主の決まり、references/technical-process-lifecycle.md（要求・回収・成功）。
   記法は write-doc の command-data-model 型の「検査が読む目印」。見出しの文言は読まない。
-入力: 引数に並べたコマンドデータモデルのパス（一本以上）。参照の表の持ち主のリンクは、その資料のディレクトリから解決して読む。
-正規化: コードブロックの外で見出し行が「系列 | 性質 | 論理テーブル | 保存表現 | 時刻 | 変化 | 根拠」の表を分類として、
+入力: 引数に並べたコマンドデータモデルのパス。最初の一本が判定する資料（保存した資料）で、残りは重複の照合に読むだけである。
+  参照の表の持ち主のリンクは、判定する資料のディレクトリから解決して読む。
+正規化: コードブロックの外で見出し行が「系列 | 性質 | 論理テーブル | 保存表現 | 根拠」の表を分類として、
   見出し行が「参照するテーブル | 読む列 | 持ち主の資料」の表を参照として、1行目が erDiagram の Mermaid ブロックの実体と属性行
   （型 名前 [PK|FK|UK...] "意味"）を列として、関係の行（<実体> <多重度> <実体> : <ラベル>）を関係として、
   ### の直後が backtick で囲んだテーブル名で始まる見出しを定義として読む。backtick は外して比べる。
 合格述語: 分類の表が資料に一つだけあり、参照の表は無いか一つだけある。図の実体は、分類か参照のどちらか一方にだけある。
   分類、図の実体のうち分類したもの、定義の見出しが同じテーブルの集合で、分類は一度ずつ。系列・性質・保存表現が許可値で、根拠が空でない。
-  リソース系はイベント列を選ばない。イベント系は追加のみ・イベント列・性質が派生でなく、名前が _events で終わる。
-  業務の基底イベント（_base_events）と技術イベントは occurred_at（型は timestamptz）の列を持ち、分類表の時刻の欄は `occurred_at` と
-  完全に一致する。業務の詳細イベントは occurred_at の列を持たない。業務の基底イベントは version の列を持ち、関係の行で
+  性質は 業務 か 技術 で、リソース系はイベント列を選ばない。イベント系は保存表現がイベント列で、名前が _events で終わる。
+  業務の基底イベント（_base_events）と技術イベントは occurred_at（型は timestamptz）の列を持つ。業務の詳細イベントは occurred_at の列を持たない。業務の基底イベントは version の列を持ち、関係の行で
   リソース系・業務のテーブルと結ばれ、結ばれたリソースは status と current_version の列を持つ。業務の詳細イベントがあれば基底イベントもある。
   技術の <処理>_requested_events があれば、同じ接頭辞の <処理>_claimed_events と <処理>_succeeded_events も技術として分類され、
   <処理>_claimed_events は version の列を持つ。
-  参照したテーブルは、図の列が読む列と同じ集合で、持ち主の資料が実在してそのテーブルを分類し、読む列が持ち主の図の列に含まれる。
-  引数の資料の集合の中で、同じテーブルを分類した資料は一本だけである。
+  参照したテーブルは、図の列が読む列と同じ集合で、持ち主の資料があれば、そのテーブルを分類し、読む列が持ち主の図の列に含まれる。
+  持ち主の資料が無いことは未確認として報告し、合否に数えない。判定する資料が分類したテーブルを、残りの引数の資料が分類していない。
+  残りの引数の資料そのものの違反は判定しない。
   見出し行が「業務知識のBDD | この資料のBDD」の対応の表が一つだけあり、各行の左は BDD-<番号>（重複なし）、右は BDD-<番号> を「、」で
   区切ったもの・対象外・クエリデータモデル のどれかで、右に書いた BDD はこの資料の「### [BDD-<番号>]」の見出しにある。
   いずれも宣言（分類表と参照の表の値、テーブルと列の名前、関係の行）から一意に決まることだけを見る。列の名前の語尾（_at など）から、
   その列が時点かどうかは判定しない。
-失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。終了code 1。引数が無いかファイルを読めなければ {"error"} と終了code 2。
+失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"} で出し、最後に
+  {"status", "subject", "problems", "unverified"} を一行出す。違反があれば終了code 1、未確認だけなら 0。引数が無いかファイルを読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/command-data-model/ の valid.md と、それを持ち主として参照する reader.md。
-反例: scripts/test-immutable-model.sh の、旧列名、イベントの更新宣言、未分類のテーブル、_events で終わらないイベント表、
+反例: scripts/test-immutable-model.sh の、旧列名、性質が派生のテーブル、未分類のテーブル、_events で終わらないイベント表、
   occurred_at の無い技術イベント、occurred_at を持つ詳細イベント、version の無い基底イベント、status か current_version の無いリソース、
-  リソースと結ばれていない基底イベント、成功の無い要求、version の無い回収、時刻の欄が `occurred_at` と一致しない分類表、
-  分類の表が無いか二つある資料、持ち主の図に無い読む列、二本の資料が同じテーブルを分類する組、許されない対応の欄、この資料に無い BDD を指す対応。
-境界例: 見出しに結論を入れた資料や、見出しの名前を変えた資料は通る。状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。
+  リソースと結ばれていない基底イベント、成功の無い要求、version の無い回収、
+  分類の表が無いか二つある資料、持ち主の図に無い読む列、残りの引数の資料も同じテーブルを分類する組、許されない対応の欄、この資料に無い BDD を指す対応。
+境界例: 見出しに結論を入れた資料や、見出しの名前を変えた資料は通る。持ち主の資料がまだ無い参照は未確認として通る。状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。
   名前が _at で終わる列（詳細イベントの cancelled_at、基底イベントの recorded_at など）も、名前だけでは拒まない。
 意味評価として残す範囲: 列が事実か業務が与えた値か後から導けない技術上の判断か加工した情報か、イベント表に二本目の時点が無いか、
   status と current_version が本当に状態と版を表しているか、保存の単位と保存表現の選択、どの業務がテーブルを書くべきか、
@@ -45,10 +47,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-REQUIRED_HEADERS = ["系列", "性質", "論理テーブル", "保存表現", "時刻", "変化", "根拠"]
+REQUIRED_HEADERS = ["系列", "性質", "論理テーブル", "保存表現", "根拠"]
 REFERENCE_HEADERS = ["参照するテーブル", "読む列", "持ち主の資料"]
 ALLOWED_SERIES = {"リソース系", "イベント系"}
-ALLOWED_NATURES = {"業務", "技術", "派生"}
+ALLOWED_NATURES = {"業務", "技術"}
 ALLOWED_SOURCES = {"現在状態", "有効期間履歴", "イベント列", "派生"}
 TABLE_HEADING = re.compile(r"^###\s+`([^`|]+)`")
 TABLE_CELL = re.compile(r"^`([^`|]+)`$")
@@ -118,7 +120,7 @@ def parse_classification(label: str, prose: list[tuple[int, str]], problems: lis
     rows: dict[str, dict[str, str]] = {}
     for line_number, cells in tables[0]:
         if len(cells) != len(REQUIRED_HEADERS):
-            problems.append(Problem(f"{label}.classification.line[{line_number + 1}]", "列数が分類表headerと一致しない", "各行を7列にする"))
+            problems.append(Problem(f"{label}.classification.line[{line_number + 1}]", "列数が分類表headerと一致しない", "各行を5列にする"))
             continue
         row = dict(zip(REQUIRED_HEADERS, cells))
         match = TABLE_CELL.fullmatch(row["論理テーブル"])
@@ -252,7 +254,7 @@ def check_model(label: str, model: Model, problems: list[Problem]) -> None:
         if row["系列"] not in ALLOWED_SERIES:
             problems.append(Problem(f"{prefix}.系列", f"許可値ではない: {row['系列']}", "リソース系またはイベント系にする"))
         if row["性質"] not in ALLOWED_NATURES:
-            problems.append(Problem(f"{prefix}.性質", f"許可値ではない: {row['性質']}", "業務・技術・派生のいずれかにする"))
+            problems.append(Problem(f"{prefix}.性質", f"許可値ではない: {row['性質']}", "業務か技術にする"))
         if row["保存表現"] not in ALLOWED_SOURCES:
             problems.append(Problem(f"{prefix}.保存表現", f"許可値ではない: {row['保存表現']}", "分類表の「保存表現」列を現在状態・有効期間履歴・イベント列・派生のいずれかにする"))
         if not row["根拠"] or row["根拠"] in {"-", "なし"}:
@@ -273,12 +275,8 @@ def check_model(label: str, model: Model, problems: list[Problem]) -> None:
             problems.append(Problem(f"{prefix}.保存表現", "リソース系の論理テーブルに対し、分類表の「保存表現」列でイベント列を選択している", "「保存表現」列を現在状態・有効期間履歴・派生のいずれかにする"))
         if row["系列"] != "イベント系":
             continue
-        if row["変化"] != "追加のみ":
-            problems.append(Problem(f"{prefix}.変化", f"追加専用ではない: {row['変化']}", "イベント表は追加のみにする"))
         if row["保存表現"] != "イベント列":
             problems.append(Problem(f"{prefix}.保存表現", "イベント系の論理テーブルで「保存表現」列がイベント列ではない", "「保存表現」列をイベント列にする"))
-        if row["性質"] == "派生":
-            problems.append(Problem(f"{prefix}.性質", "派生物をイベント系に分類している", "業務イベントか技術イベントかを明示する"))
         if not name.endswith("_events"):
             problems.append(Problem(f"{prefix}.name", "イベント系のテーブル名が過去分詞の_eventsで終わらない", "<対象>_base_events、<対象>_<過去分詞>_events、<処理>_<過去分詞>_eventsのどれかにする"))
             continue
@@ -291,8 +289,6 @@ def check_model(label: str, model: Model, problems: list[Problem]) -> None:
             problems.append(Problem(f"{prefix}.{OCCURRED_AT}", f"{OCCURRED_AT} の列が無い", f"出来事が起きた時点を {OCCURRED_AT} として置く"))
         elif occurred[0]["type"] != "timestamptz":
             problems.append(Problem(f"{prefix}.{OCCURRED_AT}", f"{OCCURRED_AT} の型が timestamptz ではない: {occurred[0]['type']}", f"{OCCURRED_AT} は timestamptz で持つ"))
-        if row["時刻"].strip("`") != OCCURRED_AT:
-            problems.append(Problem(f"{prefix}.時刻", f"分類表の時刻の欄が `{OCCURRED_AT}` と一致しない: {row['時刻']}", f"分類表の時刻の欄を `{OCCURRED_AT}` だけにする"))
 
     technical = {n for n, r in classification.items() if r["性質"] == "技術" and r["系列"] == "イベント系"}
     for name in sorted(technical):
@@ -347,7 +343,7 @@ def check_mapping(label: str, prose: list[tuple[int, str]], words: set[str], pro
                 problems.append(Problem(where, f"この資料に {target} が無い", "この資料にある BDD の番号を書く"))
 
 
-def check_references(path: Path, model: Model, models: dict[Path, Model | None], problems: list[Problem]) -> None:
+def check_references(path: Path, model: Model, models: dict[Path, Model | None], problems: list[Problem], unverified: list[dict]) -> None:
     for name, (read, link) in sorted(model.references.items()):
         target = (path.parent / link).resolve()
         if target not in models:
@@ -358,7 +354,7 @@ def check_references(path: Path, model: Model, models: dict[Path, Model | None],
         owner = models[target]
         where = f"{path}.references.{name}"
         if owner is None:
-            problems.append(Problem(where, f"持ち主の資料を読めない: {target}", "持ち主の資料のリンクを、実在するコマンドデータモデルへの相対パスにする"))
+            unverified.append({"unverified": str(target), "detail": f"持ち主の資料がまだ無いので、`{name}` の読む列を照合していない"})
             continue
         if name not in owner.classification:
             problems.append(Problem(where, f"持ち主の資料がこのテーブルを分類していない: {target}", "リンクを、このテーブルへ書く業務のコマンドデータモデルに直す"))
@@ -370,39 +366,42 @@ def check_references(path: Path, model: Model, models: dict[Path, Model | None],
 
 def main() -> int:
     if len(sys.argv) < 3 or sys.argv[1] != "check":
-        print(json.dumps({"error": "usage: immutable_model.py check <コマンドデータモデルのパス>..."}, ensure_ascii=False))
+        print(json.dumps({"error": "usage: immutable_model.py check <保存した資料のパス> [<ほかのコマンドデータモデルのパス>...]"}, ensure_ascii=False))
         return 2
     paths = [Path(arg).resolve() for arg in sys.argv[2:]]
-    problems: list[Problem] = []
-    models: dict[Path, Model | None] = {}
+    texts: dict[Path, str] = {}
     for path in paths:
         try:
-            text = path.read_text(encoding="utf-8")
+            texts[path] = path.read_text(encoding="utf-8")
         except OSError as error:
             print(json.dumps({"error": f"読めない: {path}: {error}"}, ensure_ascii=False))
             return 2
-        if not text.strip():
-            print(json.dumps({"error": f"資料が空である: {path}"}, ensure_ascii=False))
-            return 2
-        models[path] = read_model(str(path), text, problems)
-        check_mapping(str(path), prose_lines(text.splitlines()), {"対象外", "クエリデータモデル"}, problems)
-    owners: dict[str, Path] = {}
-    for path in paths:
-        model = models[path]
-        assert model is not None
-        check_model(str(path), model, problems)
-        for name in model.classification:
-            if name in owners and owners[name] != path:
-                problems.append(Problem(f"{path}.classification.{name}", f"同じテーブルを二本の資料が分類している: {owners[name]}", "テーブルは、そこへ書く業務の資料一本だけが分類し、ほかは参照の表に載せる"))
-            owners.setdefault(name, path)
-    for path in paths:
-        check_references(path, models[path], models, problems)
-    if problems:
-        for problem in problems:
-            print(problem.emit())
-        return 1
-    print(json.dumps({"status": "ok", "documents": len(paths)}, ensure_ascii=False))
-    return 0
+    subject = paths[0]
+    label = str(subject)
+    if not texts[subject].strip():
+        print(json.dumps({"error": f"資料が空である: {subject}"}, ensure_ascii=False))
+        return 2
+    problems: list[Problem] = []
+    unverified: list[dict] = []
+    models: dict[Path, Model | None] = {}
+    model = read_model(label, texts[subject], problems)
+    models[subject] = model
+    check_mapping(label, prose_lines(texts[subject].splitlines()), {"対象外", "クエリデータモデル"}, problems)
+    check_model(label, model, problems)
+    for path in paths[1:]:
+        if path == subject:
+            continue
+        other = read_model(str(path), texts[path], [])
+        models[path] = other
+        for name in sorted(set(model.classification) & set(other.classification)):
+            problems.append(Problem(f"{label}.classification.{name}", f"同じテーブルをほかの資料も分類している: {path}", "テーブルは、そこへ書く業務の資料一本だけが分類する。分け方の一覧で自分が持ち主なら相手への変更案として返し、そうでなければ参照の表に移す"))
+    check_references(subject, model, models, problems, unverified)
+    for problem in problems:
+        print(problem.emit())
+    for item in unverified:
+        print(json.dumps(item, ensure_ascii=False))
+    print(json.dumps({"status": "ng" if problems else "ok", "subject": label, "problems": len(problems), "unverified": len(unverified)}, ensure_ascii=False))
+    return 1 if problems else 0
 
 
 if __name__ == "__main__":
