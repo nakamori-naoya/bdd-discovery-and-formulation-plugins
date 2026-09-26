@@ -9,7 +9,7 @@
       "name": "bdd-discovery-and-formulation",
       "source": "./plugins/bdd-discovery-and-formulation",
       "description": "業務知識、コマンドデータモデル、クエリデータモデル、ユーザー目的達成BDDの四つの資料を、BDD付きで作り、深める公開入口を提供する",
-      "version": "10.0.0"
+      "version": "11.0.0"
     }
   ]
 }
