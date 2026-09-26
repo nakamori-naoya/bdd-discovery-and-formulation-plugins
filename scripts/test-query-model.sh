@@ -25,7 +25,7 @@ rejects() {
   local output status mode=check
   if [ "$1" = check-set ]; then mode=check-set; shift; fi
   output=$(python3 "$checker" "$mode" "$@" 2>&1); status=$?
-  if [ "$status" -eq 1 ] && rg -F -- "$expected" <<< "$output" >/dev/null; then pass "$name"; else fail "$name（exit $status）"; fi
+  if [ "$status" -eq 1 ] && rg -F -- "$expected" <<< "$output" >/dev/null; then pass "$name"; else fail "${name}（exit ${status}）"; fi
 }
 edit() { perl -0pi -e "$1" "$doc"; }
 
@@ -35,7 +35,7 @@ fresh; edit 's/\n\| `reservations` \| \[[^\n]*//'; rejects "読むテーブル�
 fresh; edit 's/\*\*`reservations`\*\*/**`entries`**/; s/\| `reservations` \|/| `entries` |/'; rejects "持ち主が分類していないテーブルを拒否" "持ち主の資料がこのテーブルを分類していない" "$doc"
 fresh; edit 's#\.\./command-data-model/valid\.md#../command-data-model/none.md#'
 output=$(python3 "$checker" check "$doc" 2>&1); status=$?
-[ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "まだ無い持ち主は未確認として報告し、合否に数えない" || fail "まだ無い持ち主の扱い（exit $status）"
+[ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "まだ無い持ち主は未確認として報告し、合否に数えない" || fail "まだ無い持ち主の扱い（exit ${status}）"
 fresh; edit 's/\*\*取得結果\*\*\n\n\| 会議室 \| 予約 \|\n\|---\|---\|\n\| A \| R-2 \|\n\| B \| R-1 \|\n//'; rejects "取得結果の無い BDD を拒否" "「**取得結果**」の行が0個ある" "$doc"
 fresh; edit 's/(\*\*取得結果\*\*\n)/$1\n| 会議室 |\n|---|\n| A |\n\n$1/'; rejects "取得結果が二つある BDD を拒否" "「**取得結果**」の行が2個ある" "$doc"
 fresh; edit 's/\[BDD-002\]/[BDD-001]/'; rejects "BDD 番号の重複を拒否" "BDD の番号が" "$doc"
@@ -45,6 +45,9 @@ fresh; edit 's/\| BDD-005 \| 対象外 \|/| BDD-005 | クエリデータモデ�
 fresh; edit 's/\| BDD-004 \| BDD-002 \|/| BDD-004 | BDD-002、BDD-007 |/'; rejects "この資料に無い BDD を指す対応を拒否" "この資料に BDD-007 が無い" "$doc"
 fresh; python3 "$checker" check-set "$doc" >/dev/null 2>&1 && pass "そろった集合の検査の正例" || fail "そろった集合の検査の正例"
 fresh; edit 's#\.\./command-data-model/valid\.md#../command-data-model/none.md#'; rejects "集合の検査は残った未確認を違反に数える" "集合がそろった後も持ち主の資料が無い" check-set "$doc"
+fresh; edit 's/(## BDD\n)/## 所与の読み取り元\n\n| 所与の読み取り元 | 読む事実 | 持ち主と正本 |\n|---|---|---|\n| 会議室の案内 | 会議室ごとの名前 | 範囲の外: [案内の要件](..\/要件.md) |\n\n$1/; s/(\*\*取得結果\*\*\n\n\| 会議室 \| 予約 \|\n\|---\|---\|\n\| A)/**所与: 会議室の案内**\n\n| 会議室 | 名前 |\n|---|---|\n| A | 大会議室 |\n\n$1/'; accepts "所与の読み取り元を読む BDD の正例" "$doc"
+fresh; edit 's/(\*\*取得結果\*\*\n\n\| 会議室 \| 予約 \|\n\|---\|---\|\n\| A)/**所与: 会議室の案内**\n\n| 会議室 | 名前 |\n|---|---|\n| A | 大会議室 |\n\n$1/'; rejects "所与の読み取り元の表に無い読み取り元を拒否" "所与の読み取り元の表に無い" "$doc"
+fresh; edit 's/(## BDD\n)/## 所与の読み取り元\n\n| 所与の読み取り元 | 読む事実 | 持ち主と正本 |\n|---|---|---|\n| 会議室の案内 | 会議室ごとの名前 | [案内の要件](..\/要件.md) |\n\n$1/'; rejects "範囲の外と宣言していない所与の読み取り元を拒否" "所与の読み取り元の行が" "$doc"
 python3 "$checker" check >/dev/null 2>&1; [ $? -eq 2 ] && pass "引数の無い呼び出しは exit 2" || fail "引数の無い呼び出しの終了code"
 
 printf '\nquery_model.py: %d passed, %d failed\n' "$passed" "$failed"
