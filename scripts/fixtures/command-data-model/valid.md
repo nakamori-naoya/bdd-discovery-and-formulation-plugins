@@ -2,14 +2,14 @@
 
 ## リソース系とイベント系
 
-| 系列 | 性質 | 論理テーブル | 保存表現 | 時刻 | 変化 | 根拠 |
-|---|---|---|---|---|---|---|
-| リソース系 | 業務 | `reservations` | 現在状態 | なし | 更新あり | 予約の業務知識 |
-| イベント系 | 業務 | `reservation_base_events` | イベント列 | `occurred_at` | 追加のみ | 予約の業務知識 |
-| イベント系 | 業務 | `reservation_cancelled_events` | イベント列 | なし | 追加のみ | 予約取消の業務知識 |
-| イベント系 | 技術 | `cancel_notice_requested_events` | イベント列 | `occurred_at` | 追加のみ | 取消を知らせる要求 |
-| イベント系 | 技術 | `cancel_notice_claimed_events` | イベント列 | `occurred_at` | 追加のみ | 取消を知らせる要求 |
-| イベント系 | 技術 | `cancel_notice_succeeded_events` | イベント列 | `occurred_at` | 追加のみ | 取消を知らせる要求 |
+| 系列 | 性質 | 論理テーブル | 保存表現 | 根拠 |
+|---|---|---|---|---|
+| リソース系 | 業務 | `reservations` | 現在状態 | 予約の業務知識 |
+| イベント系 | 業務 | `reservation_base_events` | イベント列 | 予約の業務知識 |
+| イベント系 | 業務 | `reservation_cancelled_events` | イベント列 | 予約取消の業務知識 |
+| イベント系 | 技術 | `cancel_notice_requested_events` | イベント列 | 取消を知らせる要求 |
+| イベント系 | 技術 | `cancel_notice_claimed_events` | イベント列 | 取消を知らせる要求 |
+| イベント系 | 技術 | `cancel_notice_succeeded_events` | イベント列 | 取消を知らせる要求 |
 
 ## データモデル図
 
