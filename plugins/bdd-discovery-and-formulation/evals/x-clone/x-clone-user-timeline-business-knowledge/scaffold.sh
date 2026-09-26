@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
-# X のクローンの共通の準備を使う。
+# お題の依頼の入力と別 package のファイルを、共通の準備で作業場所へ置く。
 set -euo pipefail
-exec bash "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scaffold.sh"
+CASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+exec bash "$CASE_DIR/../../scaffold.sh" "$CASE_DIR/.."
