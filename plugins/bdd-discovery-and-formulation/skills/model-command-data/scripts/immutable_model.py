@@ -19,7 +19,7 @@
   技術の <処理>_requested_events があれば、同じ接頭辞の <処理>_claimed_events と <処理>_succeeded_events も技術として分類され、
   <処理>_claimed_events は version の列を持つ。
   参照したテーブルは、図の列が読む列と同じ集合で、持ち主の資料があれば、そのテーブルを分類し、読む列が持ち主の図の列に含まれる。
-  持ち主の資料が無いことは未確認として報告し、合否に数えない（check-set では違反に数える）。持ち主の資料の欄が「範囲の外: [持ち主の資料](パス)」の参照は、
+  持ち主の資料が無いことは未確認として報告し、合否に数えない（check-set では違反に数える）。持ち主の資料の欄が「範囲の外: [持ち主の資料の名前](パスかURL)」の参照は、
   置かれない持ち主の宣言なので照合せず、未確認にも数えない。テーブル名が「未定」なら読む列も「未定」である。読む列が仮置きの印「未定」の参照は図に描かず、
   持ち主の資料があるのに「未定」が残っていれば違反である。判定する資料が分類したテーブルを、残りの引数の資料が分類していない。
   技術の <処理>_<単位>_completed_events があれば、同じ接頭辞の <処理>_<単位>_planned_events も技術として分類されている。
@@ -156,7 +156,7 @@ def parse_references(label: str, prose: list[tuple[int, str]], problems: list[Pr
         pending_table = table.strip("`") == PENDING
         match = TABLE_CELL.fullmatch(table)
         if not (match or pending_table) or not (COLUMN_LIST.fullmatch(columns) or columns == PENDING) or not (LINK.fullmatch(owner) or OUTSIDE.fullmatch(owner)):
-            problems.append(Problem(where, "参照の行が、backtick のテーブル名か「未定」、backtick の列名を「、」で区切った並びか「未定」、持ち主の資料への相対 Markdown リンクか「範囲の外: [持ち主の資料](パス)」になっていない", "参照するテーブル、読む列、持ち主の資料をこの形で書く"))
+            problems.append(Problem(where, "参照の行が、backtick のテーブル名か「未定」、backtick の列名を「、」で区切った並びか「未定」、持ち主の資料への相対 Markdown リンクか「範囲の外: [持ち主の資料の名前](パスかURL)」になっていない", "参照するテーブル、読む列、持ち主の資料をこの形で書く"))
             continue
         if pending_table and columns != PENDING:
             problems.append(Problem(where, f"テーブル名が「{PENDING}」なのに読む列が書かれている", f"持ち主が決めるテーブル名が分からないなら、読む列も「{PENDING}」にする"))
