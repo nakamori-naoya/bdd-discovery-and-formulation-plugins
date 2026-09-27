@@ -14,7 +14,7 @@
 合格述語: 分類の表が資料に一つだけあり、参照の表は無いか一つだけある。図の実体は、分類か参照のどちらか一方にだけある。
   分類、図の実体のうち分類したもの、定義の見出しが同じテーブルの集合で、分類は一度ずつ。系列・性質・保存表現が許可値で、根拠が空でない。
   性質は 業務 か 技術 で、リソース系はイベント列を選ばない。イベント系は保存表現がイベント列で、名前が _events で終わる。
-  業務の基底イベント（_base_events）と技術イベントは occurred_at（型は timestamptz）の列を持つ。業務の詳細イベントは occurred_at の列を持たない。業務の基底イベントは version の列を持ち、関係の行で
+  業務の基底イベント（_base_events）と技術イベントは occurred_at の列を持つ。業務の詳細イベントは occurred_at の列を持たない。業務の基底イベントは version の列を持ち、関係の行で
   リソース系・業務のテーブルと結ばれ、結ばれたリソースは status と current_version の列を持つ。業務の詳細イベントがあれば基底イベントもある。
   技術の <処理>_requested_events があれば、同じ接頭辞の <処理>_claimed_events と <処理>_succeeded_events も技術として分類され、
   <処理>_claimed_events は version の列を持つ。
@@ -28,7 +28,7 @@
   見出し行が「業務知識のBDD | この資料のBDD」の対応の表が一つだけあり、各行の左は BDD-<番号>（重複なし）、右は BDD-<番号> を「、」で
   区切ったもの・対象外・クエリデータモデル のどれかで、右に書いた BDD はこの資料の「### [BDD-<番号>]」の見出しにある。
   いずれも宣言（分類表と参照の表の値、テーブルと列の名前、関係の行）から一意に決まることだけを見る。列の名前の語尾（_at など）から、
-  その列が時点かどうかは判定しない。
+  その列が時点かどうかは判定しない。列の型は製品の型を物理設計が決めるので、判定しない。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"}、警告は {"warning", "detail", "howto"} で出し、最後に
   {"status", "subject", "problems", "unverified"} を一行出す。違反があれば終了code 1、未確認だけなら 0。引数が無いかファイルを読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/command-data-model/ の valid.md と、それを持ち主として参照する reader.md。
@@ -303,8 +303,6 @@ def check_model(label: str, model: Model, problems: list[Problem]) -> None:
             continue
         if not occurred:
             problems.append(Problem(f"{prefix}.{OCCURRED_AT}", f"{OCCURRED_AT} の列が無い", f"出来事が起きた時点を {OCCURRED_AT} として置く"))
-        elif occurred[0]["type"] != "timestamptz":
-            problems.append(Problem(f"{prefix}.{OCCURRED_AT}", f"{OCCURRED_AT} の型が timestamptz ではない: {occurred[0]['type']}", f"{OCCURRED_AT} は timestamptz で持つ"))
 
     technical = {n for n, r in classification.items() if r["性質"] == "技術" and r["系列"] == "イベント系"}
     for name in sorted(technical):
