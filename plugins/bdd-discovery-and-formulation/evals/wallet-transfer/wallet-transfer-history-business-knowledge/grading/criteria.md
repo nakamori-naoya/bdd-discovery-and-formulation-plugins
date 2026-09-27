@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/取引履歴/business-knowledge.md -->
-<!-- grill-log: grill-log/取引履歴.md -->
+<!-- record: grill-log/取引履歴.md -->
 <!-- when-stopped: wallet-owner-gap -->
 
 # 取引履歴の業務に固有の条件

@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/リセール/business-knowledge.md -->
-<!-- grill-log: grill-log/リセール.md -->
+<!-- record: grill-log/リセール.md -->
 
 # リセールの業務に固有の条件
 

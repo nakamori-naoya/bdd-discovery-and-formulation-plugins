@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/入場/business-knowledge.md -->
-<!-- grill-log: grill-log/入場.md -->
+<!-- record: grill-log/入場.md -->
 
 # 入場の業務に固有の条件
 

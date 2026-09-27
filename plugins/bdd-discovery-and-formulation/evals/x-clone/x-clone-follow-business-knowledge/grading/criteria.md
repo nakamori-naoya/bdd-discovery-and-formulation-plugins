@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/フォロー/business-knowledge.md -->
-<!-- grill-log: grill-log/フォロー.md -->
+<!-- record: grill-log/フォロー.md -->
 
 # X のクローンのフォローに固有の条件
 

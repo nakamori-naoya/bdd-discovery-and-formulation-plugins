@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/マーカー/business-knowledge.md -->
-<!-- grill-log: grill-log/マーカー.md -->
+<!-- record: grill-log/マーカー.md -->
 
 # マーカーの業務に固有の条件
 

@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/ポイント/business-knowledge.md -->
-<!-- grill-log: grill-log/ポイント.md -->
+<!-- record: grill-log/ポイント.md -->
 <!-- when-stopped: wallet-owner-gap -->
 
 # ポイントの業務に固有の条件

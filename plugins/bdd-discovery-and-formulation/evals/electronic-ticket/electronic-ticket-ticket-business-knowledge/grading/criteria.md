@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/チケット/business-knowledge.md -->
-<!-- grill-log: grill-log/チケット.md -->
+<!-- record: grill-log/チケット.md -->
 
 # チケットの業務に固有の条件
 

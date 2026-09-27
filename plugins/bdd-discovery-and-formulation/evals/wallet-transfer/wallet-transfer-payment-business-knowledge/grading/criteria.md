@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/支払い/business-knowledge.md -->
-<!-- grill-log: grill-log/支払い.md -->
+<!-- record: grill-log/支払い.md -->
 <!-- when-stopped: wallet-owner-gap -->
 
 # 支払いの業務に固有の条件

@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/支払/business-knowledge.md -->
-<!-- grill-log: grill-log/支払.md -->
+<!-- record: grill-log/支払.md -->
 
 # 支払の業務に固有の条件
 

@@ -19,7 +19,7 @@ skill が要件だけから正しい資料を作れるかは、`plugins/bdd-disc
 
 採点を plugin eval の `llm` grader に任せないのは、judge が資料一本しか読めず、PASS か FAIL の一語しか返さないからである。資料を要件や grill の記録と突き合わせる条件で、judge は判定を誤り、その理由も残らなかった。plugin eval の `graders/` には、読まずに判定できるもの（資料と記録ができたか、skill と検査の script と template と grill を使ったか）だけを置く。
 
-置き場は次のとおりである。`evals/criteria/` には、採点役への指示 `brief.md` と、資料の種類ごとの共通の条件（今は `business-knowledge.md`）を置く。`evals/scaffold.sh` は、渡されたお題の要件と業務の分け方と、write-doc と grill の skill を作業場所へ置く。write-doc と grill は隔離環境に入らないので、兄弟 checkout `../write-doc-plugins/` と `../grill-plugins/` から写し、無ければ exit 2 で止まる。`evals/<お題>/` には、お題の要件と業務の分け方 `materials/` と、お題のどの業務にも当てる条件 `criteria.md`（あれば）を置く。`evals/<お題>/<ケース>/` には、実行の指示 `prompt.md` と `case.yaml`、共通の準備を呼ぶ `scaffold.sh`、`graders/`、ケースに固有の条件 `grading/criteria.md` を置く。お題とケースの条件は、お題の viewpoints.md のうち業務知識で確かめられる観点を、判断の型に書き直したものである。固有の条件の先頭の注記が、共通の条件の種類と、判定する資料と記録のパスを決める。`when-stopped` の注記に並べた条件は、実行の担当が資料を作らずに止まったとき、報告と記録だけで判定し、点数はその条件だけで出す。止まることが正しい答えになりうるケースのためである。採点役を確かめる資料と期待する判定は `grading/calibration/` に置く。
+置き場は次のとおりである。`evals/criteria/` には、採点役への指示 `brief.md` と、資料の種類ごとの共通の条件（今は `business-knowledge.md`）を置く。`evals/scaffold.sh` は、渡されたお題の要件と業務の分け方と、write-doc と grill の skill を作業場所へ置く。write-doc と grill は隔離環境に入らないので、兄弟 checkout `../write-doc-plugins/` と `../grill-plugins/` から写し、無ければ exit 2 で止まる。`evals/<お題>/` には、お題の要件と業務の分け方 `materials/` と、お題のどの業務にも当てる条件 `criteria.md`（あれば）を置く。`evals/<お題>/<ケース>/` には、実行の指示 `prompt.md` と `case.yaml`、共通の準備を呼ぶ `scaffold.sh`、`graders/`、ケースに固有の条件 `grading/criteria.md` を置く。お題とケースの条件は、お題の viewpoints.md のうち業務知識で確かめられる観点を、判断の型に書き直したものである。固有の条件の先頭の注記（`common`、`document`、`record`）が、共通の条件の種類と、判定する資料と作業の記録（grill の記録）のパスを決める。`when-stopped` の注記に並べた条件は、実行の担当が資料を作らずに止まったとき、報告と記録だけで判定し、点数はその条件だけで出す。止まることが正しい答えになりうるケースのためである。採点役を確かめる資料と期待する判定は `grading/calibration/` に置く。
 
 実行の指示では、依頼元として、業務の分け方に足りない答え（業務をまたぐ問いの答え、役割の語の持ち主など）を推奨の仮置きで進めるよう渡し、分け方の一覧に無い業務が要るときだけ skill の指示どおりに止まらせる。お題の分け方は、業務をまたぐ問いの答えを意図して持たないので、仮置きを許さないと、どの担当も書き始める前に止まる。
 
@@ -33,14 +33,14 @@ claude plugin eval . --case x-clone-follow-business-knowledge \
   --max-cost-usd 5 --no-publish
 ```
 
-採点は、実行が残した一時ディレクトリ（`kept temp:` の行に出る）を渡して次で行う。採点役は Read、Glob、Grep だけを使い、成果物、実行の担当の最後の報告、`materials/` を写した採点用のディレクトリの外は読めない。期待する判定を三つ目の引数に渡すと、条件ごとに突き合わせて一致の数を出す。
+採点は、兄弟 checkout `../harness-tools/` の `tools/grade-eval.sh` に、ケースと、実行が残した一時ディレクトリ（`kept temp:` の行に出る）を絶対パスで渡して行う。採点の道具はこの repository に複製しない。採点役は Read、Glob、Grep だけを使い、成果物、実行の担当の最後の報告、`materials/` を写した採点用のディレクトリの外は読めない。期待する判定を三つ目の引数に渡すと、条件ごとに突き合わせて一致の数を出す。
 
 ```bash
-bash scripts/grade-eval.sh plugins/bdd-discovery-and-formulation/evals/<お題>/<ケース> /private/tmp/e-XXXXXX
+bash ../harness-tools/tools/grade-eval.sh "$(pwd)/plugins/bdd-discovery-and-formulation/evals/<お題>/<ケース>" /private/tmp/e-XXXXXX
 ```
 
 採点は、全部の条件が PASS かどうかではなく、点数で見る。完璧な資料は作れず、ある程度の見逃しは残る、という前提に立つからである。採点役は既定で3回、互いに独立に回し、条件ごとに多数決を取る。多数決の判定に条件の重みを掛けて足し、100点満点の点数にする。重みは、利用者の原則の芯に当たる条件（推測で埋めない、業務と仕組みの線引き、業務の言葉、拒む理由の結び）を3、行いごとの決まりの骨組みを2、細部を1とし、条件の見出しの下に書く。
 
-点数には目安の帯を置く。85点以上は、下流の資料へそのまま渡せる「実用に足る」、70点以上85点未満は、減点の条件を直せば使える「手直しで使える」、70点未満は「作り直しが要る」である。帯は合否ではない。報告には、点数と一緒に、減点の大きかった条件と採点役の根拠を並べる。採点の報告は `evals/results/grading/<ケース>-<時刻>.md` に、各回の判定は同じ名前の `.vote<N>.md` に残る。多数決と点数は `scripts/grade_eval_score.py` が出すので、各回の結果から点数だけを出し直すときは `python3 scripts/grade_eval_score.py evals/results/grading/<ケース>-<時刻> 3` を使う。
+点数には目安の帯を置く。85点以上は、下流の資料へそのまま渡せる「実用に足る」、70点以上85点未満は、減点の条件を直せば使える「手直しで使える」、70点未満は「作り直しが要る」である。帯は合否ではない。報告には、点数と一緒に、減点の大きかった条件と採点役の根拠を並べる。採点の報告は `evals/results/grading/<ケース>-<時刻>.md` に、各回の判定は同じ名前の `.vote<N>.md` に残る。多数決と点数は `../harness-tools/tools/grade-eval-score.py` が出すので、各回の結果から点数だけを出し直すときは、`python3 ../harness-tools/tools/grade-eval-score.py <結果の名前の基> 3` を使う。結果の名前の基は、`evals/results/grading/<ケース>-<時刻>` の絶対パスである。
 
 条件や採点役への指示を変えたら、`grading/calibration/` の資料に採点役をかけ、期待する判定を再現できるかを先に確かめる。較正の資料は作業場所と同じ形（`out/` と `grill-log/`）で置いてあるので、そのディレクトリを二つ目の引数に渡せばよい。実行と採点の結果は `evals/results/` に書かれ、git の管理から外してある。

@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/ポスト/business-knowledge.md -->
-<!-- grill-log: grill-log/ポスト.md -->
+<!-- record: grill-log/ポスト.md -->
 
 # X のクローンのポストに固有の条件
 

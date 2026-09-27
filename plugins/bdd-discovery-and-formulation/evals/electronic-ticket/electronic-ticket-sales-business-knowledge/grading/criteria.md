@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/販売/business-knowledge.md -->
-<!-- grill-log: grill-log/販売.md -->
+<!-- record: grill-log/販売.md -->
 
 # 販売の業務に固有の条件
 
