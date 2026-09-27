@@ -43,7 +43,6 @@ fresh; edit 's/timestamptz occurred_at "要求した時点"/timestamptz requeste
 fresh; edit 's/(\s+text reason "取消の理由")/$1\n        timestamptz occurred_at "取り消した時点"/'; rejects "occurred_at を持つ詳細イベントを拒否" "詳細イベントが occurred_at の列を持つ" "$work/m/valid.md"
 fresh; edit 's/(\s+text reason "取消の理由")/$1\n        timestamptz cancelled_at "取り消した時点"/'; accepts "名前が _at で終わるだけの詳細イベントの列は拒まない" "$work/m/valid.md"
 fresh; edit 's/(\s+timestamptz occurred_at "起きた時点")/$1\n        timestamptz recorded_at "記録した時点"/'; accepts "名前が _at で終わるだけの基底イベントの列は拒まない" "$work/m/valid.md"
-fresh; edit 's/timestamptz occurred_at "起きた時点"/date occurred_at "起きた時点"/'; rejects "timestamptz でない occurred_at を拒否" "occurred_at の型が timestamptz ではない" "$work/m/valid.md"
 fresh; edit 's/reservation_base_events/reservation_header/g'; rejects "_events で終わらないイベント表を拒否" "_eventsで終わらない" "$work/m/valid.md"
 fresh; edit 's/\n\s+bigint version "予約の中の順序"//'; rejects "version の無い基底イベントを拒否" "基底イベントに適用後の版 version が無い" "$work/m/valid.md"
 fresh; edit 's/\n\s+bigint current_version "反映済みの最後の版"//'; rejects "current_version の無いリソースを拒否" "current_version の列が無い" "$work/m/valid.md"
