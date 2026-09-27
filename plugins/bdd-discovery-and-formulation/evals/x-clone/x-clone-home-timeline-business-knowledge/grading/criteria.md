@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/ホームタイムライン/business-knowledge.md -->
-<!-- grill-log: grill-log/ホームタイムライン.md -->
+<!-- record: grill-log/ホームタイムライン.md -->
 
 # X のクローンのホームタイムラインに固有の条件
 

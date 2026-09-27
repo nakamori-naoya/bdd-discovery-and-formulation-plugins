@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/経費精算/business-knowledge.md -->
-<!-- grill-log: grill-log/経費精算.md -->
+<!-- record: grill-log/経費精算.md -->
 
 # 経費精算の業務に固有の条件
 

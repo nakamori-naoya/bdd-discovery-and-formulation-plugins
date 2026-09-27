@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/チャージ/business-knowledge.md -->
-<!-- grill-log: grill-log/チャージ.md -->
+<!-- record: grill-log/チャージ.md -->
 <!-- when-stopped: wallet-owner-gap -->
 
 # チャージの業務に固有の条件

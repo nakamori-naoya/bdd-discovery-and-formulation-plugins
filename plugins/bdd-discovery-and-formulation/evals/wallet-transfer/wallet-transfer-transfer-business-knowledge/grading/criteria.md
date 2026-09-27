@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/送金/business-knowledge.md -->
-<!-- grill-log: grill-log/送金.md -->
+<!-- record: grill-log/送金.md -->
 <!-- when-stopped: wallet-owner-gap -->
 
 # 送金の業務に固有の条件
