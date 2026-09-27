@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/栞/business-knowledge.md -->
-<!-- grill-log: grill-log/栞.md -->
+<!-- record: grill-log/栞.md -->
 
 # 栞の業務に固有の条件
 

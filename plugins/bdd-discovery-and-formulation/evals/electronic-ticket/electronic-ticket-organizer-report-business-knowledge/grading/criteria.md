@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/主催者の集計/business-knowledge.md -->
-<!-- grill-log: grill-log/主催者の集計.md -->
+<!-- record: grill-log/主催者の集計.md -->
 
 # 主催者の集計の業務に固有の条件
 

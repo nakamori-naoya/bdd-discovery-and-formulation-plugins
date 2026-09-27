@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/代理承認/business-knowledge.md -->
-<!-- grill-log: grill-log/代理承認.md -->
+<!-- record: grill-log/代理承認.md -->
 
 # 代理承認の業務に固有の条件
 

@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/監査の照会/business-knowledge.md -->
-<!-- grill-log: grill-log/監査の照会.md -->
+<!-- record: grill-log/監査の照会.md -->
 
 # 監査の照会の業務に固有の条件
 

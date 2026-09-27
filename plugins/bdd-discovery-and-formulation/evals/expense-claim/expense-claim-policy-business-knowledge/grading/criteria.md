@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/承認規程/business-knowledge.md -->
-<!-- grill-log: grill-log/承認規程.md -->
+<!-- record: grill-log/承認規程.md -->
 
 # 承認規程の業務に固有の条件
 

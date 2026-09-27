@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/アカウント/business-knowledge.md -->
-<!-- grill-log: grill-log/アカウント.md -->
+<!-- record: grill-log/アカウント.md -->
 
 # X のクローンのアカウントに固有の条件
 

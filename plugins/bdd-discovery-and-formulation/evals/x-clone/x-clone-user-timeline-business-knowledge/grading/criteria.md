@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/ユーザータイムライン/business-knowledge.md -->
-<!-- grill-log: grill-log/ユーザータイムライン.md -->
+<!-- record: grill-log/ユーザータイムライン.md -->
 
 # X のクローンのユーザータイムラインに固有の条件
 

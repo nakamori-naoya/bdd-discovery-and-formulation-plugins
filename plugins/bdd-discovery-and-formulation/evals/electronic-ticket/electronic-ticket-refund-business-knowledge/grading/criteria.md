@@ -1,6 +1,6 @@
 <!-- common: business-knowledge -->
 <!-- document: out/払い戻し/business-knowledge.md -->
-<!-- grill-log: grill-log/払い戻し.md -->
+<!-- record: grill-log/払い戻し.md -->
 
 # 払い戻しの業務に固有の条件
 
