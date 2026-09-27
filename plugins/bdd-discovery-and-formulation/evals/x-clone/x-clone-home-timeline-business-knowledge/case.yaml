@@ -1,4 +1,0 @@
-schema_version: "1.1"
-name: x-clone-home-timeline-business-knowledge
-context:
-  scaffold_script: scaffold.sh
