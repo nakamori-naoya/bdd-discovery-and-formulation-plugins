@@ -23,9 +23,8 @@ fresh() { rm -rf "$work/k"; mkdir -p "$work/k"; cp -R "$fixtures"/. "$work/k/"; 
 accepts() { local name=$1; shift; python3 "$checker" check "$@" >/dev/null 2>&1 && pass "$name" || fail "$name"; }
 rejects() {
   local name=$1 expected=$2; shift 2
-  local output status mode=check
-  if [ "$1" = check-set ]; then mode=check-set; shift; fi
-  output=$(python3 "$checker" "$mode" "$@" 2>&1); status=$?
+  local output status
+  output=$(python3 "$checker" check "$@" 2>&1); status=$?
   if [ "$status" -eq 1 ] && rg -F -- "$expected" <<< "$output" >/dev/null; then pass "$name"; else fail "${name}（exit ${status}）"; fi
 }
 edit() { perl -0pi -e "$2" "$1"; }
@@ -50,13 +49,14 @@ fresh; edit "$owner" 's/\| 予約 \| Reservation \|/| 予約 | ReservationID |/'
 fresh; edit "$user" 's/\| 予約 \| Reservation \| 業務用語 \| \[予約の業務知識\]\(\.\.\/予約\/business-knowledge\.md\)/| 予約 | 未定 | 業務用語 | [予約の業務知識](..\/無い\/business-knowledge.md)/'
 output=$(python3 "$checker" check "$user" 2>&1); status=$?
 [ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "持ち主の資料が無い間の未定は未確認として通す" || fail "持ち主の資料が無い間の未定（exit ${status}）"
-rejects "集合の検査は残った未確認を違反に数える" "集合がそろった後も持ち主の資料が無い" check-set "$owner" "$user"
+output=$(python3 "$checker" check-set "$owner" "$user" 2>&1); status=$?
+[ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "複数資料の検査でも持ち主の欠けは未確認にとどめる" || fail "複数資料の未確認（exit ${status}）"
 fresh; edit "$user" 's/\| 予約 \| Reservation \|/| 予約 | 未定 |/'; rejects "持ち主の資料があるのに残った未定を拒否" "英名が「未定」のまま残っている" "$user"
 fresh; edit "$owner" 's/\| 予約 \| Reservation \|/| 予約 | 未定 |/'; rejects "この資料が決める語の未定を拒否" "この資料が決める語の英名が「未定」である" "$owner"
-fresh; python3 "$checker" check-set "$owner" "$user" >/dev/null 2>&1 && pass "そろった集合の検査の正例" || fail "そろった集合の検査の正例"
+fresh; python3 "$checker" check-set "$owner" "$user" >/dev/null 2>&1 && pass "複数資料の検査の正例" || fail "複数資料の検査の正例"
 fresh; edit "$owner" 's/(\| 予約する \| Reserve \|)/| 予約している | Reserving | 状態 | この資料 |\n$1/'; accepts "種類「状態」の語を受け付ける" "$owner"
 fresh; edit "$user" 's/\| 予約 \| Reservation \| 業務用語 \| \[[^\n]*/| 読み手 | 未定 | 業務用語 | 範囲の外: [要件](..\/要件.md) |/'; accepts "範囲の外の持ち主の語は未定のまま通す" "$user"
-python3 "$checker" check-set "$owner" "$user" >/dev/null 2>&1 && pass "範囲の外の持ち主は集合の検査でも違反に数えない" || fail "範囲の外の持ち主の集合の検査"
+python3 "$checker" check-set "$owner" "$user" >/dev/null 2>&1 && pass "範囲の外の持ち主は複数資料の検査でも違反に数えない" || fail "範囲の外の持ち主の複数資料の検査"
 fresh; edit "$owner" 's/(# BDD\n)/# 同時に起きたとき\n\n### 同時に起きること: 二人が同じ予約を取り消す\n\n先に取り消した人だけが通る。\n\n$1/'; rejects "同時に起きることの項目に BDD の番号が無ければ拒否" "同時に起きることの項目に BDD の番号が無い" "$owner"
 fresh; edit "$owner" 's/(# BDD\n)/# 同時に起きたとき\n\n### 同時に起きること: 二人が同じ予約を取り消す\n\n先に取り消した人だけが通る（BDD-009）。\n\n$1/'; rejects "同時に起きることの項目が無い BDD を指せば拒否" "この資料に BDD-009 が無い" "$owner"
 fresh; edit "$owner" 's/(# BDD\n)/# 同時に起きたとき\n\n### 同時に起きること: 二人が同じ予約を取り消す\n\n先に取り消した人だけが通る（BDD-001）。\n\n$1/'; accepts "同時に起きることの項目が BDD を指す正例" "$owner"

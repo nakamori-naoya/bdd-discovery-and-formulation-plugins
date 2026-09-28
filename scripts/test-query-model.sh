@@ -22,9 +22,8 @@ fresh() { rm -rf "$work/f"; mkdir -p "$work/f"; cp -R "$fixtures/query-data-mode
 accepts() { local name=$1; shift; python3 "$checker" check "$@" >/dev/null 2>&1 && pass "$name" || fail "$name"; }
 rejects() {
   local name=$1 expected=$2; shift 2
-  local output status mode=check
-  if [ "$1" = check-set ]; then mode=check-set; shift; fi
-  output=$(python3 "$checker" "$mode" "$@" 2>&1); status=$?
+  local output status
+  output=$(python3 "$checker" check "$@" 2>&1); status=$?
   if [ "$status" -eq 1 ] && rg -F -- "$expected" <<< "$output" >/dev/null; then pass "$name"; else fail "${name}（exit ${status}）"; fi
 }
 edit() { perl -0pi -e "$1" "$doc"; }
@@ -43,8 +42,10 @@ fresh; printf '\n| 系列 | 性質 | 論理テーブル | 保存表現 | 根拠 
 fresh; edit 's/^## 読むテーブル$/## 予約のテーブルだけを読む/m'; accepts "見出しの文言に依らず目印で読む" "$doc"
 fresh; edit 's/\| BDD-005 \| 対象外 \|/| BDD-005 | クエリデータモデル |/'; rejects "許されない対応の欄を拒否" "この資料のBDDの欄が許された形ではない" "$doc"
 fresh; edit 's/\| BDD-004 \| BDD-002 \|/| BDD-004 | BDD-002、BDD-007 |/'; rejects "この資料に無い BDD を指す対応を拒否" "この資料に BDD-007 が無い" "$doc"
-fresh; python3 "$checker" check-set "$doc" >/dev/null 2>&1 && pass "そろった集合の検査の正例" || fail "そろった集合の検査の正例"
-fresh; edit 's#\.\./command-data-model/valid\.md#../command-data-model/none.md#'; rejects "集合の検査は残った未確認を違反に数える" "集合がそろった後も持ち主の資料が無い" check-set "$doc"
+fresh; python3 "$checker" check-set "$doc" >/dev/null 2>&1 && pass "複数資料の検査の正例" || fail "複数資料の検査の正例"
+fresh; edit 's#\.\./command-data-model/valid\.md#../command-data-model/none.md#'
+output=$(python3 "$checker" check-set "$doc" 2>&1); status=$?
+[ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "複数資料の検査でも持ち主の欠けは未確認にとどめる" || fail "複数資料の未確認（exit ${status}）"
 fresh; edit 's/(## BDD\n)/## 所与の読み取り元\n\n| 所与の読み取り元 | 読む事実 | 持ち主 |\n|---|---|---|\n| 会議室の案内 | 会議室ごとの名前 | 範囲の外: [案内の要件](..\/要件.md) |\n\n$1/; s/(\*\*取得結果\*\*\n\n\| 会議室 \| 予約 \|\n\|---\|---\|\n\| A)/**所与: 会議室の案内**\n\n| 会議室 | 名前 |\n|---|---|\n| A | 大会議室 |\n\n$1/'; accepts "所与の読み取り元を読む BDD の正例" "$doc"
 fresh; edit 's/(\*\*取得結果\*\*\n\n\| 会議室 \| 予約 \|\n\|---\|---\|\n\| A)/**所与: 会議室の案内**\n\n| 会議室 | 名前 |\n|---|---|\n| A | 大会議室 |\n\n$1/'; rejects "所与の読み取り元の表に無い読み取り元を拒否" "所与の読み取り元の表に無い" "$doc"
 fresh; edit 's/(## BDD\n)/## 所与の読み取り元\n\n| 所与の読み取り元 | 読む事実 | 持ち主 |\n|---|---|---|\n| 会議室の案内 | 会議室ごとの名前 | [案内の要件](..\/要件.md) |\n\n$1/'; rejects "範囲の外と宣言していない所与の読み取り元を拒否" "所与の読み取り元の行が" "$doc"
