@@ -4,7 +4,7 @@
 基準資料: write-doc の business-knowledge 型の「検査が読む目印」と、この入口の references/ubiquitous-language.md の
   「一つの語は、業務をまたいでも一か所で決める」。見出しの文言は読まない。
 入力: check は、引数に並べた資料のパス。最初の一本が判定する資料（保存した資料）で、残りは隣の業務知識として重複の照合に読むだけである。
-  check-set は、置き場の全業務知識のパス。それぞれを順に判定する資料にし、残りを隣の資料にして同じ判定をする。
+  check-set は、明示された業務知識のパス。それぞれを順に判定する資料にし、残りを隣の資料にして同じ判定をする。
   持ち主の欄のリンクは、判定する資料のディレクトリから解決して読む。
 合格述語:
   ユビキタス言語の表（見出し行が「業務の言葉 | 英名 | 種類 | 持ち主」）がコードブロックの外に一つだけある。
@@ -15,7 +15,7 @@
   範囲の外の行は照合せず、英名が「未定」でもよい。リンクの行は、リンク先の資料があれば、その表に同じ言葉が「この資料」の行として
   同じ英名・同じ種類で載っている。リンク先の資料が無いことは未確認として報告し、合否に数えない。
   判定する資料が「この資料」として決めた言葉を、隣の資料も「この資料」として決めていない。判定する資料の英名が、隣の資料で違う言葉に付いていない。
-  隣の資料そのものの形の違反は判定しない。check-set では、集合がそろった後も読めない持ち主のリンクを違反に数える。
+  隣の資料そのものの形の違反は判定しない。読めない持ち主のリンクは、どちらのモードでも未確認に数える。
   1行目が --- の Mermaid ブロックと stateDiagram-v2 を含む Mermaid ブロックは、先頭が ---、title: <名前>、---、stateDiagram-v2 の四行である。
   BDD の見出しは「### [BDD-<3桁以上の数字>] <本文>」の形で、番号は資料の中で一意である。
   「### 同時に起きること: <名前>」の見出しごとに、次の見出しまでの本文に BDD-<番号> があり、その番号がこの資料の BDD の見出しにある。
@@ -23,7 +23,7 @@
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"} で出し、最後に
   {"status", "subject", "problems", "unverified"} を一行出す。違反があれば終了code 1、未確認だけなら 0。引数が無いかファイルを読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/business-knowledge/ の資料の組。
-反例: scripts/test-business-knowledge.sh の、種類の許可値の外、大文字が続く英名、持ち主の資料があるのに残った未定、集合の検査で残った未確認、同じ言葉の二行、持ち主の英名の食い違い、持ち主の資料に無い言葉、
+反例: scripts/test-business-knowledge.sh の、種類の許可値の外、大文字が続く英名、持ち主の資料があるのに残った未定、同じ言葉の二行、持ち主の英名の食い違い、持ち主の資料に無い言葉、
   隣の資料と同じ言葉を決める、同じ英名が違う言葉に付く、状態遷移図の先頭の欠け、BDD 番号の重複、宣言に無い Rule、BDD の番号の無い同時に起きることの項目、資料に無い BDD を指す項目。
 意味評価として残す範囲: 語が業務の人の言葉か、状態名や業務イベントの名前が作った語でないか、どの資料が語の持ち主であるべきか、
   値が業務の判断を変えるか、決まりと BDD の業務上の正しさ。
@@ -276,7 +276,7 @@ def read_all(paths: list[Path]) -> dict[Path, str] | None:
 
 def main() -> int:
     if len(sys.argv) < 3 or sys.argv[1] not in {"check", "check-set"}:
-        print(json.dumps({"error": "usage: business_knowledge.py check <保存した資料のパス> [<隣の業務知識のパス>...] | check-set <置き場の全業務知識のパス>..."}, ensure_ascii=False))
+        print(json.dumps({"error": "usage: business_knowledge.py check <保存した資料のパス> [<隣の業務知識のパス>...] | check-set <照合する業務知識のパス>..."}, ensure_ascii=False))
         return 2
     paths = [Path(arg).resolve() for arg in sys.argv[2:]]
     texts = read_all(paths)
@@ -296,8 +296,8 @@ def main() -> int:
         for problem in problems:
             print(problem.emit())
         for item in unverified:
-            print(Problem(f"{subject}.持ち主", f"集合がそろった後も持ち主の資料が無い: {item['unverified']}", "持ち主の資料を置くか、持ち主の欄のリンクを直す").emit())
-        total += len(problems) + len(unverified)
+            print(json.dumps(item, ensure_ascii=False))
+        total += len(problems)
     print(json.dumps({"status": "ng" if total else "ok", "documents": len(paths), "problems": total}, ensure_ascii=False))
     return 1 if total else 0
 

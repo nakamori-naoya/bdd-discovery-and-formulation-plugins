@@ -5,7 +5,7 @@
   リソースの status と current_version）とテーブルの持ち主の決まり、references/technical-process-lifecycle.md（要求・回収・成功）。
   記法は write-doc の command-data-model 型の「検査が読む目印」。見出しの文言は読まない。
 入力: check は、引数に並べたコマンドデータモデルのパス。最初の一本が判定する資料（保存した資料）で、残りは重複の照合に読むだけである。
-  check-set は、置き場の全コマンドデータモデルのパス。それぞれを順に判定する資料にし、残りを照合の相手にして同じ判定をする。
+  check-set は、明示されたコマンドデータモデルのパス。それぞれを順に判定する資料にし、残りを照合の相手にして同じ判定をする。
   参照の表の持ち主のリンクは、判定する資料のディレクトリから解決して読む。
 正規化: コードブロックの外で見出し行が「系列 | 性質 | 論理テーブル | 保存表現 | 根拠」の表を分類として、
   見出し行が「参照するテーブル | 読む列 | 持ち主の資料」の表を参照として、1行目が erDiagram の Mermaid ブロックの実体と属性行
@@ -19,7 +19,7 @@
   技術の <処理>_requested_events があれば、同じ接頭辞の <処理>_claimed_events と <処理>_succeeded_events も技術として分類され、
   <処理>_claimed_events は version の列を持つ。
   参照したテーブルは、図の列が読む列と同じ集合で、持ち主の資料があれば、そのテーブルを分類し、読む列が持ち主の図の列に含まれる。
-  持ち主の資料が無いことは未確認として報告し、合否に数えない（check-set では違反に数える）。持ち主の資料の欄が「範囲の外: [持ち主の資料の名前](パスかURL)」の参照は、
+  持ち主の資料が無いことは、どちらのモードでも未確認として報告し、合否に数えない。持ち主の資料の欄が「範囲の外: [持ち主の資料の名前](パスかURL)」の参照は、
   置かれない持ち主の宣言なので照合せず、未確認にも数えない。テーブル名が「未定」なら読む列も「未定」である。読む列が仮置きの印「未定」の参照は図に描かず、
   持ち主の資料があるのに「未定」が残っていれば違反である。判定する資料が分類したテーブルを、残りの引数の資料が分類していない。
   技術の <処理>_<単位>_completed_events があれば、同じ接頭辞の <処理>_<単位>_planned_events も技術として分類されている。
@@ -429,7 +429,7 @@ def judge(subject: Path, others: list[Path], texts: dict[Path, str]) -> tuple[li
 
 def main() -> int:
     if len(sys.argv) < 3 or sys.argv[1] not in {"check", "check-set"}:
-        print(json.dumps({"error": "usage: immutable_model.py check <保存した資料のパス> [<ほかのコマンドデータモデルのパス>...] | check-set <置き場の全コマンドデータモデルのパス>..."}, ensure_ascii=False))
+        print(json.dumps({"error": "usage: immutable_model.py check <保存した資料のパス> [<ほかのコマンドデータモデルのパス>...] | check-set <照合するコマンドデータモデルのパス>..."}, ensure_ascii=False))
         return 2
     paths = [Path(arg).resolve() for arg in sys.argv[2:]]
     texts: dict[Path, str] = {}
@@ -456,10 +456,10 @@ def main() -> int:
         for problem in problems:
             print(problem.emit())
         for item in unverified:
-            print(Problem(f"{subject}.references", f"集合がそろった後も持ち主の資料が無い: {item['unverified']}", "持ち主の資料を置くか、参照の表のリンクを直す").emit())
+            print(json.dumps(item, ensure_ascii=False))
         for item in warnings:
             print(json.dumps(item, ensure_ascii=False))
-        total += len(problems) + len(unverified)
+        total += len(problems)
     print(json.dumps({"status": "ng" if total else "ok", "documents": len(paths), "problems": total}, ensure_ascii=False))
     return 1 if total else 0
 

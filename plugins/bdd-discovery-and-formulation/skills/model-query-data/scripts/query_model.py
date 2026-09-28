@@ -2,7 +2,7 @@
 """クエリデータモデルの資料（query-data-model）の BDD が読むテーブルと列が、コマンドデータモデルに実在するかを検査する。
 
 基準資料: write-doc の query-data-model 型と command-data-model 型の「検査が読む目印」。見出しの文言は読まない。
-入力: check は、判定するクエリデータモデル（保存した資料）のパス一本。check-set は、置き場の全クエリデータモデルのパスで、それぞれを同じく判定する。読むテーブルの表の持ち主のリンクは、その資料のディレクトリから解決して読む。
+入力: check は、判定するクエリデータモデル（保存した資料）のパス一本。check-set は、明示されたクエリデータモデルのパスで、それぞれを同じく判定する。読むテーブルの表の持ち主のリンクは、その資料のディレクトリから解決して読む。
 正規化: クエリデータモデルでは、コードブロックの外で見出し行が「読むテーブル | 持ち主の資料」の表を読むテーブルとして、
   「### [BDD-<数字>]」の見出しから次の見出しまでを一件の BDD として、その中の「**`<テーブル名>`**」の行に続く表の見出し行を読む列として、
   「**取得結果**」の行を取得結果の目印として読む。持ち主のコマンドデータモデルでは、見出し行が
@@ -14,7 +14,7 @@
   BDD の「**所与: <名前>**」の名前は、その表にある。所与の読み取り元だけを読む資料は、読むテーブルの表を持たなくてよい。
   各 BDD に「**取得結果**」の行がちょうど一つあり、その後に表がある。BDD に出たテーブルはすべて読むテーブルの表にあり、
   リンク先の資料があれば、そのテーブルを分類しており、BDD の表の見出しの列名はすべて、持ち主の erDiagram のそのテーブルの列にある。
-  リンク先の資料が無いことは未確認として報告し、合否に数えない（check-set では違反に数える）。
+  リンク先の資料が無いことは、どちらのモードでも未確認として報告し、合否に数えない。
   見出し行が「業務知識のBDD | この資料のBDD」の対応の表が一つだけあり、各行の左は BDD-<番号>（重複なし）、右は BDD-<番号> を「、」で
   区切ったものか 対象外 で、右に書いた BDD はこの資料の「### [BDD-<番号>]」の見出しにある。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"} で出し、最後に
@@ -22,7 +22,7 @@
 正例: repository の scripts/fixtures/query-data-model/valid.md（持ち主は scripts/fixtures/command-data-model/valid.md）。
 反例: scripts/test-query-model.sh の、持ち主の図に無い列、読むテーブルの表に無いテーブル、持ち主が分類していないテーブル、
   取得結果の無い BDD と二つある BDD、BDD 番号の重複、分類の表を持つ資料、許されない対応の欄、この資料に無い BDD を指す対応。
-意味評価として残す範囲: 取得結果が業務知識の表示対象と並び順に合うか、範囲の行の書き方が正しいか、読み取りが本当に実現できるか、
+意味評価として残す範囲: 取得結果が業務知識の対象選択・順位・計算に合うか、範囲の行の書き方が正しいか、読み取りが本当に実現できるか、
   境界の例が足りるか、物理設計の関心が混ざっていないか。
 """
 
@@ -282,7 +282,7 @@ def check_mapping(label: str, prose: list[tuple[int, str]], words: set[str], pro
 
 def main() -> int:
     if len(sys.argv) < 3 or sys.argv[1] not in {"check", "check-set"} or (sys.argv[1] == "check" and len(sys.argv) != 3):
-        print(json.dumps({"error": "usage: query_model.py check <保存した資料のパス> | check-set <置き場の全クエリデータモデルのパス>..."}, ensure_ascii=False))
+        print(json.dumps({"error": "usage: query_model.py check <保存した資料のパス> | check-set <照合するクエリデータモデルのパス>..."}, ensure_ascii=False))
         return 2
     paths = [Path(arg).resolve() for arg in sys.argv[2:]]
     texts: dict[Path, str] = {}
@@ -311,8 +311,8 @@ def main() -> int:
         for problem in problems:
             print(problem.emit())
         for item in unverified:
-            print(Problem(f"{path}.read_tables", f"集合がそろった後も持ち主の資料が無い: {item['unverified']}", "持ち主の資料を置くか、読むテーブルの表のリンクを直す").emit())
-        total += len(problems) + len(unverified)
+            print(json.dumps(item, ensure_ascii=False))
+        total += len(problems)
     print(json.dumps({"status": "ng" if total else "ok", "documents": len(paths), "problems": total}, ensure_ascii=False))
     return 1 if total else 0
 

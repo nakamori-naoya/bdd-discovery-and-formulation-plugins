@@ -24,9 +24,8 @@ accepts() { local name=$1; shift; python3 "$checker" check "$@" >/dev/null 2>&1 
 # rejects <名前> <診断の文言> <資料...>: exit 1 で、診断に文言が出れば合格。
 rejects() {
   local name=$1 expected=$2; shift 2
-  local output status mode=check
-  if [ "$1" = check-set ]; then mode=check-set; shift; fi
-  output=$(python3 "$checker" "$mode" "$@" 2>&1); status=$?
+  local output status
+  output=$(python3 "$checker" check "$@" 2>&1); status=$?
   if [ "$status" -eq 1 ] && rg -F -- "$expected" <<< "$output" >/dev/null; then pass "$name"; else fail "${name}（exit ${status}）"; fi
 }
 # edit <perl の置換>: 一時ディレクトリの valid.md を書き換える。
@@ -68,20 +67,21 @@ fresh; edit 's/\| 業務知識のBDD \| この資料のBDD \|/| 業務知識 | �
 fresh; perl -0pi -e 's/\(valid\.md\)/(missing.md)/; s/`reservation_id`、`status`/未定/; s/\n    reservations \{[^}]*\}//; s/\n    reservations \|\|--o\{ entries : "[^"]*"//' "$work/m/reader.md"
 output=$(python3 "$checker" check "$work/m/reader.md" 2>&1); status=$?
 [ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "持ち主の資料が無い間の未定の参照は未確認として通す" || fail "持ち主の資料が無い間の未定の参照（exit ${status}）"
-rejects "集合の検査は残った未確認を違反に数える" "集合がそろった後も持ち主の資料が無い" check-set "$work/m/valid.md" "$work/m/reader.md"
+output=$(python3 "$checker" check-set "$work/m/valid.md" "$work/m/reader.md" 2>&1); status=$?
+[ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "複数資料の検査でも持ち主の欠けは未確認にとどめる" || fail "複数資料の未確認（exit ${status}）"
 fresh; perl -0pi -e 's/`reservation_id`、`status`/未定/; s/\n    reservations \{[^}]*\}//; s/\n    reservations \|\|--o\{ entries : "[^"]*"//' "$work/m/reader.md"; rejects "持ち主の資料があるのに残った未定を拒否" "持ち主の資料があるのに「未定」のまま残っている" "$work/m/reader.md"
 fresh; perl -0pi -e 's/`reservation_id`、`status`/未定/' "$work/m/reader.md"; rejects "未定の参照を図に描いた資料を拒否" "読む列が「未定」の参照を図に描いている" "$work/m/reader.md"
 fresh; edit 's/(\| イベント系 \| 技術 \| `cancel_notice_succeeded_events`[^\n]*\n)/$1| イベント系 | 技術 | `cancel_notice_batch_completed_events` | イベント列 | 取消を知らせる要求 |\n/; s/(erDiagram\n)/$1    cancel_notice_batch_completed_events {\n        uuid batch_id PK "単位"\n        timestamptz occurred_at "終えた時点"\n    }\n/; s/(### `reservations`)/### `cancel_notice_batch_completed_events`（単位の完了）\n\n単位を終えた事実。\n\n$1/'; rejects "単位を決めた表の無い単位の完了を拒否" "cancel_notice_batch_planned_events が技術イベントとして分類されていない" "$work/m/valid.md"
 fresh; edit 's/(\s+text reason "取消の理由")/$1\n        text room_code "会議室"/'
 output=$(python3 "$checker" check "$work/m/valid.md" 2>&1); status=$?
 [ "$status" -eq 0 ] && rg -F '"warning": "reservations.room_code"' <<< "$output" >/dev/null && pass "リソースと詳細イベントの同じ名前の列は警告にとどめる" || fail "写しの警告（exit ${status}）"
-fresh; python3 "$checker" check-set "$work/m/valid.md" "$work/m/reader.md" >/dev/null 2>&1 && pass "そろった集合の検査の正例" || fail "そろった集合の検査の正例"
+fresh; python3 "$checker" check-set "$work/m/valid.md" "$work/m/reader.md" >/dev/null 2>&1 && pass "複数資料の検査の正例" || fail "複数資料の検査の正例"
 fresh; perl -0pi -e 's/\| `reservations` \| `reservation_id`、`status` \| \[[^\n]*/| 未定 | 未定 | [予約のコマンドデータモデル](missing.md) |/; s/\n    reservations \{[^}]*\}//; s/\n    reservations \|\|--o\{ entries : "[^"]*"//' "$work/m/reader.md"
 output=$(python3 "$checker" check "$work/m/reader.md" 2>&1); status=$?
 [ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "テーブル名も未定の参照は未確認として通す" || fail "テーブル名も未定の参照（exit ${status}）"
 fresh; perl -0pi -e 's/\| `reservations` \| (`reservation_id`、`status`) \|/| 未定 | $1 |/' "$work/m/reader.md"; rejects "テーブル名が未定なのに読む列を書いた参照を拒否" "テーブル名が「未定」なのに読む列が書かれている" "$work/m/reader.md"
 fresh; perl -0pi -e 's/\[予約のコマンドデータモデル\]\(valid\.md\)/範囲の外: [要件](..\/要件.md)/' "$work/m/reader.md"; accepts "範囲の外の持ち主の参照は照合しない" "$work/m/reader.md"
-python3 "$checker" check-set "$work/m/reader.md" >/dev/null 2>&1 && pass "範囲の外の持ち主は集合の検査でも違反に数えない" || fail "範囲の外の持ち主の集合の検査"
+python3 "$checker" check-set "$work/m/reader.md" >/dev/null 2>&1 && pass "範囲の外の持ち主は複数資料の検査でも違反に数えない" || fail "範囲の外の持ち主の複数資料の検査"
 python3 "$checker" check >/dev/null 2>&1; [ $? -eq 2 ] && pass "引数の無い呼び出しは exit 2" || fail "引数の無い呼び出しの終了code"
 python3 "$checker" check "$work/none.md" >/dev/null 2>&1; [ $? -eq 2 ] && pass "読めない資料は exit 2" || fail "読めない資料の終了code"
 
