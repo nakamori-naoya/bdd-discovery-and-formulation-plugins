@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """コマンドデータモデルの資料（command-data-model）が、イミュータブルデータモデルの型とテーブルの持ち主の決まりに構造上合うかを検査する。
 
-基準資料: この入口の SKILL.md が書くイミュータブルデータモデルの型（三つのテーブル、命名、時刻は occurred_at の一本、
-  リソースの status と current_version）とテーブルの持ち主の決まり、references/technical-process-lifecycle.md（要求・回収・成功）。
+基準資料: この入口の SKILL.md が書くイミュータブルデータモデルの型（三つのテーブル、命名、時刻は occurred_at の一本）と
+  テーブルの持ち主の決まり。技術処理でどの出来事が要るかは意味評価に残す。
   記法は write-doc の command-data-model 型の「検査が読む目印」。見出しの文言は読まない。
 入力: check は、引数に並べたコマンドデータモデルのパス。最初の一本が判定する資料（保存した資料）で、残りは重複の照合に読むだけである。
   check-set は、明示されたコマンドデータモデルのパス。それぞれを順に判定する資料にし、残りを照合の相手にして同じ判定をする。
@@ -15,17 +15,15 @@
   分類、図の実体のうち分類したもの、定義の見出しが同じテーブルの集合で、分類は一度ずつ。系列・性質・保存表現が許可値で、根拠が空でない。
   性質は 業務 か 技術 で、リソース系はイベント列を選ばない。イベント系は保存表現がイベント列で、名前が _events で終わる。
   業務の基底イベント（_base_events）と技術イベントは occurred_at の列を持つ。業務の詳細イベントは occurred_at の列を持たない。業務の基底イベントは version の列を持ち、関係の行で
-  リソース系・業務のテーブルと結ばれ、結ばれたリソースは status と current_version の列を持つ。業務の詳細イベントがあれば基底イベントもある。
-  技術の <処理>_requested_events があれば、同じ接頭辞の <処理>_claimed_events と <処理>_succeeded_events も技術として分類され、
-  <処理>_claimed_events は version の列を持つ。
+  リソース系・業務のテーブルと結ばれる。業務の詳細イベントがあれば基底イベントもある。
   参照したテーブルは、図の列が読む列と同じ集合で、持ち主の資料があれば、そのテーブルを分類し、読む列が持ち主の図の列に含まれる。
   持ち主の資料が無いことは、どちらのモードでも未確認として報告し、合否に数えない。持ち主の資料の欄が「範囲の外: [持ち主の資料の名前](パスかURL)」の参照は、
   置かれない持ち主の宣言なので照合せず、未確認にも数えない。テーブル名が「未定」なら読む列も「未定」である。読む列が仮置きの印「未定」の参照は図に描かず、
   持ち主の資料があるのに「未定」が残っていれば違反である。判定する資料が分類したテーブルを、残りの引数の資料が分類していない。
-  技術の <処理>_<単位>_completed_events があれば、同じ接頭辞の <処理>_<単位>_planned_events も技術として分類されている。
   業務のリソースとその詳細イベント（同じ基底イベントと関係の行で結ばれたもの）の両方にキーでない同じ名前の列があれば、違反ではなく警告を出す。
   残りの引数の資料そのものの違反は判定しない。
-  見出し行が「業務知識のBDD | この資料のBDD」の対応の表が一つだけあり、各行の左は BDD-<番号>（重複なし）、右は BDD-<番号> を「、」で
+  分類表で性質「業務」のテーブルがあれば対応の表は一つ、全テーブルが技術なら任意。
+  対応の表を置いた場合、その見出し行が「業務知識のBDD | この資料のBDD」で、各行の左は BDD-<番号>（重複なし）、右は BDD-<番号> を「、」で
   区切ったもの・対象外・クエリデータモデル のどれかで、右に書いた BDD はこの資料の「### [BDD-<番号>]」の見出しにある。
   いずれも宣言（分類表と参照の表の値、テーブルと列の名前、関係の行）から一意に決まることだけを見る。列の名前の語尾（_at など）から、
   その列が時点かどうかは判定しない。列の型は製品の型を物理設計が決めるので、判定しない。
@@ -33,14 +31,14 @@
   {"status", "subject", "problems", "unverified"} を一行出す。違反があれば終了code 1、未確認だけなら 0。引数が無いかファイルを読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/command-data-model/ の valid.md と、それを持ち主として参照する reader.md。
 反例: scripts/test-immutable-model.sh の、旧列名、性質が派生のテーブル、未分類のテーブル、_events で終わらないイベント表、
-  occurred_at の無い技術イベント、occurred_at を持つ詳細イベント、version の無い基底イベント、status か current_version の無いリソース、
-  リソースと結ばれていない基底イベント、成功の無い要求、version の無い回収、単位を決めた表の無い単位の完了、持ち主の資料があるのに残った未定、未定の参照を描いた図、
+  occurred_at の無い技術イベント、occurred_at を持つ詳細イベント、version の無い基底イベント、
+  リソースと結ばれていない基底イベント、持ち主の資料があるのに残った未定、未定の参照を描いた図、
   分類の表が無いか二つある資料、持ち主の図に無い読む列、残りの引数の資料も同じテーブルを分類する組、許されない対応の欄、この資料に無い BDD を指す対応。
 境界例: 見出しに結論を入れた資料や、見出しの名前を変えた資料は通る。持ち主の資料がまだ無い参照は未確認として通る。状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。
   名前が _at で終わる列（詳細イベントの cancelled_at、基底イベントの recorded_at など）も、名前だけでは拒まない。
 意味評価として残す範囲: 列が事実か業務が与えた値か後から導けない技術上の判断か加工した情報か、イベント表に二本目の時点が無いか、
-  status と current_version が本当に状態と版を表しているか、保存の単位と保存表現の選択、どの業務がテーブルを書くべきか、
-  技術処理の諦める出来事が要るか、資料間の意味の整合。
+  status と current_version が必要か、持つなら本当に状態と版を表すか、保存の単位と保存表現の選択、どの業務がテーブルを書くべきか、
+  技術処理にどの出来事が要るか、資料間の意味の整合。
 """
 
 from __future__ import annotations
@@ -283,10 +281,6 @@ def check_model(label: str, model: Model, problems: list[Problem]) -> None:
             resources = sorted(r for r in related.get(name, set()) if classification.get(r, {}).get("系列") == "リソース系" and classification.get(r, {}).get("性質") == "業務")
             if not resources:
                 problems.append(Problem(f"{prefix}.resource", "基底イベントが関係の行でリソース系・業務のテーブルと結ばれていない", "erDiagram に <リソース> ||--|{ <対象>_base_events : \"...\" の関係の行を描く"))
-            for resource in resources:
-                missing = [c for c in ("status", "current_version") if c not in columns_of(model, resource)]
-                if missing:
-                    problems.append(Problem(f"{label}.{resource}", f"イベント列を持つリソースに {'・'.join(missing)} の列が無い", "イベント列を選んだ対象のリソースには、状態が一つでも status と current_version を置く"))
         if row["系列"] == "リソース系" and row["保存表現"] == "イベント列":
             problems.append(Problem(f"{prefix}.保存表現", "リソース系の論理テーブルに対し、分類表の「保存表現」列でイベント列を選択している", "「保存表現」列を現在状態・有効期間履歴・派生のいずれかにする"))
         if row["系列"] != "イベント系":
@@ -303,22 +297,6 @@ def check_model(label: str, model: Model, problems: list[Problem]) -> None:
             continue
         if not occurred:
             problems.append(Problem(f"{prefix}.{OCCURRED_AT}", f"{OCCURRED_AT} の列が無い", f"出来事が起きた時点を {OCCURRED_AT} として置く"))
-
-    technical = {n for n, r in classification.items() if r["性質"] == "技術" and r["系列"] == "イベント系"}
-    for name in sorted(technical):
-        if not name.endswith("_requested_events"):
-            continue
-        process = name[: -len("_requested_events")]
-        for suffix in ("_claimed_events", "_succeeded_events"):
-            if process + suffix not in technical:
-                problems.append(Problem(f"{label}.{name}", f"要求に対応する {process}{suffix} が技術イベントとして分類されていない", "技術処理は、要求・回収・成功の三つの表を同じ接頭辞でそろえる"))
-        claimed = process + "_claimed_events"
-        if claimed in technical and claimed in model.entities and "version" not in columns_of(model, claimed):
-            problems.append(Problem(f"{label}.{claimed}.version", "回収の表に要求の中での回収の版 version が無い", "回収の表に version を置く"))
-
-    for name in sorted(technical):
-        if name.endswith("_completed_events") and name[: -len("_completed_events")] + "_planned_events" not in technical:
-            problems.append(Problem(f"{label}.{name}", f"単位の完了に対応する {name[: -len('_completed_events')]}_planned_events が技術イベントとして分類されていない", "単位を決めた事実を <処理>_<単位>_planned_events に置く。要求全体の成功の判定に単位の集合が要るからである"))
 
     business_details = [n for n, r in classification.items() if r["系列"] == "イベント系" and r["性質"] == "業務" and n.endswith("_events") and not n.endswith("_base_events")]
     business_bases = [n for n, r in classification.items() if r["系列"] == "イベント系" and r["性質"] == "業務" and n.endswith("_base_events")]
@@ -352,10 +330,12 @@ def find_copies(model: Model) -> list[dict]:
 
 
 def check_mapping(label: str, prose: list[tuple[int, str]], words: set[str], problems: list[Problem]) -> None:
-    """業務知識のBDDとの対応の表を一つ読み、欄の形と、指したこの資料のBDDが実在するかを見る。"""
+    """業務知識のBDDとの対応の表があれば、欄の形と、指したこの資料のBDDが実在するかを見る。"""
     starts = [i for i, (_, line) in enumerate(prose) if line.lstrip().startswith("|") and [c.strip() for c in line.strip().strip("|").split("|")] == MAPPING_HEADERS]
+    if not starts:
+        return
     if len(starts) != 1:
-        problems.append(Problem(f"{label}.mapping", f"見出し行が『| {' | '.join(MAPPING_HEADERS)} |』の対応の表が{len(starts)}個ある", "業務知識のBDDとの対応の表を資料に一つだけ置く"))
+        problems.append(Problem(f"{label}.mapping", f"見出し行が『| {' | '.join(MAPPING_HEADERS)} |』の対応の表が{len(starts)}個ある", "業務知識のBDDとの対応の表は置くなら一つだけにする"))
         return
     own = {m.group(1) for m in (OWN_BDD.match(line) for _, line in prose) if m}
     seen: set[str] = set()
@@ -414,7 +394,10 @@ def judge(subject: Path, others: list[Path], texts: dict[Path, str]) -> tuple[li
     models: dict[Path, Model | None] = {}
     model = read_model(label, texts[subject], problems)
     models[subject] = model
-    check_mapping(label, prose_lines(texts[subject].splitlines()), {"対象外", "クエリデータモデル"}, problems)
+    prose = prose_lines(texts[subject].splitlines())
+    if any(row["性質"] == "業務" for row in model.classification.values()) and not any(line.strip() == "| 業務知識のBDD | この資料のBDD |" for _, line in prose):
+        problems.append(Problem(f"{label}.mapping", "業務の資料にBDD対応表が無い", "業務知識のBDDとの対応の表を置く"))
+    check_mapping(label, prose, {"対象外", "クエリデータモデル"}, problems)
     check_model(label, model, problems)
     for path in others:
         if path == subject:
