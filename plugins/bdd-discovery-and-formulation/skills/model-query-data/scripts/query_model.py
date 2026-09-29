@@ -7,22 +7,24 @@
   「### [BDD-<数字>]」の見出しから次の見出しまでを一件の BDD として、その中の「**`<テーブル名>`**」の行に続く表の見出し行を読む列として、
   「**取得結果**」の行を取得結果の目印として読む。持ち主のコマンドデータモデルでは、見出し行が
   「系列 | 性質 | 論理テーブル | 保存表現 | 根拠」の表の論理テーブルの欄と、1行目が erDiagram の Mermaid ブロックの
-  実体と属性行の名前を読む。backtick は外して比べる。
+  実体と属性行の名前を読む。五列分類表がない持ち主では、「論理テーブル」欄を持つ表の対象行、対象名で始まる
+  定義見出し、同名の erDiagram 実体を合わせて読む。backtick は外して比べる。
 合格述語: 読むテーブルの表が一つだけあり、各行は backtick のテーブル名と相対 Markdown リンクで、同じテーブルは一行だけである。
   分類の表と erDiagram のブロックを持たない。BDD の見出しは「### [BDD-<3桁以上の数字>] <本文>」で、番号は資料の中で一意である。
   見出し行が「所与の読み取り元 | 読む事実 | 持ち主」の表は無いか一つで、各行の持ち主は「範囲の外: [持ち主の資料の名前](パスかURL)」の形である。
   BDD の「**所与: <名前>**」の名前は、その表にある。所与の読み取り元だけを読む資料は、読むテーブルの表を持たなくてよい。
   各 BDD に「**取得結果**」の行がちょうど一つあり、その後に表がある。BDD に出たテーブルはすべて読むテーブルの表にあり、
-  リンク先の資料があれば、そのテーブルを分類しており、BDD の表の見出しの列名はすべて、持ち主の erDiagram のそのテーブルの列にある。
-  リンク先の資料が無いことは、どちらのモードでも未確認として報告し、合否に数えない。
+  リンク先の資料に五列分類表があればその表に対象テーブルがあり、無ければ異形式の三つの構造証拠がそろう。
+  BDD の表の見出しの列名はすべて、持ち主の erDiagram のそのテーブルの列にある。
+  リンク先の資料が無いか、異形式の構造証拠がそろわないことは、どちらのモードでも未確認として報告し、合否に数えない。
   見出し行が「業務知識のBDD | この資料のBDD」の対応の表が一つだけあり、各行の左は BDD-<番号>（重複なし）、右は BDD-<番号> を「、」で
   区切ったものか 対象外 で、右に書いた BDD はこの資料の「### [BDD-<番号>]」の見出しにある。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"} で出し、最後に
   {"status", "subject", "problems", "unverified"} を一行出す。違反があれば終了code 1、未確認だけなら 0。引数が無いかファイルを読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/query-data-model/valid.md（持ち主は scripts/fixtures/command-data-model/valid.md）。
-反例: scripts/test-query-model.sh の、持ち主の図に無い列、読むテーブルの表に無いテーブル、持ち主が分類していないテーブル、
+反例: scripts/test-query-model.sh の、持ち主の図に無い列、読むテーブルの表に無いテーブル、五列分類表に無いテーブル、
   取得結果の無い BDD と二つある BDD、BDD 番号の重複、分類の表を持つ資料、許されない対応の欄、この資料に無い BDD を指す対応。
-意味評価として残す範囲: 取得結果が業務知識の対象選択・順位・計算に合うか、範囲の行の書き方が正しいか、読み取りが本当に実現できるか、
+意味評価として残す範囲: リンク先が業務上の真の持ち主か、取得結果が業務知識の対象選択・順位・計算に合うか、範囲の行の書き方が正しいか、読み取りが本当に実現できるか、
   境界の例が足りるか、物理設計の関心が混ざっていないか。
 """
 
@@ -49,6 +51,7 @@ OUTSIDE = re.compile(r"^範囲の外:\s*\[[^\]]*\]\(([^)\s]+)\)$")
 RESULT_LABEL = "**取得結果**"
 ENTITY_OPEN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\{$")
 ATTRIBUTE = re.compile(r'^[A-Za-z_][A-Za-z0-9_\[\]]*\s+([A-Za-z_][A-Za-z0-9_]*)\b')
+DEFINITION = re.compile(r"^###\s+`([^`|]+)`")
 
 
 @dataclass
@@ -104,6 +107,8 @@ def er_blocks(found: list[tuple[str, list[str]]]) -> list[list[str]]:
 class Owner:
     classified: set[str]
     columns: dict[str, set[str]]
+    has_classification: bool
+    alternative: set[str]
 
 
 def read_owner(path: Path) -> Owner | None:
@@ -113,7 +118,8 @@ def read_owner(path: Path) -> Owner | None:
         return None
     prose, found = split(text.splitlines())
     classified: set[str] = set()
-    for start in header_rows(prose, CLASSIFICATION_HEADERS):
+    classification_starts = header_rows(prose, CLASSIFICATION_HEADERS)
+    for start in classification_starts:
         for _, line in prose[start + 2:]:
             if not line.lstrip().startswith("|"):
                 break
@@ -136,7 +142,26 @@ def read_owner(path: Path) -> Owner | None:
                 attr = ATTRIBUTE.match(line)
                 if attr:
                     columns[current].add(attr.group(1))
-    return Owner(classified, columns)
+    alternative: set[str] = set()
+    if not classification_starts:
+        definitions = {match.group(1) for _, line in prose if (match := DEFINITION.match(line))}
+        for start, (_, line) in enumerate(prose):
+            if not line.lstrip().startswith("|"):
+                continue
+            headers = cells(line)
+            if headers.count("論理テーブル") != 1:
+                continue
+            table_index = headers.index("論理テーブル")
+            for _, row_line in prose[start + 2:]:
+                if not row_line.lstrip().startswith("|"):
+                    break
+                row = cells(row_line)
+                if len(row) != len(headers):
+                    continue
+                table = TABLE_CELL.fullmatch(row[table_index])
+                if table and table.group(1) in definitions and table.group(1) in columns:
+                    alternative.add(table.group(1))
+    return Owner(classified, columns, bool(classification_starts), alternative)
 
 
 def check(path: Path, text: str, owners: dict[Path, Owner | None], problems: list[Problem], unverified: list[dict]) -> None:
@@ -237,8 +262,11 @@ def check(path: Path, text: str, owners: dict[Path, Owner | None], problems: lis
         if owner is None:
             unverified.append({"unverified": str(target), "detail": f"持ち主の資料がまだ無いので、`{table}` の列を照合していない"})
             continue
-        if table not in owner.classified:
+        if owner.has_classification and table not in owner.classified:
             problems.append(Problem(where, f"持ち主の資料がこのテーブルを分類していない: {target}", "リンクを、このテーブルを定義したコマンドデータモデルに直す"))
+            continue
+        if not owner.has_classification and table not in owner.alternative:
+            unverified.append({"unverified": str(target), "detail": f"持ち主の資料は異形式で、`{table}` の論理テーブル表・定義見出し・図の実体をすべては照合できない"})
             continue
         missing = sorted(columns - owner.columns.get(table, set()))
         if missing:

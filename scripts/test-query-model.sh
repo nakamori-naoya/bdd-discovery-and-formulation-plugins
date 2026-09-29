@@ -17,6 +17,7 @@ export PYTHONDONTWRITEBYTECODE=1
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 doc="$work/f/query-data-model/valid.md"
+owner="$work/f/command-data-model/valid.md"
 
 fresh() { rm -rf "$work/f"; mkdir -p "$work/f"; cp -R "$fixtures/query-data-model" "$fixtures/command-data-model" "$work/f/"; }
 accepts() { local name=$1; shift; python3 "$checker" check "$@" >/dev/null 2>&1 && pass "$name" || fail "$name"; }
@@ -32,6 +33,14 @@ fresh; accepts "正例" "$doc"
 fresh; edit 's/\| reservation_id \| room_code \| use_on \| status \|/| reservation_id | room_name | use_on | status |/'; rejects "持ち主の図に無い列を拒否" "持ち主の図に無い列を読んでいる" "$doc"
 fresh; edit 's/\n\| `reservations` \| \[[^\n]*//'; rejects "読むテーブルの表に無いテーブルを拒否" "読むテーブルの表に無い" "$doc"
 fresh; edit 's/\*\*`reservations`\*\*/**`entries`**/; s/\| `reservations` \|/| `entries` |/'; rejects "持ち主が分類していないテーブルを拒否" "持ち主の資料がこのテーブルを分類していない" "$doc"
+fresh; perl -0pi -e 's/^\| リソース系 \| 業務 \| `reservations` \|[^\n]*\n//m' "$owner"; rejects "五列表に無い対象は図と見出しがあっても拒否" "持ち主の資料がこのテーブルを分類していない" "$doc"
+fresh; cp "$fixtures/command-data-model/alternative.md" "$owner"; accepts "七列の表・定義見出し・図がそろう持ち主" "$doc"
+fresh; cp "$fixtures/command-data-model/alternative.md" "$owner"; perl -0pi -e 's/\| 系列 \| 性質 \| 論理テーブル \| 表すもの \| 時刻 \| 変化 \| 根拠 \|/| 性質 | 論理テーブル | 役割 | 変化 |/; s/\|---\|---\|---\|---\|---\|---\|---\|/|---|---|---|---|/; s/\| リソース系 \| 業務 \| `reservations` \| 現在状態 \| 利用日 \| 追加 \| 予約 \|/| 業務リソース | `reservations` | 現在状態 | 追加 |/' "$owner"; accepts "四列の表・定義見出し・図がそろう持ち主" "$doc"
+fresh; cp "$fixtures/command-data-model/alternative.md" "$owner"; perl -0pi -e 's/text room_code/text room_name/' "$owner"; rejects "異形式でも図に無い列を拒否" "持ち主の図に無い列を読んでいる" "$doc"
+fresh; cp "$fixtures/command-data-model/alternative.md" "$owner"; perl -0pi -e 's/\| `reservations` \|/| `borrowed_rooms` |/' "$owner"; output=$(python3 "$checker" check "$doc" 2>&1); status=$?; [ "$status" -eq 0 ] && rg -F '"unverified": "' <<< "$output" >/dev/null && pass "異形式の表に対象がなければ未確認" || fail "異形式の表に対象がない場合（exit ${status}）"
+fresh; cp "$fixtures/command-data-model/alternative.md" "$owner"; perl -0pi -e 's/### `reservations`/### `reservation`/' "$owner"; output=$(python3 "$checker" check "$doc" 2>&1); status=$?; [ "$status" -eq 0 ] && rg -F '"unverified": "' <<< "$output" >/dev/null && pass "異形式の定義見出しが違えば未確認" || fail "異形式の定義見出しが違う場合（exit ${status}）"
+fresh; cp "$fixtures/command-data-model/alternative.md" "$owner"; perl -0pi -e 's/    reservations \{/    reservation {/' "$owner"; output=$(python3 "$checker" check "$doc" 2>&1); status=$?; [ "$status" -eq 0 ] && rg -F '"unverified": "' <<< "$output" >/dev/null && pass "異形式の図に対象がなければ未確認" || fail "異形式の図に対象がない場合（exit ${status}）"
+fresh; cp "$fixtures/command-data-model/alternative.md" "$owner"; perl -0pi -e 's/\| `reservations` \|/| `reservation` |/' "$owner"; output=$(python3 "$checker" check-set "$doc" 2>&1); status=$?; [ "$status" -eq 0 ] && rg -F '"unverified": "' <<< "$output" >/dev/null && pass "異形式の似た名前は check-set でも未確認" || fail "異形式の似た名前の扱い（exit ${status}）"
 fresh; edit 's#\.\./command-data-model/valid\.md#../command-data-model/none.md#'
 output=$(python3 "$checker" check "$doc" 2>&1); status=$?
 [ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "まだ無い持ち主は未確認として報告し、合否に数えない" || fail "まだ無い持ち主の扱い（exit ${status}）"
