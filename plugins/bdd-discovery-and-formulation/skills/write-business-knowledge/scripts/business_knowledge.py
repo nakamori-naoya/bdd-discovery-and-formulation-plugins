@@ -1,32 +1,31 @@
 #!/usr/bin/env python3
 """業務知識の資料（business-knowledge）が、目印の形に合うかを検査する。
 
-基準資料: write-doc の business-knowledge 型の「検査が読む目印」と、この入口の references/ubiquitous-language.md の
-  「一つの語は、業務をまたいでも一か所で決める」。見出しの文言は読まない。
-入力: check は、引数に並べた資料のパス。最初の一本が判定する資料（保存した資料）で、残りは隣の業務知識として重複の照合に読むだけである。
-  check-set は、明示された業務知識のパス。それぞれを順に判定する資料にし、残りを隣の資料にして同じ判定をする。
-  持ち主の欄のリンクは、判定する資料のディレクトリから解決して読む。
+基準資料: write-doc の business-knowledge 型の「検査が読む目印」と、この入口の references/judgment.md の
+  「業務をまたぐ決まりと名前は、一か所だけが持つ」。`###` の項目の名前と表のセルの名前は照合するが、本文の文言は読まない。
+入力: check は、判定する資料（保存した資料）のパス一本。check-set は、明示された業務知識のパスで、それぞれを check と同じく判定し、
+  あわせて資料どうしを照合する。前提のリンクは、その資料のディレクトリから解決する。
 合格述語:
-  ユビキタス言語の表（見出し行が「業務の言葉 | 英名 | 種類 | 持ち主」）がコードブロックの外に一つだけある。
-  各行の種類は 業務用語・業務イベント・概念・状態・コマンド・クエリ のどれかで、業務の言葉と英名は空でなく、一つの言葉は一行だけにある。
-  英名は、語ごとに先頭だけを大文字にしてつないだ形（正規表現 ^(?:[A-Z][a-z0-9]*)+$ に合い、大文字が二つ続かない）か、仮置きの印「未定」である。
-  「未定」は持ち主がリンクの行にだけ置け、持ち主の資料があるのに「未定」が残っていれば違反である。
-  持ち主の欄は「この資料」か、相対 Markdown リンクか、範囲の外の持ち主を宣言する「範囲の外: [持ち主の資料の名前](パスかURL)」で、
-  範囲の外の行は照合せず、英名が「未定」でもよい。リンクの行は、リンク先の資料があれば、その表に同じ言葉が「この資料」の行として
-  同じ英名・同じ種類で載っている。リンク先の資料が無いことは未確認として報告し、合否に数えない。
-  判定する資料が「この資料」として決めた言葉を、隣の資料も「この資料」として決めていない。判定する資料の英名が、隣の資料で違う言葉に付いていない。
-  隣の資料そのものの形の違反は判定しない。読めない持ち主のリンクは、どちらのモードでも未確認に数える。
-  1行目が --- の Mermaid ブロックと stateDiagram-v2 を含む Mermaid ブロックは、先頭が ---、title: <名前>、---、stateDiagram-v2 の四行である。
-  BDD の見出しは「### [BDD-<3桁以上の数字>] <本文>」の形で、番号は資料の中で一意である。
-  「### 同時に起きること: <名前>」の見出しごとに、次の見出しまでの本文に BDD-<番号> があり、その番号がこの資料の BDD の見出しにある。
-  「#### 拒む理由: <名前>」の名前は資料の中で一意で、gherkin ブロックの「Rule: <名前>」はそのどれかと一致する。
+  コードブロックの外で、`#` の見出しは表題の一つだけで、`##` の見出しは「この業務の核、前提、制約、状況、計算、行動・出来事と判断、
+  まだ決まっていないこと、BDD」の八つがこの順に一度ずつあり、ほかに無い。
+  前提、制約、状況、計算の `###` の名前は、この四つの節を通して一意である。状況の名前は、末尾の「（<英名>）」を外したものとする。
+  見出し行が「| 状況 | きっかけ | 起こす人 | 判断 | 起きること | 根拠 |」の表は資料に高々一つで、行動・出来事と判断の節にあり、
+  その節にほかの表は無い。表の各行は六列で、状況の欄は状況の名前か「—」（まとめた行は「、」で区切った状況の名前）、
+  判断の欄は「できる」か「できない」、根拠の欄を「、」で区切った各名前は前提、制約、状況、計算のどれかの名前である。
+  「できない」の行の根拠には、制約、前提、状況の名前が一つ以上ある。
+  「### [BDD-」で始まる見出しは BDD の節の下にだけあり、BDD の節の `###` はすべて「### [BDD-<3桁以上の数字>] <業務結果>」の形で、番号は資料の中で一意である。
+  gherkin ブロックの「NOTE: Rule: <名前>」の名前は、制約、前提、状況の名前のどれかである。
+  check-set では、さらに、制約、状況、計算の名前を二つの資料が定義していない（前提は持ち主の資料を指す項目なので照合しない）。
+  前提の節にある相対リンクの先の資料が無いことは、未確認として報告し、合否に数えない。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"} で出し、最後に
-  {"status", "subject", "problems", "unverified"} を一行出す。違反があれば終了code 1、未確認だけなら 0。引数が無いかファイルを読めなければ {"error"} と終了code 2。
-正例: repository の scripts/fixtures/business-knowledge/ の資料の組。
-反例: scripts/test-business-knowledge.sh の、種類の許可値の外、大文字が続く英名、持ち主の資料があるのに残った未定、同じ言葉の二行、持ち主の英名の食い違い、持ち主の資料に無い言葉、
-  隣の資料と同じ言葉を決める、同じ英名が違う言葉に付く、状態遷移図の先頭の欠け、BDD 番号の重複、宣言に無い Rule、BDD の番号の無い同時に起きることの項目、資料に無い BDD を指す項目。
-意味評価として残す範囲: 語が業務の人の言葉か、状態名や業務イベントの名前が作った語でないか、どの資料が語の持ち主であるべきか、
-  値が業務の判断を変えるか、決まりと BDD の業務上の正しさ。
+  check は {"status", "subject", "problems"}、check-set は {"status", "documents", "problems", "unverified"} を一行出す。
+  違反があれば終了code 1、未確認だけなら 0。引数の形が違うかファイルを読めなければ {"error"} と終了code 2。
+正例: repository の scripts/fixtures/business-knowledge/ の資料の組（入室の前提が予約の資料を指す）。
+反例: scripts/test-business-knowledge.sh の、節の欠け・順の入れ替え・余分な節・二つ目の表題、四つの節をまたぐ同じ名前、
+  見出し行の違う表・二つ目の表・節の外の表、列数の違う行、無い状況、判断の許可値の外、無い根拠、計算だけを根拠にしたできない行、
+  BDD の見出しの形・番号の重複・節の外の BDD・BDD の節の BDD でない見出し、制約でも前提でも状況でもない Rule、二つの資料が定義する同じ制約。
+意味評価として残す範囲: その事実がその節にあるべきか、表が状況ときっかけの組み合わせを網羅しているか、根拠がその判断を本当に支えるか、
+  名前が業務の言葉か、英名の付け方、BDD が本文の判断を正しく例示するか、どの資料が決まりの持ち主であるべきか。
 """
 
 from __future__ import annotations
@@ -34,25 +33,23 @@ from __future__ import annotations
 import json
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
-HEADERS = ["業務の言葉", "英名", "種類", "持ち主"]
-KINDS = {"業務用語", "業務イベント", "概念", "状態", "コマンド", "クエリ"}
-OWN = "この資料"
-PENDING = "未定"
-ENGLISH = re.compile(r"^(?:[A-Z][a-z0-9]*)+$")
-DOUBLE_CAPITAL = re.compile(r"[A-Z]{2}")
-LINK = re.compile(r"^\[[^\]]*\]\(([^)\s]+)\)$")
-OUTSIDE = re.compile(r"^範囲の外:\s*\[[^\]]*\]\(([^)\s]+)\)$")
-CONCURRENT = re.compile(r"^###\s+同時に起きること:\s*(.+?)\s*$")
-HEADING = re.compile(r"^#{1,6}\s")
-BDD_REF = re.compile(r"BDD-\d{3,}")
-BDD_ANY = re.compile(r"^###\s+\[BDD-")
-BDD = re.compile(r"^###\s+\[BDD-(\d{3,})\]\s+\S")
-REASON = re.compile(r"^####\s+拒む理由:\s*(.+?)\s*$")
-RULE = re.compile(r"^\s*NOTE:\s*Rule:\s*(.+?)\s*$|^\s*Rule:\s*(.+?)\s*$")
+SECTIONS = ["この業務の核", "前提", "制約", "状況", "計算", "行動・出来事と判断", "まだ決まっていないこと", "BDD"]
+ITEM_SECTIONS = ["前提", "制約", "状況", "計算"]
+TABLE_SECTION = "行動・出来事と判断"
+TABLE_HEADERS = ["状況", "きっかけ", "起こす人", "判断", "起きること", "根拠"]
+DECISIONS = {"できる", "できない"}
+NO_SITUATION = "—"
+HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+ENGLISH_SUFFIX = re.compile(r"（[^（）]*）$")
+SEPARATOR = re.compile(r"^\|?(\s*:?-+:?\s*\|)*\s*:?-+:?\s*\|?$")
+BDD_ANY = re.compile(r"^\[BDD-")
+BDD = re.compile(r"^\[BDD-(\d{3,})\]\s+\S")
+RULE = re.compile(r"^\s*NOTE:\s*Rule:\s*(.+?)\s*$")
+LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 
 
 @dataclass
@@ -65,17 +62,28 @@ class Problem:
         return json.dumps(self.__dict__, ensure_ascii=False)
 
 
+@dataclass
+class Document:
+    path: Path
+    items: dict[str, dict[str, int]] = field(default_factory=lambda: {name: {} for name in ITEM_SECTIONS})
+    premise_lines: list[str] = field(default_factory=list)
+
+
 def cells(line: str) -> list[str]:
     return [cell.strip() for cell in line.strip().strip("|").split("|")]
 
 
-def blocks(lines: list[str]) -> tuple[list[tuple[int, str]], list[tuple[str, list[str]]]]:
-    """コードブロックの外の行と、(言語, 中身の行) のブロックを返す。"""
+def split_names(cell: str) -> list[str]:
+    return [name.strip() for name in cell.split("、") if name.strip()]
+
+
+def outside_fences(lines: list[str]) -> tuple[list[tuple[int, str]], list[tuple[str, list[str]]]]:
+    """コードブロックの外の (行番号, 行) と、(言語, 中身の行) のブロックを返す。"""
     prose: list[tuple[int, str]] = []
     found: list[tuple[str, list[str]]] = []
     fence: list[str] | None = None
     language = ""
-    for number, line in enumerate(lines):
+    for number, line in enumerate(lines, start=1):
         stripped = line.strip()
         if fence is not None:
             if stripped.startswith("```"):
@@ -91,176 +99,126 @@ def blocks(lines: list[str]) -> tuple[list[tuple[int, str]], list[tuple[str, lis
     return prose, found
 
 
-@dataclass
-class Term:
-    word: str
-    english: str
-    kind: str
-    owner: str
-    line: int
+def check_document(path: Path, text: str, problems: list[Problem]) -> Document:
+    label = str(path)
+    document = Document(path)
+    prose, found = outside_fences(text.splitlines())
 
+    titles = [number for number, line in prose if (m := HEADING.match(line)) and len(m.group(1)) == 1]
+    if len(titles) != 1:
+        problems.append(Problem(f"{label}.title", f"`#` の見出しが{len(titles)}個ある", "`#` は資料の表題として一つだけ置く"))
+    found_sections = [m.group(2) for _, line in prose if (m := HEADING.match(line)) and len(m.group(1)) == 2]
+    if found_sections != SECTIONS:
+        problems.append(Problem(f"{label}.sections", f"`##` の見出しが「{'、'.join(SECTIONS)}」の順の八つではない: {'、'.join(found_sections) or 'なし'}", "`##` を八つの名前でこの順に置き、中身が無い節も消さず無いことを一文で書く"))
 
-def read_terms(label: str, prose: list[tuple[int, str]], problems: list[Problem]) -> list[Term]:
-    starts = [i for i, (_, line) in enumerate(prose) if line.lstrip().startswith("|") and cells(line) == HEADERS]
-    if len(starts) != 1:
-        problems.append(Problem(f"{label}.ubiquitous_language", f"見出し行が『| {' | '.join(HEADERS)} |』の表が{len(starts)}個ある", "ユビキタス言語の表を資料に一つだけ置く"))
-        return []
-    terms: list[Term] = []
-    for number, line in prose[starts[0] + 2:]:
-        if not line.lstrip().startswith("|"):
-            break
-        row = cells(line)
-        if len(row) != len(HEADERS):
-            problems.append(Problem(f"{label}.line[{number + 1}]", "列数がユビキタス言語の表の見出しと一致しない", "各行を4列にする"))
-            continue
-        word, english, kind, owner = row
-        if not word or not english:
-            problems.append(Problem(f"{label}.line[{number + 1}]", "業務の言葉か英名が空である", "業務の言葉ごとに英名を一つ書く"))
-            continue
-        if kind not in KINDS:
-            problems.append(Problem(f"{label}.{word}.種類", f"許可値ではない: {kind}", "業務用語・業務イベント・概念・状態・コマンド・クエリのどれか一つにする"))
-        if english == PENDING and owner == OWN:
-            problems.append(Problem(f"{label}.{word}.英名", f"この資料が決める語の英名が「{PENDING}」である", f"「{PENDING}」は、持ち主の資料がまだ無い参照の行にだけ使う"))
-        elif english != PENDING and (not ENGLISH.fullmatch(english) or DOUBLE_CAPITAL.search(english)):
-            problems.append(Problem(f"{label}.{word}.英名", f"英名が語ごとに先頭だけを大文字にした形ではない: {english}", "語ごとに先頭だけを大文字にしてつなぎ、略語も一語として先頭だけを大文字にする（OrderId）"))
-        if owner != OWN and not LINK.match(owner) and not OUTSIDE.match(owner):
-            problems.append(Problem(f"{label}.{word}.持ち主", f"「{OWN}」でも、相対 Markdown リンクでも、「範囲の外: [持ち主の資料の名前](パスかURL)」でもない: {owner}", f"この資料で決めた語は「{OWN}」、ほかの資料の語は持ち主の資料へのリンク、範囲の外の持ち主の語は「範囲の外: [持ち主の資料の名前](パスかURL)」にする"))
-        terms.append(Term(word, english, kind, owner, number + 1))
-    seen: set[str] = set()
-    for term in terms:
-        if term.word in seen:
-            problems.append(Problem(f"{label}.{term.word}", "同じ業務の言葉が表に二行ある", "一つの言葉は一行だけに置き、種類を一つに決める"))
-        seen.add(term.word)
-    return terms
+    section = ""
+    item_owner: dict[str, str] = {}
+    tables: list[tuple[str, int, list[tuple[int, str]]]] = []
+    table: list[tuple[int, str]] = []
+    bdd_numbers: dict[str, int] = {}
 
+    def close_table() -> None:
+        if table:
+            tables.append((section, table[0][0], list(table)))
+            table.clear()
 
-def check_state_diagrams(label: str, found: list[tuple[str, list[str]]], problems: list[Problem]) -> None:
-    for index, (language, body) in enumerate(found):
-        if language != "mermaid":
-            continue
-        content = [line.strip() for line in body if line.strip()]
-        if not content:
-            continue
-        if content[0] != "---" and "stateDiagram-v2" not in content:
-            continue
-        head = content[:4]
-        ok = len(head) == 4 and head[0] == "---" and re.fullmatch(r"title:\s*\S.*", head[1]) and head[2] == "---" and head[3] == "stateDiagram-v2"
-        if not ok:
-            problems.append(Problem(f"{label}.mermaid[{index}]", "状態遷移図の先頭が ---、title: <名前>、---、stateDiagram-v2 の四行ではない", "状態を持つものごとに、この四行で始まるブロックを一つ置く"))
-
-
-def check_bdd_and_reasons(label: str, prose: list[tuple[int, str]], found: list[tuple[str, list[str]]], problems: list[Problem]) -> None:
-    numbers: dict[str, int] = {}
     for number, line in prose:
-        if not BDD_ANY.match(line):
+        if line.lstrip().startswith("|"):
+            table.append((number, line))
             continue
-        match = BDD.match(line)
+        close_table()
+        match = HEADING.match(line)
         if not match:
-            problems.append(Problem(f"{label}.line[{number + 1}]", "BDD の見出しが「### [BDD-<3桁以上の数字>] <本文>」の形ではない", "番号を3桁以上の数字にし、閉じ括弧の後に業務結果を書く"))
+            if section == "前提":
+                document.premise_lines.append(line)
             continue
-        if match.group(1) in numbers:
-            problems.append(Problem(f"{label}.BDD-{match.group(1)}", f"BDD の番号が {numbers[match.group(1)]} 行目と重複している", "BDD の番号を資料の中で一意にする"))
-        numbers.setdefault(match.group(1), number + 1)
-    reasons: set[str] = set()
-    for number, line in prose:
-        match = REASON.match(line)
-        if not match:
+        level, title = len(match.group(1)), match.group(2)
+        if level <= 2:
+            section = title if level == 2 else ""
             continue
-        if match.group(1) in reasons:
-            problems.append(Problem(f"{label}.拒む理由.{match.group(1)}", "同じ名前の拒む理由が二つある", "拒む理由の名前を資料の中で一意にする"))
-        reasons.add(match.group(1))
+        if level != 3:
+            continue
+        if BDD_ANY.match(title) and section != "BDD":
+            problems.append(Problem(f"{label}.line[{number}]", "BDD の見出しが BDD の節の外にある", "BDD は資料の最後の `## BDD` の下にだけ置く"))
+        if section == "BDD":
+            bdd = BDD.match(title)
+            if not bdd:
+                problems.append(Problem(f"{label}.line[{number}]", "BDD の節の見出しが「### [BDD-<3桁以上の数字>] <業務結果>」の形ではない", "番号を3桁以上の数字にし、閉じ括弧の後に業務結果を書く"))
+            elif bdd.group(1) in bdd_numbers:
+                problems.append(Problem(f"{label}.BDD-{bdd.group(1)}", f"BDD の番号が {bdd_numbers[bdd.group(1)]} 行目と重複している", "BDD の番号を資料の中で一意にする"))
+            else:
+                bdd_numbers[bdd.group(1)] = number
+        if section in ITEM_SECTIONS:
+            name = ENGLISH_SUFFIX.sub("", title).strip() if section == "状況" else title
+            if name in item_owner:
+                problems.append(Problem(f"{label}.{section}.{name}", f"同じ名前が{item_owner[name]}の節にもある", "前提、制約、状況、計算の項目の名前を、四つの節を通して一意にする"))
+            else:
+                item_owner[name] = section
+                document.items[section][name] = number
+        if section == "前提":
+            document.premise_lines.append(line)
+    close_table()
+
+    check_table(label, document, tables, problems)
+    rejecting = set(document.items["制約"]) | set(document.items["前提"]) | set(document.items["状況"])
     for language, body in found:
         if language != "gherkin":
             continue
         for line in body:
-            match = RULE.match(line)
-            if not match:
+            rule = RULE.match(line)
+            if rule and rule.group(1) not in rejecting:
+                problems.append(Problem(f"{label}.Rule.{rule.group(1)}", "NOTE: Rule の名前が、制約にも前提にも状況にも無い", "拒否の BDD の Rule には、表のその行が根拠にした制約、前提、状況の名前をそのまま書く"))
+    return document
+
+
+def check_table(label: str, document: Document, tables: list[tuple[str, int, list[tuple[int, str]]]], problems: list[Problem]) -> None:
+    situations = set(document.items["状況"])
+    bases = set().union(*(document.items[section] for section in ITEM_SECTIONS))
+    rejecting = set(document.items["前提"]) | set(document.items["制約"]) | situations
+    decision_tables = 0
+    for section, start, rows in tables:
+        is_decision = cells(rows[0][1]) == TABLE_HEADERS
+        if not is_decision:
+            if section == TABLE_SECTION:
+                problems.append(Problem(f"{label}.line[{start}]", f"{TABLE_SECTION}の節に、見出し行が『| {' | '.join(TABLE_HEADERS)} |』ではない表がある", "この節の表は、見出し行をこの六列にした一つだけにする"))
+            continue
+        decision_tables += 1
+        if section != TABLE_SECTION:
+            problems.append(Problem(f"{label}.line[{start}]", f"判断の表が{TABLE_SECTION}の節の外にある", f"判断の表は「## {TABLE_SECTION}」の下に置く"))
+        if decision_tables > 1:
+            problems.append(Problem(f"{label}.line[{start}]", "判断の表が二つ目である", "状況ときっかけの組み合わせは、一つの表に一行ずつ置く"))
+        body = rows[1:]
+        if body and SEPARATOR.match(body[0][1].strip()):
+            body = body[1:]
+        for number, line in body:
+            row = cells(line)
+            where = f"{label}.line[{number}]"
+            if len(row) != len(TABLE_HEADERS):
+                problems.append(Problem(where, "列数が判断の表の見出しと一致しない", "各行を、状況、きっかけ、起こす人、判断、起きること、根拠の六列にする"))
                 continue
-            name = match.group(1) or match.group(2)
-            if name not in reasons:
-                problems.append(Problem(f"{label}.Rule.{name}", "BDD の Rule が「#### 拒む理由: <名前>」のどれとも一致しない", "Rule には、業務の行いの節で宣言した拒む理由の名前をそのまま書く"))
+            situation, _, _, decision, _, basis = row
+            if situation != NO_SITUATION:
+                for name in split_names(situation) or [situation]:
+                    if name not in situations:
+                        problems.append(Problem(where, f"状況の欄の名前が状況の節に無い: {name}", f"状況の節の名前を書くか、状況を持たない業務では「{NO_SITUATION}」にする"))
+            if decision not in DECISIONS:
+                problems.append(Problem(where, f"判断が許可値ではない: {decision}", "判断の欄は「できる」か「できない」にする"))
+            names = split_names(basis)
+            for name in names:
+                if name not in bases:
+                    problems.append(Problem(where, f"根拠の名前が前提、制約、状況、計算のどれにも無い: {name}", "根拠には、前提、制約、状況、計算の項目の名前を「、」で区切って書く"))
+            if decision == "できない" and not any(name in rejecting for name in names):
+                problems.append(Problem(where, "できない行の根拠に、制約、前提、状況の名前が無い", "できない行の根拠には、拒む理由になる制約、前提、状況の名前を一つ以上置く"))
 
 
-def check_concurrency(label: str, prose: list[tuple[int, str]], problems: list[Problem]) -> None:
-    """「### 同時に起きること: <名前>」の項目ごとに、この資料にある BDD の番号が書かれているかを見る。"""
-    own = {m.group(1) for m in (BDD.match(line) for _, line in prose) if m}
-    own = {f"BDD-{n}" for n in own}
-    for index, (number, line) in enumerate(prose):
-        match = CONCURRENT.match(line)
-        if not match:
-            continue
-        body: list[str] = []
-        for _, following in prose[index + 1:]:
-            if HEADING.match(following):
-                break
-            body.append(following)
-        refs = BDD_REF.findall("\n".join(body))
-        if not refs:
-            problems.append(Problem(f"{label}.同時に起きること.{match.group(1)}", "同時に起きることの項目に BDD の番号が無い", "項目の段落に、どちらが通るかを示す BDD の番号を書く"))
-        for ref in refs:
-            if ref not in own:
-                problems.append(Problem(f"{label}.同時に起きること.{match.group(1)}", f"この資料に {ref} が無い", "この資料にある BDD の番号を書く"))
-
-
-def load(path: Path, cache: dict[Path, list[Term] | None]) -> list[Term] | None:
-    if path not in cache:
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError:
-            cache[path] = None
-            return None
-        prose, _ = blocks(text.splitlines())
-        cache[path] = read_terms(str(path), prose, [])
-    return cache[path]
-
-
-def check_owners(path: Path, terms: list[Term], cache: dict[Path, list[Term] | None], problems: list[Problem], unverified: list[dict]) -> None:
-    for term in terms:
-        match = LINK.match(term.owner)
-        if not match:
-            continue
-        target = (path.parent / match.group(1)).resolve()
-        owner_terms = load(target, cache)
-        if owner_terms is None:
-            unverified.append({"unverified": str(target), "detail": f"持ち主の資料がまだ無いので、「{term.word}」の英名と種類を照合していない"})
-            continue
-        if term.english == PENDING:
-            problems.append(Problem(f"{path}.{term.word}.英名", f"持ち主の資料があるのに英名が「{PENDING}」のまま残っている: {target}", "同じ入口で深めて、持ち主の英名に替える"))
-            continue
-        owned = [t for t in owner_terms if t.word == term.word and t.owner == OWN]
-        if not owned:
-            problems.append(Problem(f"{path}.{term.word}.持ち主", f"持ち主の資料がこの言葉を「{OWN}」として決めていない: {target}", "持ち主を、その語を決めた資料に直すか、持ち主の資料への変更案として返す"))
-            continue
-        if owned[0].english != term.english or owned[0].kind != term.kind:
-            problems.append(Problem(f"{path}.{term.word}", f"持ち主の資料と英名か種類が違う: 持ち主は {owned[0].english}（{owned[0].kind}）", "持ち主の資料と同じ英名と種類を使う。持ち主を変えたいなら変更案として返す"))
-
-
-def judge(subject: Path, others: list[Path], texts: dict[Path, str]) -> tuple[list[Problem], list[dict]]:
-    """subject だけを判定し、others は重複の照合に読む。"""
-    label = str(subject)
-    problems: list[Problem] = []
-    unverified: list[dict] = []
-    cache: dict[Path, list[Term] | None] = {}
-    prose, found = blocks(texts[subject].splitlines())
-    terms = read_terms(label, prose, problems)
-    cache[subject] = terms
-    check_state_diagrams(label, found, problems)
-    check_bdd_and_reasons(label, prose, found, problems)
-    check_concurrency(label, prose, problems)
-    for path in others:
-        if path == subject:
-            continue
-        other_prose, _ = blocks(texts[path].splitlines())
-        other_terms = read_terms(str(path), other_prose, [])
-        cache[path] = other_terms
-        for term in terms:
-            for other in other_terms:
-                if term.owner == OWN and other.owner == OWN and term.word == other.word:
-                    problems.append(Problem(f"{label}.{term.word}", f"同じ言葉を隣の資料も決めている: {path}", "言葉は、それが指すものを作り、変える業務の資料一本だけで決める。分け方の一覧で自分が持ち主なら相手への変更案として返し、そうでなければ持ち主へのリンクの行にする"))
-                if term.english == other.english and term.english != PENDING and term.word != other.word:
-                    problems.append(Problem(f"{label}.{term.word}", f"英名 {term.english} が隣の資料で別の言葉「{other.word}」に付いている: {path}", "一つの英名は一つの言葉にだけ付ける"))
-    check_owners(subject, terms, cache, problems, unverified)
-    return problems, unverified
+def premise_links(document: Document) -> list[Path]:
+    targets: list[Path] = []
+    for line in document.premise_lines:
+        for target in LINK.findall(line):
+            if "://" in target or target.startswith(("#", "mailto:")):
+                continue
+            targets.append((document.path.parent / target.split("#", 1)[0]).resolve())
+    return targets
 
 
 def read_all(paths: list[Path]) -> dict[Path, str] | None:
@@ -275,31 +233,38 @@ def read_all(paths: list[Path]) -> dict[Path, str] | None:
 
 
 def main() -> int:
-    if len(sys.argv) < 3 or sys.argv[1] not in {"check", "check-set"}:
-        print(json.dumps({"error": "usage: business_knowledge.py check <保存した資料のパス> [<隣の業務知識のパス>...] | check-set <照合する業務知識のパス>..."}, ensure_ascii=False))
+    command = sys.argv[1] if len(sys.argv) > 1 else ""
+    if command not in {"check", "check-set"} or len(sys.argv) < 3 or (command == "check" and len(sys.argv) != 3):
+        print(json.dumps({"error": "usage: business_knowledge.py check <保存した資料のパス> | check-set <照合する業務知識のパス>..."}, ensure_ascii=False))
         return 2
     paths = [Path(arg).resolve() for arg in sys.argv[2:]]
     texts = read_all(paths)
     if texts is None:
         return 2
-    if sys.argv[1] == "check":
-        problems, unverified = judge(paths[0], paths[1:], texts)
-        for problem in problems:
-            print(problem.emit())
-        for item in unverified:
-            print(json.dumps(item, ensure_ascii=False))
-        print(json.dumps({"status": "ng" if problems else "ok", "subject": str(paths[0]), "problems": len(problems), "unverified": len(unverified)}, ensure_ascii=False))
-        return 1 if problems else 0
-    total = 0
-    for subject in paths:
-        problems, unverified = judge(subject, paths, texts)
-        for problem in problems:
-            print(problem.emit())
-        for item in unverified:
-            print(json.dumps(item, ensure_ascii=False))
-        total += len(problems)
-    print(json.dumps({"status": "ng" if total else "ok", "documents": len(paths), "problems": total}, ensure_ascii=False))
-    return 1 if total else 0
+    problems: list[Problem] = []
+    documents = [check_document(path, texts[path], problems) for path in paths]
+    unverified: list[dict] = []
+    if command == "check-set":
+        for index, document in enumerate(documents):
+            defined = {name: section for section in ("制約", "状況", "計算") for name in document.items[section]}
+            for earlier in documents[:index]:
+                for section in ("制約", "状況", "計算"):
+                    for name in earlier.items[section]:
+                        if name in defined:
+                            problems.append(Problem(f"{document.path}.{defined[name]}.{name}", f"同じ名前を{earlier.path}も{section}として定義している", "決まりと名前は持ち主の資料一か所だけで定義し、ほかの資料は前提として名前と持ち主へのリンクで指す"))
+            for target in premise_links(document):
+                if not target.exists():
+                    unverified.append({"unverified": str(target), "detail": f"{document.path} の前提が指す資料がまだ無い"})
+    for problem in problems:
+        print(problem.emit())
+    for item in unverified:
+        print(json.dumps(item, ensure_ascii=False))
+    status = "ng" if problems else "ok"
+    if command == "check":
+        print(json.dumps({"status": status, "subject": str(paths[0]), "problems": len(problems)}, ensure_ascii=False))
+    else:
+        print(json.dumps({"status": status, "documents": len(paths), "problems": len(problems), "unverified": len(unverified)}, ensure_ascii=False))
+    return 1 if problems else 0
 
 
 if __name__ == "__main__":

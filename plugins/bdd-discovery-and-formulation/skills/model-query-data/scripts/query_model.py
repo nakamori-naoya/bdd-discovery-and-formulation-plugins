@@ -15,14 +15,15 @@
   各 BDD に「**取得結果**」の行がちょうど一つあり、その後に表がある。BDD に出たテーブルはすべて読むテーブルの表にあり、
   リンク先の資料があれば、そのテーブルを分類しており、BDD の表の見出しの列名はすべて、持ち主の erDiagram のそのテーブルの列にある。
   リンク先の資料が無いことは、どちらのモードでも未確認として報告し、合否に数えない。
-  見出し行が「業務知識のBDD | この資料のBDD」の対応の表が一つだけあり、各行の左は BDD-<番号>（重複なし）、右は BDD-<番号> を「、」で
+  見出し行が「読み取りの根拠 | この資料のBDD」の対応の表が一つだけあり、各行の左は Markdown リンク（リンク先の重複なし）、右は BDD-<番号> を「、」で
   区切ったものか 対象外 で、右に書いた BDD はこの資料の「### [BDD-<番号>]」の見出しにある。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"} で出し、最後に
   {"status", "subject", "problems", "unverified"} を一行出す。違反があれば終了code 1、未確認だけなら 0。引数が無いかファイルを読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/query-data-model/valid.md（持ち主は scripts/fixtures/command-data-model/valid.md）。
 反例: scripts/test-query-model.sh の、持ち主の図に無い列、読むテーブルの表に無いテーブル、持ち主が分類していないテーブル、
-  取得結果の無い BDD と二つある BDD、BDD 番号の重複、分類の表を持つ資料、許されない対応の欄、この資料に無い BDD を指す対応。
-意味評価として残す範囲: 取得結果が業務知識の対象選択・順位・計算に合うか、範囲の行の書き方が正しいか、読み取りが本当に実現できるか、
+  取得結果の無い BDD と二つある BDD、BDD 番号の重複、分類の表を持つ資料、リンクでない根拠、根拠の重複、
+  対応の表の欠け、許されない対応の欄、この資料に無い BDD を指す対応。
+意味評価として残す範囲: 根拠のリンクが必要な計算や場面を指すか、取得結果が計算と場面に合うか、範囲の行の書き方が正しいか、読み取りが本当に実現できるか、
   境界の例が足りるか、物理設計の関心が混ざっていないか。
 """
 
@@ -245,17 +246,16 @@ def check(path: Path, text: str, owners: dict[Path, Owner | None], problems: lis
             problems.append(Problem(where, f"持ち主の図に無い列を読んでいる: {missing}", "持ち主の図の列名を使う。列が本当に無いなら、コマンドデータモデルの欠けとして差し戻す"))
 
 
-MAPPING_HEADERS = ["業務知識のBDD", "この資料のBDD"]
-BDD_ID = re.compile(r"^BDD-\d{3,}$")
+MAPPING_HEADERS = ["読み取りの根拠", "この資料のBDD"]
 BDD_LIST = re.compile(r"^BDD-\d{3,}(?:\s*、\s*BDD-\d{3,})*$")
 OWN_BDD = re.compile(r"^###\s+\[(BDD-\d{3,})\]\s+\S")
 
 
 def check_mapping(label: str, prose: list[tuple[int, str]], words: set[str], problems: list[Problem]) -> None:
-    """業務知識のBDDとの対応の表を一つ読み、欄の形と、指したこの資料のBDDが実在するかを見る。"""
+    """読み取りの根拠との対応の表を一つ読み、欄の形と、指したこの資料のBDDが実在するかを見る。"""
     starts = [i for i, (_, line) in enumerate(prose) if line.lstrip().startswith("|") and [c.strip() for c in line.strip().strip("|").split("|")] == MAPPING_HEADERS]
     if len(starts) != 1:
-        problems.append(Problem(f"{label}.mapping", f"見出し行が『| {' | '.join(MAPPING_HEADERS)} |』の対応の表が{len(starts)}個ある", "業務知識のBDDとの対応の表を資料に一つだけ置く"))
+        problems.append(Problem(f"{label}.mapping", f"見出し行が『| {' | '.join(MAPPING_HEADERS)} |』の対応の表が{len(starts)}個ある", "読み取りの根拠との対応の表を資料に一つだけ置く"))
         return
     own = {m.group(1) for m in (OWN_BDD.match(line) for _, line in prose) if m}
     seen: set[str] = set()
@@ -264,12 +264,13 @@ def check_mapping(label: str, prose: list[tuple[int, str]], words: set[str], pro
             break
         row = [c.strip() for c in line.strip().strip("|").split("|")]
         where = f"{label}.mapping.line[{number + 1}]"
-        if len(row) != 2 or not BDD_ID.fullmatch(row[0]):
-            problems.append(Problem(where, "対応の行が、BDD-<番号> と、この資料のBDDの欄の2列になっていない", "業務知識のBDDを一行に一つ、BDD-<番号> で書く"))
+        source = LINK.fullmatch(row[0]) if len(row) == 2 else None
+        if not source:
+            problems.append(Problem(where, "対応の行が、根拠への Markdown リンクと、この資料のBDDの欄の2列になっていない", "計算または場面へのリンクを一行に一つ書く"))
             continue
-        if row[0] in seen:
-            problems.append(Problem(where, f"業務知識の {row[0]} が二行ある", "業務知識のBDDは一行だけに置く"))
-        seen.add(row[0])
+        if source.group(1) in seen:
+            problems.append(Problem(where, f"根拠のリンク先 {source.group(1)} が二行ある", "同じ根拠は一行にまとめる"))
+        seen.add(source.group(1))
         if row[1] in words:
             continue
         if not BDD_LIST.fullmatch(row[1]):
