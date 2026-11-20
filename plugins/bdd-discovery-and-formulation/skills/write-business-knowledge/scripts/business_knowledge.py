@@ -18,6 +18,9 @@
   決定表: 制約か計算の項目の下で、見出し行の最後の列が「答え」の表を決定表とする。計算の一項目に決定表は高々一つである。各行は見出しと同じ列数で、空の欄が無い。
   条件の列ごとに、その列に現れる「どれでも」以外の値を取りうる値とし、取りうる値の組み合わせのどれにも、当てはまる行（同じ値か「どれでも」）がちょうど一つある。
   答えが「起こらない（<名前>）」の行の名前は、制約か前提の名前である。
+  列挙: 「列挙：<名前> = <値> | <値> | …」の行は計算の項目の中か状況の節にあり、名前は資料の中で一意、値は空でなく互いに異なる。
+  決定表の列の名前が列挙の名前なら、その列の値は列挙の値か「どれでも」で、網羅はその列では列挙の値で数える。
+  計算がその項目の名前の列挙を持つなら、決定表の答えは列挙の値か「起こらない（<名前>）」で、分かれ目の答えはその列挙の値で数える。
   式: 計算の項目で「式：」で始まる行は「<その項目の名前> = <式>」の形で、その項目に「単位：」と「丸め：」で始まる行がある。
   判定の前提: 制約の項目で「判定の前提：」で始まる行の、「、」で区切った各名前は制約か前提の名前で、判定の前提をたどって同じ制約へ戻らない。
   判断の表の網羅: 何をするとの欄は「<行い>」か「<行い>（<分かれ目>）」で、誰がと行いの組（行いの組）ごとに、状況の節のどの状況にも（状況を持たない資料はいつでもに）その行いの組の行がある。
@@ -34,8 +37,9 @@
   見出し行の違う表・二つ目の表・節の外の表、列数の違う行、無い状況、状況を持つ資料のいつでも、いつの欄の「—」、無い決まり、計算だけによるできない行、できない行の「—」、「、」を含む項目の名前、
   BDD の見出しの形・番号の重複・節の外の BDD・BDD の節の BDD でない見出し、制約でも前提でも状況でもない Rule、二つの資料が定義する同じ制約、
   決定表の網羅の欠け・重なる行・空の欄・制約でも前提でもない起こらない・計算の二つ目の決定表、左辺の違う式・単位や丸めの無い式、
-  状況と行いの組の欠け・分かれ目の無い同じ組の行・計算の答えでない分かれ目・分かれ目の答えの組の欠けと重なり、示し方の無い複数の理由、無い名前や循環する判定の前提。
-意味評価として残す範囲: 決定表の条件の列の取りうる値が、入力のすべての場合を尽くしているか（書かれていない値は数えられない）、場合分けを文で書いた計算や制約が残っていないか、
+  状況と行いの組の欠け・分かれ目の無い同じ組の行・計算の答えでない分かれ目・分かれ目の答えの組の欠けと重なり、示し方の無い複数の理由、無い名前や循環する判定の前提、
+  列挙に無い条件の値・列挙に無い答え・列挙の値の書き忘れによる網羅の欠け・同じ名前の列挙・置き場の違う列挙。
+意味評価として残す範囲: 列挙の値と、列挙を持たない決定表の条件の列の取りうる値が、入力のすべての場合を尽くしているか（列挙の無い列では書かれていない値は数えられない）、場合分けを文で書いた計算や制約が残っていないか、
   式が業務の言葉で正しいか、単位と丸めと境界が正しいか、分かれ目が自由文の行の網羅、判定の前提の置き方が正しいか、その事実がその節にあるべきか、表が状況と行いの組み合わせを網羅しているか、挙げた決まりがその判断を本当に支えるか、拒否の BDD に NOTE があるか、
   名前が業務の言葉か、英名の付け方、BDD が本文の判断を正しく例示するか、どの資料が決まりの持ち主であるべきか。
 """
@@ -64,6 +68,7 @@ DECLARE = "拒む理由の示し方："
 DECLARE_VALUES = {"当たったすべて", "欄の順で最初の一つ"}
 FORMULA = "式："
 PREREQ = "判定の前提："
+ENUM = re.compile(r"^列挙：\s*(.+?)\s*=\s*(.+?)\s*$")
 HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 ENGLISH_SUFFIX = re.compile(r"（[^（）]*）$")
 SEPARATOR = re.compile(r"^\|?(\s*:?-+:?\s*\|)*\s*:?-+:?\s*\|?$")
@@ -91,6 +96,7 @@ class Document:
     answers: dict[str, set[str]] = field(default_factory=dict)
     prereqs: dict[str, list[tuple[int, list[str]]]] = field(default_factory=dict)
     declarations: list[str] = field(default_factory=list)
+    enums: dict[str, list[str]] = field(default_factory=dict)
 
 
 def cells(line: str) -> list[str]:
@@ -170,6 +176,18 @@ def check_document(path: Path, text: str, problems: list[Problem]) -> Document:
                         marks.setdefault(item, set()).add(mark)
                 if stripped.startswith(FORMULA):
                     formulas.setdefault(item, []).append((number, stripped[len(FORMULA):].strip()))
+            enum = ENUM.match(stripped)
+            if enum and stripped.startswith("列挙："):
+                where = f"{label}.line[{number}]"
+                values = [value.strip() for value in enum.group(2).split("|")]
+                if not ((section == "計算" and item) or section == "状況"):
+                    problems.append(Problem(where, "列挙が計算の項目の中にも状況の節にも無い", "列挙は、それを使う計算の項目の中か、状況の節に置く"))
+                elif enum.group(1) in document.enums:
+                    problems.append(Problem(where, f"同じ名前の列挙が二つある: {enum.group(1)}", "列挙の名前を資料の中で一意にする"))
+                elif any(not value for value in values) or len(set(values)) != len(values):
+                    problems.append(Problem(where, "列挙の値に空か重なりがある", "「列挙：<名前> = <値> | <値> | …」の値を空でなく、互いに異なるものにする"))
+                else:
+                    document.enums[enum.group(1)] = values
             if section == "制約" and item and stripped.startswith(PREREQ):
                 document.prereqs.setdefault(item, []).append((number, split_names(stripped[len(PREREQ):])))
             continue
@@ -259,6 +277,7 @@ def check_items(label: str, document: Document, item_tables, formulas, marks, pr
         columns = header[:-1]
         parsed: list[tuple[int, dict[str, str]]] = []
         answers: set[str] = set()
+        answer_enum = document.enums.get(item) if section == "計算" else None
         for number, line in body:
             row = cells(line)
             if len(row) != len(header):
@@ -267,7 +286,12 @@ def check_items(label: str, document: Document, item_tables, formulas, marks, pr
             if any(not cell for cell in row):
                 problems.append(Problem(f"{label}.line[{number}]", "決定表に空の欄がある", f"どの値でもよい条件は「{ANY}」と書く"))
                 continue
+            for column, value in zip(columns, row[:-1]):
+                if column in document.enums and value != ANY and value not in document.enums[column]:
+                    problems.append(Problem(f"{label}.line[{number}]", f"列挙「{column}」に無い値: {value}", f"列の名前が列挙の名前なら、値は列挙の値か「{ANY}」にする"))
             never = NEVER.match(row[-1])
+            if answer_enum is not None and not never and row[-1] not in answer_enum:
+                problems.append(Problem(f"{label}.line[{number}]", f"列挙「{item}」に無い答え: {row[-1]}", "列挙を持つ計算の答えは、列挙の値か「起こらない（<名前>）」にする"))
             if never:
                 for name in split_names(never.group(1)):
                     if name not in rejecting:
@@ -275,13 +299,14 @@ def check_items(label: str, document: Document, item_tables, formulas, marks, pr
             else:
                 answers.add(row[-1])
             parsed.append((number, dict(zip(columns, row[:-1]))))
-        missing, overlapping = coverage(columns, parsed)
+        domains = {column: set(document.enums[column]) if column in document.enums else {row[column] for _, row in parsed if row.get(column, ANY) != ANY} for column in columns}
+        missing, overlapping = coverage(columns, parsed, domains)
         for combo in missing:
             problems.append(Problem(where, f"決定表に当てはまる行が無い組み合わせ: {show(combo)}", f"その組み合わせの行を足す。起こりえないなら答えを「起こらない（<制約の名前>）」にした行を置く"))
         for combo, hits in overlapping:
             problems.append(Problem(where, f"決定表で二つ以上の行が当てはまる組み合わせ: {show(combo)}（{'、'.join(map(str, hits))}行目）", f"「{ANY}」を値に分け、どの組み合わせにも行がちょうど一つ当てはまるようにする"))
         if section == "計算":
-            document.answers[item] = answers
+            document.answers[item] = set(answer_enum) if answer_enum is not None else answers
     for item, lines in formulas.items():
         for number, formula in lines:
             left = formula.split("=", 1)[0].strip() if "=" in formula else None
