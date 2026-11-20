@@ -29,7 +29,7 @@ rejects() {
 edit() { perl -0pi -e "$1" "$doc"; }
 
 fresh; accepts "正例" "$doc"
-fresh; edit 's/\| reservation_id \| room_code \| use_on \| status \|/| reservation_id | room_name | use_on | status |/'; rejects "持ち主の図に無い列を拒否" "持ち主の図に無い列を読んでいる" "$doc"
+fresh; edit 's/\| reservation_id \| room_code \| use_on \| status \|/| reservation_id | room_name | use_on | status |/'; rejects "持ち主の列の表に無い列を拒否" "持ち主の列の表に無い列を読んでいる" "$doc"
 fresh; edit 's/\n\| `reservations` \| \[[^\n]*//'; rejects "読むテーブルの表に無いテーブルを拒否" "読むテーブルの表に無い" "$doc"
 fresh; edit 's/\*\*`reservations`\*\*/**`entries`**/; s/\| `reservations` \|/| `entries` |/'; rejects "持ち主が分類していないテーブルを拒否" "持ち主の資料がこのテーブルを分類していない" "$doc"
 fresh; edit 's#\.\./command-data-model/valid\.md#../command-data-model/none.md#'
@@ -39,6 +39,8 @@ fresh; edit 's/\*\*取得結果\*\*\n\n\| 会議室 \| 予約 \|\n\|---\|---\|\n
 fresh; edit 's/(\*\*取得結果\*\*\n)/$1\n| 会議室 |\n|---|\n| A |\n\n$1/'; rejects "取得結果が二つある BDD を拒否" "「**取得結果**」の行が2個ある" "$doc"
 fresh; edit 's/\[BDD-002\]/[BDD-001]/'; rejects "BDD 番号の重複を拒否" "BDD の番号が" "$doc"
 fresh; printf '\n| 系列 | 性質 | 論理テーブル | 保存表現 | 根拠 |\n|---|---|---|---|---|\n' >> "$doc"; rejects "分類の表を持つ資料を拒否" "クエリデータモデルが分類の表を持っている" "$doc"
+fresh; printf '\n| 列 | 型 | キー | 意味 |\n|---|---|---|---|\n| `room_code` | text |  | 会議室 |\n' >> "$doc"; rejects "列の表を持つ資料を拒否" "クエリデータモデルが列の表を持っている" "$doc"
+fresh; printf '\n```mermaid\nflowchart TD\n  A --> B\n```\n' >> "$doc"; rejects "Mermaid のブロックを持つ資料を拒否" "Mermaid のブロックがある" "$doc"
 fresh; edit 's/^## 読むテーブル$/## 予約のテーブルだけを読む/m'; accepts "見出しの文言に依らず目印で読む" "$doc"
 fresh; edit 's/\| \[担当者の確認\]\(journey\.md#担当者の確認\) \| 対象外 \|/| [担当者の確認](journey.md#担当者の確認) | クエリデータモデル |/'; rejects "許されない対応の欄を拒否" "この資料のBDDの欄が許された形ではない" "$doc"
 fresh; edit 's/\| \[予約の確認\]\(journey\.md#予約の確認\) \| BDD-002 \|/| [予約の確認](journey.md#予約の確認) | BDD-002、BDD-007 |/'; rejects "この資料に無い BDD を指す対応を拒否" "この資料に BDD-007 が無い" "$doc"

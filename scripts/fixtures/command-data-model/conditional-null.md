@@ -6,24 +6,19 @@
 |---|---|---|---|---|
 | リソース系 | 業務 | `settings` | 現在状態 | 設定の業務知識 |
 
-## データモデル図
-
-```mermaid
-erDiagram
-    settings {
-        uuid setting_id PK "設定"
-        text status "現在状態"
-        timestamptz completed_at "完了日時。NULL可"
-        boolean is_deleted "削除表示"
-        text optional_value "種類Aの場合に必要、その他はNULL"
-    }
-```
-
 ## テーブル定義
 
 ### `settings`（設定）
 
 設定の現在状態。
+
+| 列 | 型 | キー | 意味 |
+|---|---|---|---|
+| `setting_id` | uuid | PK | 設定 |
+| `status` | text |  | 現在状態 |
+| `completed_at` | timestamptz |  | 完了日時。NULL可 |
+| `is_deleted` | boolean |  | 削除表示 |
+| `optional_value` | text |  | 種類Aの場合に必要、その他はNULL |
 
 ## BDD
 

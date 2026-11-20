@@ -8,37 +8,39 @@
   check-set は、明示されたコマンドデータモデルのパス。それぞれを順に判定する資料にし、残りを照合の相手にして同じ判定をする。
   参照の表の持ち主のリンクは、判定する資料のディレクトリから解決して読む。
 正規化: コードブロックの外で見出し行が「系列 | 性質 | 論理テーブル | 保存表現 | 根拠」の表を分類として、
-  見出し行が「参照するテーブル | 読む列 | 持ち主の資料」の表を参照として、1行目が erDiagram の Mermaid ブロックの実体と属性行
-  （型 名前 [PK|FK|UK...] "意味"）を列として、関係の行（<実体> <多重度> <実体> : <ラベル>）を関係として、
-  ### の直後が backtick で囲んだテーブル名で始まる見出しを定義として読む。backtick は外して比べる。
-合格述語: 分類の表が資料に一つだけあり、参照の表は無いか一つだけある。図の実体は、分類か参照のどちらか一方にだけある。
-  分類、図の実体のうち分類したもの、定義の見出しが同じテーブルの集合で、分類は一度ずつ。系列・性質・保存表現が許可値で、根拠が空でない。
+  見出し行が「参照するテーブル | 読む列 | 持ち主の資料」の表を参照として、見出し行が「列 | 型 | キー | 意味」の表を、
+  直前の「### `<テーブル名>`」の見出し（定義）のテーブルの列として、見出し行が「関係元 | 関係先 | 多重度 | 意味」の表を関係として読む。
+  参照したテーブルの列は、参照の表の読む列とする。backtick は外して比べる。図（.drawio.svg）の中身は読まない。
+合格述語: 分類の表が資料に一つだけあり、参照の表と関係の表は無いか一つだけある。Mermaid のブロックを置かず、資料の中の画像の参照先はファイルとして実在する。
+  分類と定義の見出しが同じテーブルの集合で、分類は一度ずつ。分類したテーブルは、定義の見出しの下に列の表を一つだけ持つ。列の表は定義の見出しの下にだけある。
+  参照したテーブルは定義の見出しを持たない。関係の表のテーブルは、分類か、読む列が「未定」でない参照にある。系列・性質・保存表現が許可値で、根拠が空でない。
   性質は 業務 か 技術 で、リソース系はイベント列を選ばない。イベント系は保存表現がイベント列で、名前が _events で終わる。
-  業務の基底イベント（_base_events）と技術イベントは occurred_at の列を持つ。業務の詳細イベントは occurred_at の列を持たない。業務の基底イベントは version の列を持ち、関係の行で
+  業務の基底イベント（_base_events）と技術イベントは occurred_at の列を持つ。業務の詳細イベントは occurred_at の列を持たない。業務の基底イベントは version の列を持ち、関係の表で
   リソース系・業務のテーブルと結ばれる。業務の詳細イベントがあれば基底イベントもある。
-  参照したテーブルは、図の列が読む列と同じ集合で、持ち主の資料があれば、そのテーブルを分類し、読む列が持ち主の図の列に含まれる。
+  参照したテーブルは、持ち主の資料があれば、持ち主がそのテーブルを分類し、読む列が持ち主の列の表に含まれる。
   持ち主の資料が無いことは、どちらのモードでも未確認として報告し、合否に数えない。持ち主の資料の欄が「範囲の外: [持ち主の資料の名前](パスかURL)」の参照は、
-  置かれない持ち主の宣言なので照合せず、未確認にも数えない。テーブル名が「未定」なら読む列も「未定」である。読む列が仮置きの印「未定」の参照は図に描かず、
+  置かれない持ち主の宣言なので照合せず、未確認にも数えない。テーブル名が「未定」なら読む列も「未定」である。
   持ち主の資料があるのに「未定」が残っていれば違反である。判定する資料が分類したテーブルを、残りの引数の資料が分類していない。
-  業務のリソースとその詳細イベント（同じ基底イベントと関係の行で結ばれたもの）の両方にキーでない同じ名前の列があれば、違反ではなく警告を出す。
+  業務のリソースとその詳細イベント（同じ基底イベントと関係の表で結ばれたもの）の両方にキーでない同じ名前の列があれば、違反ではなく警告を出す。
   残りの引数の資料そのものの違反は判定しない。
   分類表で性質「業務」のテーブルがあれば対応の表は一つ、全テーブルが技術なら任意。
   対応の表を置いた場合、その見出し行が「業務知識のBDD | この資料のBDD」で、各行の左は BDD-<番号>（重複なし）、右は BDD-<番号> を「、」で
   区切ったもの・対象外・クエリデータモデル のどれかで、右に書いた BDD はこの資料の「### [BDD-<番号>]」の見出しにある。
-  いずれも宣言（分類表と参照の表の値、テーブルと列の名前、関係の行）から一意に決まることだけを見る。列の名前の語尾（_at など）から、
+  いずれも宣言（表の値、テーブルと列の名前）から一意に決まることだけを見る。列の名前の語尾（_at など）から、
   その列が時点かどうかは判定しない。列の型は製品の型を物理設計が決めるので、判定しない。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"}、警告は {"warning", "detail", "howto"} で出し、最後に
   {"status", "subject", "problems", "unverified"} を一行出す。違反があれば終了code 1、未確認だけなら 0。引数が無いかファイルを読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/command-data-model/ の valid.md と、それを持ち主として参照する reader.md。
 反例: scripts/test-immutable-model.sh の、旧列名、性質が派生のテーブル、未分類のテーブル、_events で終わらないイベント表、
   occurred_at の無い技術イベント、occurred_at を持つ詳細イベント、version の無い基底イベント、
-  リソースと結ばれていない基底イベント、持ち主の資料があるのに残った未定、未定の参照を描いた図、
-  分類の表が無いか二つある資料、持ち主の図に無い読む列、残りの引数の資料も同じテーブルを分類する組、許されない対応の欄、この資料に無い BDD を指す対応。
+  リソースと結ばれていない基底イベント、持ち主の資料があるのに残った未定、未定の参照を載せた関係の表、列の表の無いテーブル、
+  定義の見出しの外の列の表、分類の表が無いか二つある資料、持ち主の列の表に無い読む列、残りの引数の資料も同じテーブルを分類する組、
+  許されない対応の欄、この資料に無い BDD を指す対応、Mermaid のブロック、実在しない図の参照。
 境界例: 見出しに結論を入れた資料や、見出しの名前を変えた資料は通る。持ち主の資料がまだ無い参照は未確認として通る。状態・完了日時・削除フラグ・条件付きNULLを含むだけでは拒まない。
   名前が _at で終わる列（詳細イベントの cancelled_at、基底イベントの recorded_at など）も、名前だけでは拒まない。
 意味評価として残す範囲: 列が事実か業務が与えた値か後から導けない技術上の判断か加工した情報か、イベント表に二本目の時点が無いか、
   status と current_version が必要か、持つなら本当に状態と版を表すか、保存の単位と保存表現の選択、どの業務がテーブルを書くべきか、
-  技術処理にどの出来事が要るか、資料間の意味の整合。
+  技術処理にどの出来事が要るか、図の中身が列の表と関係の表に食い違わないか、資料間の意味の整合。
 """
 
 from __future__ import annotations
@@ -61,10 +63,11 @@ COLUMN_LIST = re.compile(r"^`[^`]+`(?:\s*、\s*`[^`]+`)*$")
 LINK = re.compile(r"^\[[^\]]*\]\(([^)\s]+)\)$")
 OUTSIDE = re.compile(r"^範囲の外:\s*\[[^\]]*\]\(([^)\s]+)\)$")
 OCCURRED_AT = "occurred_at"
-ENTITY_OPEN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\{$")
-ATTRIBUTE = re.compile(r'^([A-Za-z_][A-Za-z0-9_\[\]]*)\s+([A-Za-z_][A-Za-z0-9_]*)(\s+(?:PK|FK|UK)(?:\s*,\s*(?:PK|FK|UK))*)?(?:\s+"([^"]*)")?$')
 PENDING = "未定"
-RELATION = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*)\s+([|}o{]{2}(?:--|\.\.)[|}o{]{2})\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*.+$')
+COLUMN_HEADERS = ["列", "型", "キー", "意味"]
+KEYS = re.compile(r"^(?:(?:PK|FK|UK)(?:\s*、\s*(?:PK|FK|UK))*)?$")
+RELATION_HEADERS = ["関係元", "関係先", "多重度", "意味"]
+IMAGE = re.compile(r"!\[[^\]]*\]\(([^)\s]+)\)")
 
 
 @dataclass
@@ -81,7 +84,7 @@ class Problem:
 class Model:
     classification: dict[str, dict[str, str]] = field(default_factory=dict)
     references: dict[str, tuple[list[str], str]] = field(default_factory=dict)
-    entities: dict[str, list[dict]] = field(default_factory=dict)
+    columns: dict[str, list[dict]] = field(default_factory=dict)
     relations: list[tuple[str, str]] = field(default_factory=list)
     headings: list[str] = field(default_factory=list)
 
@@ -168,54 +171,67 @@ def parse_references(label: str, prose: list[tuple[int, str]], problems: list[Pr
     return references
 
 
-def parse_er(label: str, lines: list[str], problems: list[Problem]) -> tuple[dict[str, list[dict]], list[tuple[str, str]]]:
-    """1行目が erDiagram の Mermaid ブロックから実体と関係を読む。複数のブロックは合わせて読む。"""
-    entities: dict[str, list[dict]] = {}
+def parse_columns(label: str, prose: list[tuple[int, str]], problems: list[Problem]) -> dict[str, list[dict]]:
+    """見出し行が COLUMN_HEADERS の表を、直前の ### `テーブル名` の見出しのテーブルの列として読む。"""
+    columns: dict[str, list[dict]] = {}
+    owner: str | None = None
+    for index, (number, line) in enumerate(prose):
+        if re.match(r"^#{1,3}\s", line):
+            heading = TABLE_HEADING.match(line)
+            owner = heading.group(1) if heading else None
+            continue
+        if not (line.lstrip().startswith("|") and split_cells(line) == COLUMN_HEADERS):
+            continue
+        where = f"{label}.columns.line[{number + 1}]"
+        if owner is None:
+            problems.append(Problem(where, "列の表がテーブルの定義の見出しの下に無い", "列の表は、そのテーブルの ### `名前` の見出しの下に置く"))
+            continue
+        if owner in columns:
+            problems.append(Problem(f"{label}.columns.{owner}", "一つのテーブルに列の表が二つある", "テーブルの全列を一つの列の表に書く"))
+            continue
+        rows: list[dict] = []
+        for row_number, row_line in prose[index + 2:]:
+            if not row_line.lstrip().startswith("|"):
+                break
+            row = split_cells(row_line)
+            name = TABLE_CELL.fullmatch(row[0]) if len(row) == len(COLUMN_HEADERS) else None
+            if not name or not row[1] or not KEYS.fullmatch(row[2]):
+                problems.append(Problem(f"{label}.columns.line[{row_number + 1}]", "列の行が、backtick の列名、型、空か PK・FK・UK を「、」で区切ったキー、意味の4列になっていない", "列の表の行をこの形で書く"))
+                continue
+            if any(r["name"] == name.group(1) for r in rows):
+                problems.append(Problem(f"{label}.columns.{owner}.{name.group(1)}", "同じ列が二行ある", "一つの列は一行で書く"))
+                continue
+            rows.append({"name": name.group(1), "type": row[1], "key": bool(row[2]), "comment": row[3]})
+        columns[owner] = rows
+    return columns
+
+
+def parse_relations(label: str, prose: list[tuple[int, str]], problems: list[Problem]) -> list[tuple[str, str]]:
+    tables = table_rows(prose, RELATION_HEADERS)
+    if len(tables) > 1:
+        problems.append(Problem(f"{label}.relations", f"見出し行が『| {' | '.join(RELATION_HEADERS)} |』の関係の表が{len(tables)}個ある", "関係の表は資料に一つだけ置く"))
     relations: list[tuple[str, str]] = []
-    fence: list[str] | None = None
-    language = ""
-    blocks: list[list[str]] = []
-    for line in lines:
-        stripped = line.strip()
-        if fence is not None:
-            if stripped.startswith("```"):
-                if language == "mermaid":
-                    blocks.append(fence)
-                fence = None
-            else:
-                fence.append(stripped)
+    for line_number, cells in (tables[0] if tables else []):
+        left = TABLE_CELL.fullmatch(cells[0]) if len(cells) == len(RELATION_HEADERS) else None
+        right = TABLE_CELL.fullmatch(cells[1]) if left else None
+        if not left or not right or not cells[2]:
+            problems.append(Problem(f"{label}.relations.line[{line_number + 1}]", "関係の行が、backtick の関係元と関係先のテーブル名、多重度、意味の4列になっていない", "関係の表の行をこの形で書く"))
             continue
-        if stripped.startswith("```"):
-            fence, language = [], stripped[3:].strip()
-    for block in blocks:
-        content = [line for line in block if line and not line.startswith("%%")]
-        if not content or content[0] != "erDiagram":
+        relations.append((left.group(1), right.group(1)))
+    return relations
+
+
+def check_figures(label: str, path: Path, lines: list[str], problems: list[Problem]) -> None:
+    """Mermaid のブロックを置かず、資料の中の画像の参照先がファイルとして実在するかを見る。"""
+    for number, line in enumerate(lines):
+        if line.strip().startswith("```mermaid"):
+            problems.append(Problem(f"{label}.line[{number + 1}]", "Mermaid のブロックがある", "図は draw.io の .drawio.svg にして資料の隣の .assets/ に置き、テーブル・列・関係は表に書く"))
+    prose = [line for _, line in prose_lines(lines)]
+    for target in (t for line in prose for t in IMAGE.findall(line)):
+        if "://" in target or target.startswith("#"):
             continue
-        current = None
-        for stripped in content[1:]:
-            opened = ENTITY_OPEN.match(stripped)
-            if opened:
-                current = opened.group(1)
-                if current in entities:
-                    problems.append(Problem(f"{label}.er.{current}", "erDiagram に同じ実体が2度ある", "実体は一度だけ描く"))
-                entities.setdefault(current, [])
-                continue
-            if stripped == "}":
-                current = None
-                continue
-            if current is not None:
-                attr = ATTRIBUTE.match(stripped)
-                if not attr:
-                    problems.append(Problem(f"{label}.er.{current}", f"属性の行を読めない: {stripped}", "型 名前 [PK|FK] \"意味\" の形で書く"))
-                    continue
-                entities[current].append({"type": attr.group(1), "name": attr.group(2), "key": bool(attr.group(3)), "comment": attr.group(4) or ""})
-                continue
-            relation = RELATION.match(stripped)
-            if relation:
-                relations.append((relation.group(1), relation.group(3)))
-    if not entities:
-        problems.append(Problem(f"{label}.er", "erDiagram に実体が1つも無い", "1行目が erDiagram の Mermaid ブロックで全テーブルと全列を描く"))
-    return entities, relations
+        if not (path.parent / target).is_file():
+            problems.append(Problem(f"{label}.figure.{target}", "図の参照先のファイルが無い", "書き出した .drawio.svg を参照したパスに置く"))
 
 
 def read_model(label: str, markdown: str, problems: list[Problem]) -> Model:
@@ -224,45 +240,46 @@ def read_model(label: str, markdown: str, problems: list[Problem]) -> Model:
     model = Model()
     model.classification = parse_classification(label, prose, problems)
     model.references = parse_references(label, prose, problems)
-    model.entities, model.relations = parse_er(label, lines, problems)
+    model.columns = parse_columns(label, prose, problems)
+    model.relations = parse_relations(label, prose, problems)
     model.headings = [m.group(1) for m in (TABLE_HEADING.match(line) for _, line in prose) if m]
     return model
 
 
 def columns_of(model: Model, name: str) -> list[str]:
-    return [a["name"] for a in model.entities.get(name, [])]
+    """分類したテーブルは列の表の列、参照したテーブルは読む列を返す。"""
+    if name in model.references:
+        return model.references[name][0]
+    return [a["name"] for a in model.columns.get(name, [])]
 
 
 def check_model(label: str, model: Model, problems: list[Problem]) -> None:
     classification = model.classification
     classified, referenced = set(classification), set(model.references)
-    drawn, defined = set(model.entities), set(model.headings)
+    defined, listed = set(model.headings), {n for n, rows in model.columns.items() if rows}
     for name in sorted(classified & referenced):
         problems.append(Problem(f"{label}.references.{name}", "同じテーブルを分類と参照の両方に載せている", "書くテーブルは分類に、ほかの資料が書くテーブルは参照にだけ載せる"))
-    for name in sorted(drawn - classified - referenced):
-        problems.append(Problem(f"{label}.classification.{name}", "図のテーブルが分類表にも参照の表にも無い", "書くテーブルは分類に、ほかの資料が書くテーブルは参照に載せる"))
-    for name in sorted(classified - drawn):
-        problems.append(Problem(f"{label}.er.{name}", "分類したテーブルが図に無い", "erDiagram に実体と全列を描く"))
-    pending = {n for n, (read, _) in model.references.items() if read == [PENDING]}
-    for name in sorted(pending & drawn):
-        problems.append(Problem(f"{label}.er.{name}", f"読む列が「{PENDING}」の参照を図に描いている", "持ち主の資料ができるまで、そのテーブルは図にもBDDの行にも載せない"))
-    for name in sorted(referenced - drawn - pending):
-        problems.append(Problem(f"{label}.er.{name}", "参照したテーブルが図に無い", "erDiagram に読む列だけで描く"))
+    for name in sorted(defined - classified - referenced):
+        problems.append(Problem(f"{label}.classification.{name}", "定義したテーブルが分類表にも参照の表にも無い", "書くテーブルは分類に、ほかの資料が書くテーブルは参照に載せる"))
     for name in sorted(classified - defined):
         problems.append(Problem(f"{label}.definitions.{name}", "分類したテーブルの ### `名前` の見出しが無い", "何を一つの行にまとめるかを書く節を置く"))
+    for name in sorted((classified & defined) - listed):
+        problems.append(Problem(f"{label}.columns.{name}", "分類したテーブルに列の表が無い", f"定義の見出しの下に、見出し行が『| {' | '.join(COLUMN_HEADERS)} |』の表で全列を書く"))
     for name in sorted(referenced & defined):
         problems.append(Problem(f"{label}.definitions.{name}", "参照したテーブルに ### `名前` の定義の見出しがある", "定義は持ち主の資料にだけ置く"))
-    for name in sorted((referenced & drawn) - pending):
-        read, _ = model.references[name]
-        if sorted(columns_of(model, name)) != sorted(read):
-            problems.append(Problem(f"{label}.er.{name}", f"参照したテーブルの図の列が読む列と一致しない: 図 {columns_of(model, name)}、読む列 {read}", "参照したテーブルは、読む列だけで図に描く"))
+    pending = {n for n, (read, _) in model.references.items() if read == [PENDING]}
+    for name in sorted({n for pair in model.relations for n in pair}):
+        if name in pending:
+            problems.append(Problem(f"{label}.relations.{name}", f"読む列が「{PENDING}」の参照を関係の表に載せている", "持ち主の資料ができるまで、そのテーブルは関係の表にも図にもBDDの行にも載せない"))
+        elif name not in classified and name not in referenced:
+            problems.append(Problem(f"{label}.relations.{name}", "関係の表のテーブルが分類表にも参照の表にも無い", "関係の表には、分類か参照に載せたテーブルだけを書く"))
 
     related: dict[str, set[str]] = {}
     for left, right in model.relations:
         related.setdefault(left, set()).add(right)
         related.setdefault(right, set()).add(left)
 
-    for name in sorted(classified & drawn):
+    for name in sorted(classified & listed):
         row = classification[name]
         prefix = f"{label}.{name}"
         if row["系列"] not in ALLOWED_SERIES:
@@ -280,7 +297,7 @@ def check_model(label: str, model: Model, problems: list[Problem]) -> None:
                 problems.append(Problem(f"{prefix}.version", "基底イベントに適用後の版 version が無い", "基底イベントに、そのイベントを適用した後の版を version として置く"))
             resources = sorted(r for r in related.get(name, set()) if classification.get(r, {}).get("系列") == "リソース系" and classification.get(r, {}).get("性質") == "業務")
             if not resources:
-                problems.append(Problem(f"{prefix}.resource", "基底イベントが関係の行でリソース系・業務のテーブルと結ばれていない", "erDiagram に <リソース> ||--|{ <対象>_base_events : \"...\" の関係の行を描く"))
+                problems.append(Problem(f"{prefix}.resource", "基底イベントが関係の行でリソース系・業務のテーブルと結ばれていない", "関係の表に、関係元をリソース、関係先を <対象>_base_events とする行を置く"))
         if row["系列"] == "リソース系" and row["保存表現"] == "イベント列":
             problems.append(Problem(f"{prefix}.保存表現", "リソース系の論理テーブルに対し、分類表の「保存表現」列でイベント列を選択している", "「保存表現」列を現在状態・有効期間履歴・派生のいずれかにする"))
         if row["系列"] != "イベント系":
@@ -290,7 +307,7 @@ def check_model(label: str, model: Model, problems: list[Problem]) -> None:
         if not name.endswith("_events"):
             problems.append(Problem(f"{prefix}.name", "イベント系のテーブル名が過去分詞の_eventsで終わらない", "<対象>_base_events、<対象>_<過去分詞>_events、<処理>_<過去分詞>_eventsのどれかにする"))
             continue
-        occurred = [a for a in model.entities[name] if a["name"] == OCCURRED_AT]
+        occurred = [a for a in model.columns.get(name, []) if a["name"] == OCCURRED_AT]
         if row["性質"] == "業務" and not name.endswith("_base_events"):
             if occurred:
                 problems.append(Problem(f"{prefix}.時刻", f"詳細イベントが {OCCURRED_AT} の列を持つ", f"出来事の時点は基底イベントの {OCCURRED_AT} にだけ置く"))
@@ -322,9 +339,9 @@ def find_copies(model: Model) -> list[dict]:
         resources = [r for r in related.get(base, set()) if classification.get(r, {}).get("系列") == "リソース系"]
         details = [d for d in related.get(base, set()) if d != base and d.endswith("_events") and classification.get(d, {}).get("性質") == "業務"]
         for resource in resources:
-            names = {a["name"] for a in model.entities.get(resource, []) if not a["key"]}
+            names = {a["name"] for a in model.columns.get(resource, []) if not a["key"]}
             for detail in details:
-                for column in sorted(names & {a["name"] for a in model.entities.get(detail, []) if not a["key"]}):
+                for column in sorted(names & {a["name"] for a in model.columns.get(detail, []) if not a["key"]}):
                     warnings.append({"warning": f"{resource}.{column}", "detail": f"同じ名前の列がリソースと詳細イベント {detail} の両方にある", "howto": "今の業務知識の行いに要る写しかを読み直す。先回りした写しなら片方だけにする"})
     return warnings
 
@@ -383,7 +400,7 @@ def check_references(path: Path, model: Model, models: dict[Path, Model | None],
             continue
         missing = [c for c in read if c not in columns_of(owner, name)]
         if missing:
-            problems.append(Problem(where, f"読む列が持ち主の図に無い: {missing}", "持ち主の図にある列名を使う。列が足りなければ持ち主の資料への変更案として返す"))
+            problems.append(Problem(where, f"読む列が持ち主の列の表に無い: {missing}", "持ち主の列の表にある列名を使う。列が足りなければ持ち主の資料への変更案として返す"))
 
 
 def judge(subject: Path, others: list[Path], texts: dict[Path, str]) -> tuple[list[Problem], list[dict], list[dict]]:
@@ -399,6 +416,7 @@ def judge(subject: Path, others: list[Path], texts: dict[Path, str]) -> tuple[li
         problems.append(Problem(f"{label}.mapping", "業務の資料にBDD対応表が無い", "業務知識のBDDとの対応の表を置く"))
     check_mapping(label, prose, {"対象外", "クエリデータモデル"}, problems)
     check_model(label, model, problems)
+    check_figures(label, subject, texts[subject].splitlines(), problems)
     for path in others:
         if path == subject:
             continue

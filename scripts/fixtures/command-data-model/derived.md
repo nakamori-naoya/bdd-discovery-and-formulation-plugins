@@ -6,22 +6,17 @@
 |---|---|---|---|---|
 | リソース系 | 派生 | `reservation_base_events` | 派生 | 予約の業務知識 |
 
-## データモデル図
-
-```mermaid
-erDiagram
-    reservation_base_events {
-        uuid event_id PK "イベント"
-        text status "現在の状態"
-        timestamptz occurred_at "起きた時点"
-    }
-```
-
 ## テーブル定義
 
 ### `reservation_base_events`（予約イベント）
 
 予約に起きた出来事。
+
+| 列 | 型 | キー | 意味 |
+|---|---|---|---|
+| `event_id` | uuid | PK | イベント |
+| `status` | text |  | 現在の状態 |
+| `occurred_at` | timestamptz |  | 起きた時点 |
 
 ## BDD
 
