@@ -40,8 +40,14 @@ fresh; edit 's/(\*\*取得結果\*\*\n)/$1\n| 会議室 |\n|---|\n| A |\n\n$1/';
 fresh; edit 's/\[BDD-002\]/[BDD-001]/'; rejects "BDD 番号の重複を拒否" "BDD の番号が" "$doc"
 fresh; printf '\n| 系列 | 性質 | 論理テーブル | 保存表現 | 根拠 |\n|---|---|---|---|---|\n' >> "$doc"; rejects "分類の表を持つ資料を拒否" "クエリデータモデルが分類の表を持っている" "$doc"
 fresh; edit 's/^## 読むテーブル$/## 予約のテーブルだけを読む/m'; accepts "見出しの文言に依らず目印で読む" "$doc"
-fresh; edit 's/\| BDD-005 \| 対象外 \|/| BDD-005 | クエリデータモデル |/'; rejects "許されない対応の欄を拒否" "この資料のBDDの欄が許された形ではない" "$doc"
-fresh; edit 's/\| BDD-004 \| BDD-002 \|/| BDD-004 | BDD-002、BDD-007 |/'; rejects "この資料に無い BDD を指す対応を拒否" "この資料に BDD-007 が無い" "$doc"
+fresh; edit 's/\| \[担当者の確認\]\(journey\.md#担当者の確認\) \| 対象外 \|/| [担当者の確認](journey.md#担当者の確認) | クエリデータモデル |/'; rejects "許されない対応の欄を拒否" "この資料のBDDの欄が許された形ではない" "$doc"
+fresh; edit 's/\| \[予約の確認\]\(journey\.md#予約の確認\) \| BDD-002 \|/| [予約の確認](journey.md#予約の確認) | BDD-002、BDD-007 |/'; rejects "この資料に無い BDD を指す対応を拒否" "この資料に BDD-007 が無い" "$doc"
+fresh; edit 's/\[指定日の予約\]\(calculation\.md#指定日の予約\)/指定日の予約/'; rejects "リンクでない根拠を拒否" "根拠への Markdown リンク" "$doc"
+fresh; edit 's/\[予約の確認\]\(journey\.md#予約の確認\)/[別名](calculation.md#指定日の予約)/'; rejects "同じリンク先の重複を拒否" "根拠のリンク先" "$doc"
+fresh; edit 's/\| 読み取りの根拠 \| この資料のBDD \|/| 根拠 | 対応 |/'; rejects "対応表の欠けを拒否" "対応の表が0個ある" "$doc"
+fresh; edit 's/\| BDD-001 \|/| BDD-001、BDD-002 |/'; accepts "一つの計算から複数BDDへの対応" "$doc"
+fresh; edit 's/^\| \[指定日の予約\][^\n]*\n//m'; accepts "場面だけを根拠にする対応" "$doc"
+fresh; edit 's/^\| \[(?:予約の確認|担当者の確認)\][^\n]*\n//mg'; accepts "計算だけを根拠にする対応" "$doc"
 fresh; python3 "$checker" check-set "$doc" >/dev/null 2>&1 && pass "複数資料の検査の正例" || fail "複数資料の検査の正例"
 fresh; edit 's#\.\./command-data-model/valid\.md#../command-data-model/none.md#'
 output=$(python3 "$checker" check-set "$doc" 2>&1); status=$?

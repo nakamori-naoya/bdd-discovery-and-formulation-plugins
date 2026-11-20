@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# business_knowledge.py（write-business-knowledge が保存した業務知識に一回かける検査）を、正例・反例で確かめる。
+# business_knowledge.py（write-business-knowledge が保存した業務知識に一回かける検査）を、正例・反例・境界例で確かめる。
 # fixture は scripts/fixtures/business-knowledge/ にあり、反例は一時ディレクトリへ写した fixture を一か所だけ変えて作る。
 # 反例の合格述語は「検査が違反として exit 1 を返し、診断に決まった文言が出る」だけにする。
 set -uo pipefail
@@ -20,47 +20,68 @@ owner="$work/k/予約/business-knowledge.md"
 user="$work/k/入室/business-knowledge.md"
 
 fresh() { rm -rf "$work/k"; mkdir -p "$work/k"; cp -R "$fixtures"/. "$work/k/"; }
-accepts() { local name=$1; shift; python3 "$checker" check "$@" >/dev/null 2>&1 && pass "$name" || fail "$name"; }
+accepts() { local name=$1; shift; python3 "$checker" "$@" >/dev/null 2>&1 && pass "$name" || fail "$name"; }
 rejects() {
   local name=$1 expected=$2; shift 2
   local output status
-  output=$(python3 "$checker" check "$@" 2>&1); status=$?
+  output=$(python3 "$checker" "$@" 2>&1); status=$?
   if [ "$status" -eq 1 ] && rg -F -- "$expected" <<< "$output" >/dev/null; then pass "$name"; else fail "${name}（exit ${status}）"; fi
+}
+unverified() {
+  local name=$1; shift
+  local output status
+  output=$(python3 "$checker" "$@" 2>&1); status=$?
+  if [ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null; then pass "$name"; else fail "${name}（exit ${status}）"; fi
 }
 edit() { perl -0pi -e "$2" "$1"; }
 
-fresh; accepts "持ち主と参照する資料の組の正例" "$owner" "$user"
-fresh; accepts "参照する資料だけでも持ち主をリンクから読む" "$user"
-fresh; edit "$owner" 's/\| 予約する \| Reserve \| コマンド \|/| 予約する | Reserve | 手続き |/'; rejects "種類の許可値の外を拒否" "許可値ではない: 手続き" "$owner"
-fresh; edit "$owner" 's/(\| 予約 \| Reservation \| 業務用語 \| この資料 \|\n)/$1| 予約 | Booking | 概念 | この資料 |\n/'; rejects "同じ言葉の二行を拒否" "同じ業務の言葉が表に二行ある" "$owner"
-fresh; edit "$user" 's/\| 予約 \| Reservation \|/| 予約 | Booking |/'; rejects "持ち主と英名が違う参照を拒否" "持ち主の資料と英名か種類が違う" "$user"
-fresh; edit "$user" 's#\.\./予約/business-knowledge\.md#../無い/business-knowledge.md#'
-output=$(python3 "$checker" check "$user" 2>&1); status=$?
-[ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "まだ無い持ち主は未確認として報告し、合否に数えない" || fail "まだ無い持ち主の扱い（exit ${status}）"
-fresh; edit "$user" 's/\| 入室する \| Enter \| コマンド \|/| 入室する | Enter | 手続き |/'; accepts "残りの引数の資料の違反では判定する資料を落とさない" "$owner" "$user"
-fresh; edit "$user" 's/\| 予約 \| Reservation \| 業務用語 \| \[[^\n]*/| 予約 | Reservation | 業務用語 | この資料 |/'; rejects "隣の資料も同じ言葉を決めていれば判定する資料で拒否" "同じ言葉を隣の資料も決めている" "$owner" "$user"
-fresh; edit "$user" 's/\| 入室した \| Entered \|/| 入室した | Reserved |/'; rejects "隣の資料で同じ英名が違う言葉に付けば判定する資料で拒否" "英名 Reserved が隣の資料で別の言葉" "$owner" "$user"
-fresh; edit "$owner" 's/---\ntitle: 予約\n---\n//'; rejects "先頭の三行が無い状態遷移図を拒否" "状態遷移図の先頭が" "$owner"
-fresh; edit "$owner" 's/\[BDD-002\]/[BDD-001]/'; rejects "BDD 番号の重複を拒否" "BDD の番号が" "$owner"
-fresh; edit "$owner" 's/\[BDD-002\]/[BDD-2]/'; rejects "3桁未満の BDD 番号を拒否" "3桁以上の数字" "$owner"
-fresh; edit "$owner" 's/Rule: 本人ではない/Rule: 他人の予約/'; rejects "宣言に無い Rule を拒否" "拒む理由: <名前>」のどれとも一致しない" "$owner"
-fresh; edit "$owner" 's/^## 予約$/## 予約は取り消すまで続く/m'; accepts "見出しの文言に依らず目印で読む" "$owner"
-fresh; edit "$owner" 's/\| 予約 \| Reservation \|/| 予約 | ReservationID |/'; rejects "大文字が続く英名を拒否" "先頭だけを大文字にした形ではない" "$owner"
-fresh; edit "$user" 's/\| 予約 \| Reservation \| 業務用語 \| \[予約の業務知識\]\(\.\.\/予約\/business-knowledge\.md\)/| 予約 | 未定 | 業務用語 | [予約の業務知識](..\/無い\/business-knowledge.md)/'
-output=$(python3 "$checker" check "$user" 2>&1); status=$?
-[ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "持ち主の資料が無い間の未定は未確認として通す" || fail "持ち主の資料が無い間の未定（exit ${status}）"
-output=$(python3 "$checker" check-set "$owner" "$user" 2>&1); status=$?
-[ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "複数資料の検査でも持ち主の欠けは未確認にとどめる" || fail "複数資料の未確認（exit ${status}）"
-fresh; edit "$user" 's/\| 予約 \| Reservation \|/| 予約 | 未定 |/'; rejects "持ち主の資料があるのに残った未定を拒否" "英名が「未定」のまま残っている" "$user"
-fresh; edit "$owner" 's/\| 予約 \| Reservation \|/| 予約 | 未定 |/'; rejects "この資料が決める語の未定を拒否" "この資料が決める語の英名が「未定」である" "$owner"
-fresh; python3 "$checker" check-set "$owner" "$user" >/dev/null 2>&1 && pass "複数資料の検査の正例" || fail "複数資料の検査の正例"
-fresh; edit "$owner" 's/(\| 予約する \| Reserve \|)/| 予約している | Reserving | 状態 | この資料 |\n$1/'; accepts "種類「状態」の語を受け付ける" "$owner"
-fresh; edit "$user" 's/\| 予約 \| Reservation \| 業務用語 \| \[[^\n]*/| 読み手 | 未定 | 業務用語 | 範囲の外: [要件](..\/要件.md) |/'; accepts "範囲の外の持ち主の語は未定のまま通す" "$user"
-python3 "$checker" check-set "$owner" "$user" >/dev/null 2>&1 && pass "範囲の外の持ち主は複数資料の検査でも違反に数えない" || fail "範囲の外の持ち主の複数資料の検査"
-fresh; edit "$owner" 's/(# BDD\n)/# 同時に起きたとき\n\n### 同時に起きること: 二人が同じ予約を取り消す\n\n先に取り消した人だけが通る。\n\n$1/'; rejects "同時に起きることの項目に BDD の番号が無ければ拒否" "同時に起きることの項目に BDD の番号が無い" "$owner"
-fresh; edit "$owner" 's/(# BDD\n)/# 同時に起きたとき\n\n### 同時に起きること: 二人が同じ予約を取り消す\n\n先に取り消した人だけが通る（BDD-009）。\n\n$1/'; rejects "同時に起きることの項目が無い BDD を指せば拒否" "この資料に BDD-009 が無い" "$owner"
-fresh; edit "$owner" 's/(# BDD\n)/# 同時に起きたとき\n\n### 同時に起きること: 二人が同じ予約を取り消す\n\n先に取り消した人だけが通る（BDD-001）。\n\n$1/'; accepts "同時に起きることの項目が BDD を指す正例" "$owner"
+# 正例
+fresh; accepts "持ち主の資料の正例" check "$owner"
+fresh; accepts "前提で持ち主を指す資料の正例" check "$user"
+fresh; accepts "前提のリンク先がある資料の組の正例" check-set "$owner" "$user"
+
+# 境界例
+fresh; edit "$owner" 's/^## 前提\n\n### 利用者\n\n[^\n]*\n/## 前提\n\nこの業務は前提を持たない。\n/m; s/利用者、一部屋一日一件/一部屋一日一件/'; accepts "中身の無い節を一文で残した資料を通す" check "$owner"
+fresh; edit "$owner" 's/^\| 予約している \| 予約した本人ではない利用者が取り消す \|/| 予約している、取り消した | 予約した本人ではない利用者が取り消す |/m'; accepts "状況を「、」で並べてまとめた行を通す" check "$owner"
+fresh; edit "$owner" 's/^### 予約している（Active）$/### 予約している/m'; accepts "英名を添えない状況の名前でも表から引ける" check "$owner"
+fresh; edit "$user" 's#\.\./予約/business-knowledge\.md#../無い/business-knowledge.md#g'; unverified "前提のリンク先が無ければ未確認として通す" check-set "$user"
+fresh; edit "$owner" 's/^## 前提\n\n### 利用者$/## 前提\n\n### 予約/m; s/利用者、一部屋一日一件/予約、一部屋一日一件/'; accepts "前提の同じ名前は二つの資料の照合に数えない" check-set "$owner" "$user"
+fresh; accepts "check は前提のリンク先を照合しない" check "$user"
+
+# 反例: 見出しの骨組み
+fresh; edit "$owner" 's/^## 計算\n\n### 取り消す日\n\n[^\n]*\n\n//m; s/、取り消す日//g'; rejects "節の欠けを拒否" "の順の八つではない" check "$owner"
+fresh; edit "$owner" 's/^## 制約$/## 前提の二/m; s/^## 前提$/## 制約/m; s/^## 前提の二$/## 前提/m'; rejects "節の順の入れ替えを拒否" "の順の八つではない" check "$owner"
+fresh; edit "$owner" 's/^## まだ決まっていないこと$/## ユビキタス言語\n\nなし。\n\n## まだ決まっていないこと/m'; rejects "余分な節を拒否" "の順の八つではない" check "$owner"
+fresh; edit "$owner" 's/^## BDD$/# BDD の一覧\n\n## BDD/m'; rejects "二つ目の表題を拒否" "\`#\` の見出しが2個ある" check "$owner"
+fresh; edit "$owner" 's/^### 取り消す日$/### 本人だけが取り消す/m; s/、取り消す日//g'; rejects "制約と計算をまたぐ同じ名前を拒否" "同じ名前が制約の節にもある" check "$owner"
+fresh; edit "$owner" 's/^### 取り消した（Cancelled）$/### 予約している（Done）/m'; rejects "英名を外すと同じになる状況の名前を拒否" "同じ名前が状況の節にもある" check "$owner"
+
+# 反例: 判断の表
+fresh; edit "$owner" 's/\| 状況 \| きっかけ \| 起こす人 \| 判断 \| 起きること \| 根拠 \|/| 状況 | きっかけ | 判断 | 起きること | 根拠 |/; s/^\|---\|---\|---\|---\|---\|---\|$/|---|---|---|---|---|/m'; rejects "見出し行の違う表を拒否" "ではない表がある" check "$owner"
+fresh; edit "$owner" 's/^(\| 予約している \| 予約した本人が利用日より後に取り消す [^\n]*\n)/$1\n| 状況 | きっかけ | 起こす人 | 判断 | 起きること | 根拠 |\n|---|---|---|---|---|---|\n| 取り消した | 取り消す | 利用者 | できない | 何も変わらない | 本人だけが取り消す |\n/m'; rejects "二つ目の判断の表を拒否" "判断の表が二つ目である" check "$owner"
+fresh; edit "$owner" 's/^## まだ決まっていないこと\n\nなし。/## まだ決まっていないこと\n\n| 状況 | きっかけ | 起こす人 | 判断 | 起きること | 根拠 |\n|---|---|---|---|---|---|\n| 取り消した | 取り消す | 利用者 | できない | 何も変わらない | 本人だけが取り消す |/m'; rejects "節の外の判断の表を拒否" "節の外にある" check "$owner"
+fresh; edit "$owner" 's/\| 利用者 \| できない \| 何も変わらない \| 一部屋一日一件 \|/| 利用者 | できない | 一部屋一日一件 |/'; rejects "列数の違う行を拒否" "列数が判断の表の見出しと一致しない" check "$owner"
+fresh; edit "$owner" 's/^\| 予約している \| 予約した本人ではない/| 予約中 | 予約した本人ではない/m'; rejects "状況の節に無い状況を拒否" "状況の欄の名前が状況の節に無い: 予約中" check "$owner"
+fresh; edit "$user" 's/\| 利用者 \| できない \| 何も変わらない \| 予約 \|/| 利用者 | 拒む | 何も変わらない | 予約 |/'; rejects "判断の許可値の外を拒否" "判断が許可値ではない: 拒む" check "$user"
+fresh; edit "$owner" 's/\| 何も変わらない \| 本人だけが取り消す \|/| 何も変わらない | 本人だけが取り消す、他人の予約 |/'; rejects "どの項目にも無い根拠を拒否" "根拠の名前が前提、制約、状況、計算のどれにも無い: 他人の予約" check "$owner"
+fresh; edit "$owner" 's/\| 何も変わらない \| 取り消しは利用日まで、取り消す日 \|/| 何も変わらない | 取り消す日 |/'; rejects "計算だけを根拠にしたできない行を拒否" "できない行の根拠に、制約、前提、状況の名前が無い" check "$owner"
+
+# 反例: BDD
+fresh; edit "$owner" 's/\[BDD-002\]/[BDD-001]/'; rejects "BDD 番号の重複を拒否" "BDD の番号が" check "$owner"
+fresh; edit "$owner" 's/\[BDD-002\]/[BDD-2]/'; rejects "3桁未満の BDD 番号を拒否" "3桁以上の数字" check "$owner"
+fresh; edit "$owner" 's/^### 取り消す日$/### [BDD-009] 取り消す日/m; s/、取り消す日//g'; rejects "BDD の節の外の BDD を拒否" "BDD の節の外にある" check "$owner"
+fresh; edit "$owner" 's/^## BDD\n/## BDD\n\n### 取り消しの例\n/m'; rejects "BDD の節の BDD でない見出しを拒否" "の形ではない" check "$owner"
+fresh; edit "$owner" 's/Rule: 本人だけが取り消す/Rule: 取り消す日/'; rejects "計算の名前を指す Rule を拒否" "制約にも前提にも状況にも無い" check "$owner"
+fresh; edit "$user" 's/Rule: 予約した本人だけが入る/Rule: 本人ではない/'; rejects "どの項目にも無い Rule を拒否" "制約にも前提にも状況にも無い" check "$user"
+
+# 反例: 資料の組
+fresh; edit "$user" 's/^### 予約した本人だけが入る$/### 一部屋一日一件/m; s/予約した本人だけが入る/一部屋一日一件/g'; rejects "二つの資料が定義する同じ制約を拒否" "も制約として定義している" check-set "$owner" "$user"
+fresh; edit "$user" 's/^### 入室する日$/### 予約している/m; s/入室する日/予約している/g'; rejects "ほかの資料の状況と同じ名前の計算を拒否" "も状況として定義している" check-set "$owner" "$user"
+
+# 引数
 python3 "$checker" check >/dev/null 2>&1; [ $? -eq 2 ] && pass "引数の無い呼び出しは exit 2" || fail "引数の無い呼び出しの終了code"
+fresh; python3 "$checker" check "$owner" "$user" >/dev/null 2>&1; [ $? -eq 2 ] && pass "check に二本渡すと exit 2" || fail "check に二本渡したときの終了code"
+python3 "$checker" check "$work/無い.md" >/dev/null 2>&1; [ $? -eq 2 ] && pass "読めない資料は exit 2" || fail "読めない資料の終了code"
 
 printf '\nbusiness_knowledge.py: %d passed, %d failed\n' "$passed" "$failed"
 [ "$failed" -eq 0 ]
