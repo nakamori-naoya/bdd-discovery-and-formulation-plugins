@@ -6,22 +6,22 @@
 正規化: クエリデータモデルでは、コードブロックの外で見出し行が「読むテーブル | 持ち主の資料」の表を読むテーブルとして、
   「### [BDD-<数字>]」の見出しから次の見出しまでを一件の BDD として、その中の「**`<テーブル名>`**」の行に続く表の見出し行を読む列として、
   「**取得結果**」の行を取得結果の目印として読む。持ち主のコマンドデータモデルでは、見出し行が
-  「系列 | 性質 | 論理テーブル | 保存表現 | 根拠」の表の論理テーブルの欄と、1行目が erDiagram の Mermaid ブロックの
-  実体と属性行の名前を読む。backtick は外して比べる。
+  「系列 | 性質 | 論理テーブル | 保存表現 | 根拠」の表の論理テーブルの欄と、見出し行が「列 | 型 | キー | 意味」の表の列の欄を、
+  直前の「### `<テーブル名>`」の見出しのテーブルの列として読む。backtick は外して比べる。
 合格述語: 読むテーブルの表が一つだけあり、各行は backtick のテーブル名と相対 Markdown リンクで、同じテーブルは一行だけである。
-  分類の表と erDiagram のブロックを持たない。BDD の見出しは「### [BDD-<3桁以上の数字>] <本文>」で、番号は資料の中で一意である。
+  分類の表、列の表、Mermaid のブロックを持たない。BDD の見出しは「### [BDD-<3桁以上の数字>] <本文>」で、番号は資料の中で一意である。
   見出し行が「所与の読み取り元 | 読む事実 | 持ち主」の表は無いか一つで、各行の持ち主は「範囲の外: [持ち主の資料の名前](パスかURL)」の形である。
   BDD の「**所与: <名前>**」の名前は、その表にある。所与の読み取り元だけを読む資料は、読むテーブルの表を持たなくてよい。
   各 BDD に「**取得結果**」の行がちょうど一つあり、その後に表がある。BDD に出たテーブルはすべて読むテーブルの表にあり、
-  リンク先の資料があれば、そのテーブルを分類しており、BDD の表の見出しの列名はすべて、持ち主の erDiagram のそのテーブルの列にある。
+  リンク先の資料があれば、そのテーブルを分類しており、BDD の表の見出しの列名はすべて、持ち主のそのテーブルの列の表にある。
   リンク先の資料が無いことは、どちらのモードでも未確認として報告し、合否に数えない。
   見出し行が「読み取りの根拠 | この資料のBDD」の対応の表が一つだけあり、各行の左は Markdown リンク（リンク先の重複なし）、右は BDD-<番号> を「、」で
   区切ったものか 対象外 で、右に書いた BDD はこの資料の「### [BDD-<番号>]」の見出しにある。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"} で出し、最後に
   {"status", "subject", "problems", "unverified"} を一行出す。違反があれば終了code 1、未確認だけなら 0。引数が無いかファイルを読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/query-data-model/valid.md（持ち主は scripts/fixtures/command-data-model/valid.md）。
-反例: scripts/test-query-model.sh の、持ち主の図に無い列、読むテーブルの表に無いテーブル、持ち主が分類していないテーブル、
-  取得結果の無い BDD と二つある BDD、BDD 番号の重複、分類の表を持つ資料、リンクでない根拠、根拠の重複、
+反例: scripts/test-query-model.sh の、持ち主の列の表に無い列、読むテーブルの表に無いテーブル、持ち主が分類していないテーブル、
+  取得結果の無い BDD と二つある BDD、BDD 番号の重複、分類の表を持つ資料、列の表を持つ資料、Mermaid のブロックを持つ資料、リンクでない根拠、根拠の重複、
   対応の表の欠け、許されない対応の欄、この資料に無い BDD を指す対応。
 意味評価として残す範囲: 根拠のリンクが必要な計算や場面を指すか、取得結果が計算と場面に合うか、範囲の行の書き方が正しいか、読み取りが本当に実現できるか、
   境界の例が足りるか、物理設計の関心が混ざっていないか。
@@ -48,8 +48,9 @@ GIVEN_LABEL = re.compile(r"^\*\*所与:\s*(.+?)\*\*\s*$")
 GIVEN_HEADERS = ["所与の読み取り元", "読む事実", "持ち主"]
 OUTSIDE = re.compile(r"^範囲の外:\s*\[[^\]]*\]\(([^)\s]+)\)$")
 RESULT_LABEL = "**取得結果**"
-ENTITY_OPEN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\{$")
-ATTRIBUTE = re.compile(r'^[A-Za-z_][A-Za-z0-9_\[\]]*\s+([A-Za-z_][A-Za-z0-9_]*)\b')
+COLUMN_HEADERS = ["列", "型", "キー", "意味"]
+DEFINITION = re.compile(r"^###\s+`([^`|]+)`")
+SECTION = re.compile(r"^#{1,3}\s")
 
 
 @dataclass
@@ -92,15 +93,6 @@ def header_rows(prose: list[tuple[int, str]], headers: list[str]) -> list[int]:
     return [i for i, (_, line) in enumerate(prose) if line.lstrip().startswith("|") and cells(line) == headers]
 
 
-def er_blocks(found: list[tuple[str, list[str]]]) -> list[list[str]]:
-    result = []
-    for language, body in found:
-        content = [line for line in body if line and not line.startswith("%%")]
-        if language == "mermaid" and content and content[0] == "erDiagram":
-            result.append(content)
-    return result
-
-
 @dataclass
 class Owner:
     classified: set[str]
@@ -124,19 +116,20 @@ def read_owner(path: Path) -> Owner | None:
                 if match:
                     classified.add(match.group(1))
     columns: dict[str, set[str]] = {}
-    for block in er_blocks(found):
-        current = None
-        for line in block[1:]:
-            opened = ENTITY_OPEN.match(line)
-            if opened:
-                current = opened.group(1)
-                columns.setdefault(current, set())
-            elif line == "}":
-                current = None
-            elif current is not None:
-                attr = ATTRIBUTE.match(line)
-                if attr:
-                    columns[current].add(attr.group(1))
+    current = None
+    for start, (_, line) in enumerate(prose):
+        if SECTION.match(line):
+            definition = DEFINITION.match(line)
+            current = definition.group(1) if definition else None
+            continue
+        if current is None or not (line.lstrip().startswith("|") and cells(line) == COLUMN_HEADERS):
+            continue
+        for _, row_line in prose[start + 2:]:
+            if not row_line.lstrip().startswith("|"):
+                break
+            name = TABLE_CELL.fullmatch(cells(row_line)[0])
+            if name:
+                columns.setdefault(current, set()).add(name.group(1))
     return Owner(classified, columns)
 
 
@@ -146,8 +139,10 @@ def check(path: Path, text: str, owners: dict[Path, Owner | None], problems: lis
     check_mapping(label, prose, {"対象外"}, problems)
     if header_rows(prose, CLASSIFICATION_HEADERS):
         problems.append(Problem(f"{label}.classification", "クエリデータモデルが分類の表を持っている", "テーブルはコマンドデータモデルにだけ定義し、この資料では読むテーブルの表で指す"))
-    if er_blocks(found):
-        problems.append(Problem(f"{label}.er", "クエリデータモデルが erDiagram を持っている", "テーブルの形はコマンドデータモデルの図にだけ描く"))
+    if header_rows(prose, COLUMN_HEADERS):
+        problems.append(Problem(f"{label}.columns", "クエリデータモデルが列の表を持っている", "テーブルの列はコマンドデータモデルの列の表にだけ書く"))
+    if any(language == "mermaid" for language, _ in found):
+        problems.append(Problem(f"{label}.mermaid", "Mermaid のブロックがある", "図が要るなら draw.io の .drawio.svg にして資料の隣の .assets/ に置く"))
 
     given: set[str] = set()
     given_starts = header_rows(prose, GIVEN_HEADERS)
@@ -243,7 +238,7 @@ def check(path: Path, text: str, owners: dict[Path, Owner | None], problems: lis
             continue
         missing = sorted(columns - owner.columns.get(table, set()))
         if missing:
-            problems.append(Problem(where, f"持ち主の図に無い列を読んでいる: {missing}", "持ち主の図の列名を使う。列が本当に無いなら、コマンドデータモデルの欠けとして差し戻す"))
+            problems.append(Problem(where, f"持ち主の列の表に無い列を読んでいる: {missing}", "持ち主の列の表の列名を使う。列が本当に無いなら、コマンドデータモデルの欠けとして差し戻す"))
 
 
 MAPPING_HEADERS = ["読み取りの根拠", "この資料のBDD"]

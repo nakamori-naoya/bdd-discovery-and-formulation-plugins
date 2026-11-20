@@ -11,48 +11,14 @@
 | イベント系 | 技術 | `cancel_notice_claimed_events` | イベント列 | 取消を知らせる要求 |
 | イベント系 | 技術 | `cancel_notice_succeeded_events` | イベント列 | 取消を知らせる要求 |
 
-## データモデル図
+## 予約と出来事の関係
 
-```mermaid
-erDiagram
-    reservations {
-        uuid reservation_id PK "予約"
-        text room_code "会議室"
-        date use_on "業務が与えた値。利用日"
-        text status "いまの状態"
-        bigint current_version "反映済みの最後の版"
-    }
-    reservation_base_events {
-        uuid event_id PK "イベント"
-        uuid reservation_id FK "対象予約"
-        text event_type "種類"
-        bigint version "予約の中の順序"
-        timestamptz occurred_at "起きた時点"
-    }
-    reservation_cancelled_events {
-        uuid event_id PK, FK "基底イベント"
-        text reason "取消の理由"
-    }
-    cancel_notice_requested_events {
-        uuid request_id PK "要求"
-        uuid source_event_id FK "起因の基底イベント"
-        timestamptz occurred_at "要求した時点"
-    }
-    cancel_notice_claimed_events {
-        uuid claim_id PK "回収"
-        uuid request_id FK "要求"
-        bigint version "要求の中の回収の順序"
-        text worker_id "引き受けた担い手"
-        timestamptz occurred_at "回収した時点"
-    }
-    cancel_notice_succeeded_events {
-        uuid request_id PK, FK "要求"
-        uuid claim_id FK "終えた回収"
-        timestamptz occurred_at "終えた時点"
-    }
-    reservations ||--|{ reservation_base_events : "起きたこと"
-    reservation_base_events ||--o| reservation_cancelled_events : "取消の事実"
-```
+![予約に基底イベントが続き、取消の詳細イベントが基底イベントに続く](valid.assets/model.drawio.svg)
+
+| 関係元 | 関係先 | 多重度 | 意味 |
+|---|---|---|---|
+| `reservations` | `reservation_base_events` | 1対1以上 | 起きたこと |
+| `reservation_base_events` | `reservation_cancelled_events` | 1対0か1 | 取消の事実 |
 
 ## テーブル定義
 
@@ -60,25 +26,66 @@ erDiagram
 
 予約を見分ける識別子と、予約したときに決まる会議室と利用日。
 
+| 列 | 型 | キー | 意味 |
+|---|---|---|---|
+| `reservation_id` | uuid | PK | 予約 |
+| `room_code` | text |  | 会議室 |
+| `use_on` | date |  | 業務が与えた値。利用日 |
+| `status` | text |  | いまの状態 |
+| `current_version` | bigint |  | 反映済みの最後の版 |
+
 ### `reservation_base_events`（予約に起きたこと）
 
 予約に起きた出来事に共通する事実。
+
+| 列 | 型 | キー | 意味 |
+|---|---|---|---|
+| `event_id` | uuid | PK | イベント |
+| `reservation_id` | uuid | FK | 対象予約 |
+| `event_type` | text |  | 種類 |
+| `version` | bigint |  | 予約の中の順序 |
+| `occurred_at` | timestamptz |  | 起きた時点 |
 
 ### `reservation_cancelled_events`（予約取消）
 
 取消に固有の事実。
 
+| 列 | 型 | キー | 意味 |
+|---|---|---|---|
+| `event_id` | uuid | PK、FK | 基底イベント |
+| `reason` | text |  | 取消の理由 |
+
 ### `cancel_notice_requested_events`（取消の通知の要求）
 
 取消を知らせる要求。
+
+| 列 | 型 | キー | 意味 |
+|---|---|---|---|
+| `request_id` | uuid | PK | 要求 |
+| `source_event_id` | uuid | FK | 起因の基底イベント |
+| `occurred_at` | timestamptz |  | 要求した時点 |
 
 ### `cancel_notice_claimed_events`（取消の通知の回収）
 
 担い手が要求を引き受けた事実。
 
+| 列 | 型 | キー | 意味 |
+|---|---|---|---|
+| `claim_id` | uuid | PK | 回収 |
+| `request_id` | uuid | FK | 要求 |
+| `version` | bigint |  | 要求の中の回収の順序 |
+| `worker_id` | text |  | 引き受けた担い手 |
+| `occurred_at` | timestamptz |  | 回収した時点 |
+
 ### `cancel_notice_succeeded_events`（取消の通知の成功）
 
 知らせ終えた事実。
+
+| 列 | 型 | キー | 意味 |
+|---|---|---|---|
+| `request_id` | uuid | PK、FK | 要求 |
+| `claim_id` | uuid | FK | 終えた回収 |
+| `occurred_at` | timestamptz |  | 終えた時点 |
 
 ## BDD
 

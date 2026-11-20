@@ -18,7 +18,7 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 # fresh: fixture を一時ディレクトリへ写し直す。
-fresh() { rm -rf "$work/m"; mkdir -p "$work/m"; cp "$fixtures"/*.md "$work/m/"; }
+fresh() { rm -rf "$work/m"; mkdir -p "$work/m"; cp -R "$fixtures"/. "$work/m/"; }
 # accepts <名前> <資料...>: exit 0 なら合格。
 accepts() { local name=$1; shift; python3 "$checker" check "$@" >/dev/null 2>&1 && pass "$name" || fail "$name"; }
 # rejects <名前> <診断の文言> <資料...>: exit 1 で、診断に文言が出れば合格。
@@ -39,45 +39,50 @@ fresh; accepts "条件付きNULL・状態・削除フラグを含むだけでは
 fresh; edit 's/\| 保存表現 \|/| 保存の形 |/'; rejects "列名が契約と違う分類表を拒否" "分類表が0個ある" "$work/m/valid.md"
 fresh; edit 's/\| 現在状態 \|/| イベント列 |/'; rejects "リソース系でイベント列を選んだ分類を拒否" "リソース系の論理テーブルに対し、分類表の「保存表現」列でイベント列を選択している" "$work/m/valid.md"
 fresh; rejects "性質が派生のテーブルを拒否" "許可値ではない: 派生" "$work/m/derived.md"
-fresh; rejects "未分類のテーブルを拒否" "図のテーブルが分類表にも参照の表にも無い" "$work/m/unclassified.md"
-fresh; edit 's/timestamptz occurred_at "要求した時点"/timestamptz requested_at "要求した時点"/'; rejects "occurred_at の無い技術イベントを拒否" "occurred_at の列が無い" "$work/m/valid.md"
-fresh; edit 's/(\s+text reason "取消の理由")/$1\n        timestamptz occurred_at "取り消した時点"/'; rejects "occurred_at を持つ詳細イベントを拒否" "詳細イベントが occurred_at の列を持つ" "$work/m/valid.md"
-fresh; edit 's/(\s+text reason "取消の理由")/$1\n        timestamptz cancelled_at "取り消した時点"/'; accepts "名前が _at で終わるだけの詳細イベントの列は拒まない" "$work/m/valid.md"
-fresh; edit 's/(\s+timestamptz occurred_at "起きた時点")/$1\n        timestamptz recorded_at "記録した時点"/'; accepts "名前が _at で終わるだけの基底イベントの列は拒まない" "$work/m/valid.md"
+fresh; rejects "未分類のテーブルを拒否" "定義したテーブルが分類表にも参照の表にも無い" "$work/m/unclassified.md"
+fresh; edit 's/`occurred_at` \| timestamptz \|  \| 要求した時点/`requested_at` | timestamptz |  | 要求した時点/'; rejects "occurred_at の無い技術イベントを拒否" "occurred_at の列が無い" "$work/m/valid.md"
+fresh; edit 's/(\| `reason` \| text \|  \| 取消の理由 \|)/$1\n| `occurred_at` | timestamptz |  | 取り消した時点 |/'; rejects "occurred_at を持つ詳細イベントを拒否" "詳細イベントが occurred_at の列を持つ" "$work/m/valid.md"
+fresh; edit 's/(\| `reason` \| text \|  \| 取消の理由 \|)/$1\n| `cancelled_at` | timestamptz |  | 取り消した時点 |/'; accepts "名前が _at で終わるだけの詳細イベントの列は拒まない" "$work/m/valid.md"
+fresh; edit 's/(\| `occurred_at` \| timestamptz \|  \| 起きた時点 \|)/$1\n| `recorded_at` | timestamptz |  | 記録した時点 |/'; accepts "名前が _at で終わるだけの基底イベントの列は拒まない" "$work/m/valid.md"
 fresh; edit 's/reservation_base_events/reservation_header/g'; rejects "_events で終わらないイベント表を拒否" "_eventsで終わらない" "$work/m/valid.md"
-fresh; edit 's/\n\s+bigint version "予約の中の順序"//'; rejects "version の無い基底イベントを拒否" "基底イベントに適用後の版 version が無い" "$work/m/valid.md"
-fresh; edit 's/\n\s+bigint current_version "反映済みの最後の版"//'; accepts "導出した現在版を論理リソースに要求しない" "$work/m/valid.md"
-fresh; edit 's/\n\s+text status "いまの状態"//'; accepts "導出した現在状態を論理リソースに要求しない" "$work/m/valid.md"
-fresh; edit 's/\n\s+reservations \|\|--\|\{ reservation_base_events : "起きたこと"//'; rejects "リソースと結ばれていない基底イベントを拒否" "リソース系・業務のテーブルと結ばれていない" "$work/m/valid.md"
-fresh; edit 's/\n\| イベント系 \| 技術 \| `cancel_notice_succeeded_events`[^\n]*//; s/\n\s+cancel_notice_succeeded_events \{[^}]*\}//; s/\n### `cancel_notice_succeeded_events`[^\n]*\n\n[^\n]*\n//'; accepts "要求と完了の形を一律に強制しない" "$work/m/valid.md"
-fresh; edit 's/\n\s+bigint version "要求の中の回収の順序"//'; accepts "回収の版を一律に強制しない" "$work/m/valid.md"
-fresh; edit 's/(\s+text reason "取消の理由")/$1\n        date refund_due_on "返金の期限"/'; accepts "詳細イベントの日付の列は拒まない" "$work/m/valid.md"
-fresh; edit 's/^## リソース系とイベント系$/## 予約は現在状態、出来事はイベント列で残す/m; s/^## データモデル図$/## 予約と二つのイベント表/m'; accepts "見出しの文言に依らず目印で読む" "$work/m/valid.md"
+fresh; edit 's/\n\| `version` \| bigint \|  \| 予約の中の順序 \|//'; rejects "version の無い基底イベントを拒否" "基底イベントに適用後の版 version が無い" "$work/m/valid.md"
+fresh; edit 's/\n\| `current_version` [^\n]*//'; accepts "導出した現在版を論理リソースに要求しない" "$work/m/valid.md"
+fresh; edit 's/\n\| `status` \| text \|  \| いまの状態 \|//'; accepts "導出した現在状態を論理リソースに要求しない" "$work/m/valid.md"
+fresh; edit 's/\n\| `reservations` \| `reservation_base_events` [^\n]*//'; rejects "リソースと結ばれていない基底イベントを拒否" "リソース系・業務のテーブルと結ばれていない" "$work/m/valid.md"
+fresh; edit 's/\n\| イベント系 \| 技術 \| `cancel_notice_succeeded_events`[^\n]*//; s/\n### `cancel_notice_succeeded_events`.*?(?=\n## )//s'; accepts "要求と完了の形を一律に強制しない" "$work/m/valid.md"
+fresh; edit 's/\n\| `version` \| bigint \|  \| 要求の中の回収の順序 \|//'; accepts "回収の版を一律に強制しない" "$work/m/valid.md"
+fresh; edit 's/(\| `reason` \| text \|  \| 取消の理由 \|)/$1\n| `refund_due_on` | date |  | 返金の期限 |/'; accepts "詳細イベントの日付の列は拒まない" "$work/m/valid.md"
+fresh; edit 's/^## リソース系とイベント系$/## 予約は現在状態、出来事はイベント列で残す/m; s/^## 予約と出来事の関係$/## 予約と二つのイベント表/m'; accepts "見出しの文言に依らず目印で読む" "$work/m/valid.md"
 fresh; printf '\n| 系列 | 性質 | 論理テーブル | 保存表現 | 根拠 |\n|---|---|---|---|---|\n' >> "$work/m/valid.md"; rejects "分類の表が二つある資料を拒否" "分類表が2個ある" "$work/m/valid.md"
-fresh; perl -0pi -e 's/`reservation_id`、`status`/`reservation_id`、`guest_name`/; s/text status "いまの状態"\n    \}\n    entries/text guest_name "予約した人"\n    }\n    entries/' "$work/m/reader.md"; rejects "持ち主の図に無い読む列を拒否" "読む列が持ち主の図に無い" "$work/m/reader.md"
-fresh; perl -0pi -e 's/\| `reservation_id`、`status` \|/| `reservation_id` |/' "$work/m/reader.md"; rejects "読む列と図の列が違う参照を拒否" "参照したテーブルの図の列が読む列と一致しない" "$work/m/reader.md"
+fresh; edit 's/(### `reservation_cancelled_events`[^\n]*\n\n[^\n]*\n)\n\| 列 .*?\n(?=\n### )/$1/s'; rejects "列の表の無いテーブルを拒否" "分類したテーブルに列の表が無い" "$work/m/valid.md"
+fresh; edit 's/(## テーブル定義\n)/$1\n| 列 | 型 | キー | 意味 |\n|---|---|---|---|\n| `note` | text |  | メモ |\n/'; rejects "定義の見出しの外の列の表を拒否" "列の表がテーブルの定義の見出しの下に無い" "$work/m/valid.md"
+fresh; edit 's/\| `reason` \| text \|  \|/| `reason` | text | 主キー |/'; rejects "許されないキーの欄を拒否" "列の行が" "$work/m/valid.md"
+fresh; edit 's/(\| `reservation_base_events` \| `reservation_cancelled_events` [^\n]*)/$1\n| `reservations` | `rooms` | 多対1 | 予約した会議室 |/'; rejects "分類にも参照にも無いテーブルを結ぶ関係を拒否" "関係の表のテーブルが分類表にも参照の表にも無い" "$work/m/valid.md"
+fresh; edit 's/(## テーブル定義\n)/```mermaid\nerDiagram\n    reservations {\n        uuid reservation_id PK\n    }\n```\n\n$1/'; rejects "Mermaid のブロックを拒否" "Mermaid のブロックがある" "$work/m/valid.md"
+fresh; rm "$work/m/valid.assets/model.drawio.svg"; rejects "実在しない図の参照を拒否" "図の参照先のファイルが無い" "$work/m/valid.md"
+fresh; perl -0pi -e 's/`reservation_id`、`status`/`reservation_id`、`guest_name`/' "$work/m/reader.md"; rejects "持ち主の列の表に無い読む列を拒否" "読む列が持ち主の列の表に無い" "$work/m/reader.md"
 fresh; perl -0pi -e 's/\(valid\.md\)/(missing.md)/' "$work/m/reader.md"
 output=$(python3 "$checker" check "$work/m/reader.md" 2>&1); status=$?
 [ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "まだ無い持ち主は未確認として報告し、合否に数えない" || fail "まだ無い持ち主の扱い（exit ${status}）"
 fresh; perl -0pi -e 's/reservation_base_events/room_base_events/g' "$work/m/derived.md"; accepts "残りの引数の資料の違反では判定する資料を落とさない" "$work/m/valid.md" "$work/m/derived.md"
-fresh; edit 's/(\| リソース系 \| 業務 \| `reservations` [^\n]*\n)/$1| リソース系 | 技術 | `external_accounts` | 現在状態 | 認証の識別子を失うと利用を続けられない（品質要求） |\n/; s/(erDiagram\n)/$1    external_accounts {\n        text external_subject PK "外部の認証の識別子"\n        uuid user_id "利用者"\n    }\n/; s/(### `reservations`)/### `external_accounts`（外部の認証とのひも付け）\n\nひも付け。\n\n$1/'; accepts "技術のリソースは status と current_version を求めない" "$work/m/valid.md"
-fresh; perl -0pi -e 's/(\| リソース系 \| 業務 \| `entries`[^\n]*\n)/$1| リソース系 | 業務 | `reservations` | 現在状態 | 入室の業務知識 |\n/; s/\n\| `reservations` \| `reservation_id`、`status` \|[^\n]*//; s/^(### `entries`)/### `reservations`（予約）\n\n予約。\n\n$1/m' "$work/m/reader.md"
+fresh; edit 's/(\| リソース系 \| 業務 \| `reservations` [^\n]*\n)/$1| リソース系 | 技術 | `external_accounts` | 現在状態 | 認証の識別子を失うと利用を続けられない（品質要求） |\n/; s/(### `reservations`)/### `external_accounts`（外部の認証とのひも付け）\n\nひも付け。\n\n| 列 | 型 | キー | 意味 |\n|---|---|---|---|\n| `external_subject` | text | PK | 外部の認証の識別子 |\n| `user_id` | uuid |  | 利用者 |\n\n$1/'; accepts "技術のリソースは status と current_version を求めない" "$work/m/valid.md"
+fresh; perl -0pi -e 's/(\| リソース系 \| 業務 \| `entries`[^\n]*\n)/$1| リソース系 | 業務 | `reservations` | 現在状態 | 入室の業務知識 |\n/; s/\n\| `reservations` \| `reservation_id`、`status` \|[^\n]*//; s/^(### `entries`)/### `reservations`（予約）\n\n予約。\n\n| 列 | 型 | キー | 意味 |\n|---|---|---|---|\n| `reservation_id` | uuid | PK | 予約 |\n\n$1/m' "$work/m/reader.md"
 rejects "残りの引数の資料も同じテーブルを分類していれば判定する資料で拒否" "同じテーブルをほかの資料も分類している" "$work/m/valid.md" "$work/m/reader.md"
 fresh; edit 's/\| BDD-001 \| 対象外 \|/| BDD-001 | 対象外（拒否） |/'; rejects "許されない対応の欄を拒否" "この資料のBDDの欄が許された形ではない" "$work/m/valid.md"
 fresh; edit 's/\| BDD-001 \| 対象外 \|/| BDD-001 | BDD-009 |/'; rejects "この資料に無い BDD を指す対応を拒否" "この資料に BDD-009 が無い" "$work/m/valid.md"
-fresh; perl -0pi -e 's/\(valid\.md\)/(missing.md)/; s/`reservation_id`、`status`/未定/; s/\n    reservations \{[^}]*\}//; s/\n    reservations \|\|--o\{ entries : "[^"]*"//' "$work/m/reader.md"
+fresh; perl -0pi -e 's/\(valid\.md\)/(missing.md)/; s/`reservation_id`、`status`/未定/; s/\n\| `reservations` \| `entries` [^\n]*//' "$work/m/reader.md"
 output=$(python3 "$checker" check "$work/m/reader.md" 2>&1); status=$?
 [ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "持ち主の資料が無い間の未定の参照は未確認として通す" || fail "持ち主の資料が無い間の未定の参照（exit ${status}）"
 output=$(python3 "$checker" check-set "$work/m/valid.md" "$work/m/reader.md" 2>&1); status=$?
 [ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "複数資料の検査でも持ち主の欠けは未確認にとどめる" || fail "複数資料の未確認（exit ${status}）"
-fresh; perl -0pi -e 's/`reservation_id`、`status`/未定/; s/\n    reservations \{[^}]*\}//; s/\n    reservations \|\|--o\{ entries : "[^"]*"//' "$work/m/reader.md"; rejects "持ち主の資料があるのに残った未定を拒否" "持ち主の資料があるのに「未定」のまま残っている" "$work/m/reader.md"
-fresh; perl -0pi -e 's/`reservation_id`、`status`/未定/' "$work/m/reader.md"; rejects "未定の参照を図に描いた資料を拒否" "読む列が「未定」の参照を図に描いている" "$work/m/reader.md"
-fresh; edit 's/(\| イベント系 \| 技術 \| `cancel_notice_succeeded_events`[^\n]*\n)/$1| イベント系 | 技術 | `cancel_notice_batch_completed_events` | イベント列 | 取消を知らせる要求 |\n/; s/(erDiagram\n)/$1    cancel_notice_batch_completed_events {\n        uuid batch_id PK "単位"\n        timestamptz occurred_at "終えた時点"\n    }\n/; s/(### `reservations`)/### `cancel_notice_batch_completed_events`（単位の完了）\n\n単位を終えた事実。\n\n$1/'; accepts "単位の集合を別表に置かない型を許す" "$work/m/valid.md"
-fresh; edit 's/(\s+text reason "取消の理由")/$1\n        text room_code "会議室"/'
+fresh; perl -0pi -e 's/`reservation_id`、`status`/未定/; s/\n\| `reservations` \| `entries` [^\n]*//' "$work/m/reader.md"; rejects "持ち主の資料があるのに残った未定を拒否" "持ち主の資料があるのに「未定」のまま残っている" "$work/m/reader.md"
+fresh; perl -0pi -e 's/`reservation_id`、`status`/未定/' "$work/m/reader.md"; rejects "未定の参照を関係の表に載せた資料を拒否" "読む列が「未定」の参照を関係の表に載せている" "$work/m/reader.md"
+fresh; edit 's/(\| イベント系 \| 技術 \| `cancel_notice_succeeded_events`[^\n]*\n)/$1| イベント系 | 技術 | `cancel_notice_batch_completed_events` | イベント列 | 取消を知らせる要求 |\n/; s/(### `reservations`)/### `cancel_notice_batch_completed_events`（単位の完了）\n\n単位を終えた事実。\n\n| 列 | 型 | キー | 意味 |\n|---|---|---|---|\n| `batch_id` | uuid | PK | 単位 |\n| `occurred_at` | timestamptz |  | 終えた時点 |\n\n$1/'; accepts "単位の集合を別表に置かない型を許す" "$work/m/valid.md"
+fresh; edit 's/(\| `reason` \| text \|  \| 取消の理由 \|)/$1\n| `room_code` | text |  | 会議室 |/'
 output=$(python3 "$checker" check "$work/m/valid.md" 2>&1); status=$?
 [ "$status" -eq 0 ] && rg -F '"warning": "reservations.room_code"' <<< "$output" >/dev/null && pass "リソースと詳細イベントの同じ名前の列は警告にとどめる" || fail "写しの警告（exit ${status}）"
 fresh; python3 "$checker" check-set "$work/m/valid.md" "$work/m/reader.md" >/dev/null 2>&1 && pass "複数資料の検査の正例" || fail "複数資料の検査の正例"
-fresh; perl -0pi -e 's/\| `reservations` \| `reservation_id`、`status` \| \[[^\n]*/| 未定 | 未定 | [予約のコマンドデータモデル](missing.md) |/; s/\n    reservations \{[^}]*\}//; s/\n    reservations \|\|--o\{ entries : "[^"]*"//' "$work/m/reader.md"
+fresh; perl -0pi -e 's/\| `reservations` \| `reservation_id`、`status` \| \[[^\n]*/| 未定 | 未定 | [予約のコマンドデータモデル](missing.md) |/; s/\n\| `reservations` \| `entries` [^\n]*//' "$work/m/reader.md"
 output=$(python3 "$checker" check "$work/m/reader.md" 2>&1); status=$?
 [ "$status" -eq 0 ] && rg -F '"unverified"' <<< "$output" >/dev/null && pass "テーブル名も未定の参照は未確認として通す" || fail "テーブル名も未定の参照（exit ${status}）"
 fresh; perl -0pi -e 's/\| `reservations` \| (`reservation_id`、`status`) \|/| 未定 | $1 |/' "$work/m/reader.md"; rejects "テーブル名が未定なのに読む列を書いた参照を拒否" "テーブル名が「未定」なのに読む列が書かれている" "$work/m/reader.md"

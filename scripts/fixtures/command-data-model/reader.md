@@ -13,30 +13,12 @@
 |---|---|---|
 | `reservations` | `reservation_id`、`status` | [予約のコマンドデータモデル](valid.md) |
 
-## 図
+## 関係
 
-```mermaid
-erDiagram
-    entries {
-        uuid entry_id PK "入室"
-        uuid reservation_id FK "予約"
-        text status "いまの状態"
-        bigint current_version "反映済みの最後の版"
-    }
-    entry_base_events {
-        uuid event_id PK "イベント"
-        uuid entry_id FK "対象の入室"
-        text event_type "種類"
-        bigint version "入室の中の順序"
-        timestamptz occurred_at "起きた時点"
-    }
-    reservations {
-        uuid reservation_id PK "予約"
-        text status "いまの状態"
-    }
-    entries ||--|{ entry_base_events : "起きたこと"
-    reservations ||--o{ entries : "予約した部屋へ入る"
-```
+| 関係元 | 関係先 | 多重度 | 意味 |
+|---|---|---|---|
+| `entries` | `entry_base_events` | 1対1以上 | 起きたこと |
+| `reservations` | `entries` | 1対0以上 | 予約した部屋へ入る |
 
 ## 定義
 
@@ -44,9 +26,24 @@ erDiagram
 
 予約した部屋へ入ったこと。
 
+| 列 | 型 | キー | 意味 |
+|---|---|---|---|
+| `entry_id` | uuid | PK | 入室 |
+| `reservation_id` | uuid | FK | 予約 |
+| `status` | text |  | いまの状態 |
+| `current_version` | bigint |  | 反映済みの最後の版 |
+
 ### `entry_base_events`（入室に起きたこと）
 
 入室に起きた出来事に共通する事実。
+
+| 列 | 型 | キー | 意味 |
+|---|---|---|---|
+| `event_id` | uuid | PK | イベント |
+| `entry_id` | uuid | FK | 対象の入室 |
+| `event_type` | text |  | 種類 |
+| `version` | bigint |  | 入室の中の順序 |
+| `occurred_at` | timestamptz |  | 起きた時点 |
 
 ## 業務知識のBDDとの対応
 

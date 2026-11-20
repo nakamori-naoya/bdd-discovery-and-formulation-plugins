@@ -6,18 +6,15 @@
 |---|---|---|---|---|
 | イベント系 | 技術 | `delivery_requested_events` | イベント列 | 後続処理を失わない品質要求 |
 
-```mermaid
-erDiagram
-    delivery_requested_events {
-        uuid request_id PK "要求"
-        uuid source_id FK "起因する変更"
-        timestamptz occurred_at "要求した時点"
-    }
-```
-
 ### `delivery_requested_events`（後続処理の要求）
 
 一行は起因する変更と同時に確定した処理要求を表す。
+
+| 列 | 型 | キー | 意味 |
+|---|---|---|---|
+| `request_id` | uuid | PK | 要求 |
+| `source_id` | uuid | FK | 起因する変更 |
+| `occurred_at` | timestamptz |  | 要求した時点 |
 
 ### [BDD-001] 変更と要求を同時に確定する
 
