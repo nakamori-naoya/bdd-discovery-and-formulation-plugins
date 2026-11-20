@@ -8,13 +8,13 @@
 合格述語:
   コードブロックの外で、`#` の見出しは表題の一つだけで、`##` の見出しは「この業務の核、前提、制約、状況、計算、行動・出来事と判断、
   まだ決まっていないこと、BDD」の八つがこの順に一度ずつあり、ほかに無い。
-  前提、制約、状況、計算の `###` の名前は、この四つの節を通して一意である。状況の名前は、末尾の「（<英名>）」を外したものとする。
-  見出し行が「| 状況 | きっかけ | 起こす人 | 判断 | 起きること | 根拠 |」の表は資料に高々一つで、行動・出来事と判断の節にあり、
-  その節にほかの表は無い。表の各行は六列で、状況の欄は状況の名前か「—」（まとめた行は「、」で区切った状況の名前）、
-  判断の欄は「できる」か「できない」、根拠の欄を「、」で区切った各名前は前提、制約、状況、計算のどれかの名前である。
-  「できない」の行の根拠には、制約、前提、状況の名前が一つ以上ある。
+  前提、制約、状況、計算の `###` の名前は、この四つの節を通して一意で、「、」を含まない。状況の名前は、末尾の「（<英名>）」を外したものとする。
+  見出し行が「| いつ | 誰が | 何をすると | 何が起きる | どの決まりによるか |」の表は資料に高々一つで、行動・出来事と判断の節にあり、
+  その節にほかの表は無い。表の各行は五列である。いつの欄は「、」で区切った状況の名前で、状況の節に項目が無い資料だけ「いつでも」である。
+  どの決まりによるかの欄を「、」で区切った各名前は前提、制約、状況、計算のどれかの名前である。
+  何が起きるの欄が「できない。」で始まる行（できない行）には、制約、前提、状況の名前が一つ以上ある。ほかの行だけ、欄を「—」にしてよい。
   「### [BDD-」で始まる見出しは BDD の節の下にだけあり、BDD の節の `###` はすべて「### [BDD-<3桁以上の数字>] <業務結果>」の形で、番号は資料の中で一意である。
-  gherkin ブロックの「NOTE: Rule: <名前>」の名前は、制約、前提、状況の名前のどれかである。
+  gherkin ブロックの「NOTE: Rule: <名前>」の名前は、制約、前提、状況の名前のどれかである。NOTE の無い BDD が拒否かどうかは決まらないので判定しない。
   check-set では、さらに、制約、状況、計算の名前を二つの資料が定義していない（前提は持ち主の資料を指す項目なので照合しない）。
   前提の節にある相対リンクの先の資料が無いことは、未確認として報告し、合否に数えない。
 失敗時の診断: {"path", "detail", "howto"} のJSONを1行ずつ標準出力へ。未確認は {"unverified", "detail"} で出し、最後に
@@ -22,9 +22,9 @@
   違反があれば終了code 1、未確認だけなら 0。引数の形が違うかファイルを読めなければ {"error"} と終了code 2。
 正例: repository の scripts/fixtures/business-knowledge/ の資料の組（入室の前提が予約の資料を指す）。
 反例: scripts/test-business-knowledge.sh の、節の欠け・順の入れ替え・余分な節・二つ目の表題、四つの節をまたぐ同じ名前、
-  見出し行の違う表・二つ目の表・節の外の表、列数の違う行、無い状況、判断の許可値の外、無い根拠、計算だけを根拠にしたできない行、
+  見出し行の違う表・二つ目の表・節の外の表、列数の違う行、無い状況、状況を持つ資料のいつでも、いつの欄の「—」、無い決まり、計算だけによるできない行、できない行の「—」、「、」を含む項目の名前、
   BDD の見出しの形・番号の重複・節の外の BDD・BDD の節の BDD でない見出し、制約でも前提でも状況でもない Rule、二つの資料が定義する同じ制約。
-意味評価として残す範囲: その事実がその節にあるべきか、表が状況ときっかけの組み合わせを網羅しているか、根拠がその判断を本当に支えるか、
+意味評価として残す範囲: その事実がその節にあるべきか、表が状況と行いの組み合わせを網羅しているか、挙げた決まりがその判断を本当に支えるか、拒否の BDD に NOTE があるか、
   名前が業務の言葉か、英名の付け方、BDD が本文の判断を正しく例示するか、どの資料が決まりの持ち主であるべきか。
 """
 
@@ -40,9 +40,10 @@ from pathlib import Path
 SECTIONS = ["この業務の核", "前提", "制約", "状況", "計算", "行動・出来事と判断", "まだ決まっていないこと", "BDD"]
 ITEM_SECTIONS = ["前提", "制約", "状況", "計算"]
 TABLE_SECTION = "行動・出来事と判断"
-TABLE_HEADERS = ["状況", "きっかけ", "起こす人", "判断", "起きること", "根拠"]
-DECISIONS = {"できる", "できない"}
-NO_SITUATION = "—"
+TABLE_HEADERS = ["いつ", "誰が", "何をすると", "何が起きる", "どの決まりによるか"]
+REFUSED = "できない。"
+ALWAYS = "いつでも"
+NO_RULE = "—"
 HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 ENGLISH_SUFFIX = re.compile(r"（[^（）]*）$")
 SEPARATOR = re.compile(r"^\|?(\s*:?-+:?\s*\|)*\s*:?-+:?\s*\|?$")
@@ -150,6 +151,8 @@ def check_document(path: Path, text: str, problems: list[Problem]) -> Document:
                 bdd_numbers[bdd.group(1)] = number
         if section in ITEM_SECTIONS:
             name = ENGLISH_SUFFIX.sub("", title).strip() if section == "状況" else title
+            if "、" in name:
+                problems.append(Problem(f"{label}.{section}.{name}", "項目の名前が「、」を含む", "「、」は表の欄の区切りに使うので、名前に含めない"))
             if name in item_owner:
                 problems.append(Problem(f"{label}.{section}.{name}", f"同じ名前が{item_owner[name]}の節にもある", "前提、制約、状況、計算の項目の名前を、四つの節を通して一意にする"))
             else:
@@ -167,7 +170,7 @@ def check_document(path: Path, text: str, problems: list[Problem]) -> Document:
         for line in body:
             rule = RULE.match(line)
             if rule and rule.group(1) not in rejecting:
-                problems.append(Problem(f"{label}.Rule.{rule.group(1)}", "NOTE: Rule の名前が、制約にも前提にも状況にも無い", "拒否の BDD の Rule には、表のその行が根拠にした制約、前提、状況の名前をそのまま書く"))
+                problems.append(Problem(f"{label}.Rule.{rule.group(1)}", "NOTE: Rule の名前が、制約にも前提にも状況にも無い", "拒否の BDD の Rule には、表のその行のどの決まりによるかにある制約、前提、状況の名前をそのまま書く"))
     return document
 
 
@@ -180,13 +183,13 @@ def check_table(label: str, document: Document, tables: list[tuple[str, int, lis
         is_decision = cells(rows[0][1]) == TABLE_HEADERS
         if not is_decision:
             if section == TABLE_SECTION:
-                problems.append(Problem(f"{label}.line[{start}]", f"{TABLE_SECTION}の節に、見出し行が『| {' | '.join(TABLE_HEADERS)} |』ではない表がある", "この節の表は、見出し行をこの六列にした一つだけにする"))
+                problems.append(Problem(f"{label}.line[{start}]", f"{TABLE_SECTION}の節に、見出し行が『| {' | '.join(TABLE_HEADERS)} |』ではない表がある", "この節の表は、見出し行をこの五列にした一つだけにする"))
             continue
         decision_tables += 1
         if section != TABLE_SECTION:
             problems.append(Problem(f"{label}.line[{start}]", f"判断の表が{TABLE_SECTION}の節の外にある", f"判断の表は「## {TABLE_SECTION}」の下に置く"))
         if decision_tables > 1:
-            problems.append(Problem(f"{label}.line[{start}]", "判断の表が二つ目である", "状況ときっかけの組み合わせは、一つの表に一行ずつ置く"))
+            problems.append(Problem(f"{label}.line[{start}]", "判断の表が二つ目である", "状況と行いの組み合わせは、一つの表に一行ずつ置く"))
         body = rows[1:]
         if body and SEPARATOR.match(body[0][1].strip()):
             body = body[1:]
@@ -194,21 +197,27 @@ def check_table(label: str, document: Document, tables: list[tuple[str, int, lis
             row = cells(line)
             where = f"{label}.line[{number}]"
             if len(row) != len(TABLE_HEADERS):
-                problems.append(Problem(where, "列数が判断の表の見出しと一致しない", "各行を、状況、きっかけ、起こす人、判断、起きること、根拠の六列にする"))
+                problems.append(Problem(where, "列数が判断の表の見出しと一致しない", "各行を、いつ、誰が、何をすると、何が起きる、どの決まりによるかの五列にする"))
                 continue
-            situation, _, _, decision, _, basis = row
-            if situation != NO_SITUATION:
+            situation, _, _, happens, basis = row
+            refused = happens.startswith(REFUSED)
+            if situation == ALWAYS:
+                if situations:
+                    problems.append(Problem(where, f"状況を持つ資料のいつの欄が「{ALWAYS}」である", "いつの欄には状況の名前を書く。対象がまだ無い在り方も状況の名前にする"))
+            else:
                 for name in split_names(situation) or [situation]:
                     if name not in situations:
-                        problems.append(Problem(where, f"状況の欄の名前が状況の節に無い: {name}", f"状況の節の名前を書くか、状況を持たない業務では「{NO_SITUATION}」にする"))
-            if decision not in DECISIONS:
-                problems.append(Problem(where, f"判断が許可値ではない: {decision}", "判断の欄は「できる」か「できない」にする"))
+                        problems.append(Problem(where, f"いつの欄の名前が状況の節に無い: {name}", f"状況の節の名前を「、」で区切って書くか、状況を持たない業務では「{ALWAYS}」にする"))
+            if basis == NO_RULE:
+                if refused:
+                    problems.append(Problem(where, f"できない行のどの決まりによるかが「{NO_RULE}」である", "できない行には、拒む決まりになる制約、前提、状況の名前を一つ以上置く"))
+                continue
             names = split_names(basis)
             for name in names:
                 if name not in bases:
-                    problems.append(Problem(where, f"根拠の名前が前提、制約、状況、計算のどれにも無い: {name}", "根拠には、前提、制約、状況、計算の項目の名前を「、」で区切って書く"))
-            if decision == "できない" and not any(name in rejecting for name in names):
-                problems.append(Problem(where, "できない行の根拠に、制約、前提、状況の名前が無い", "できない行の根拠には、拒む理由になる制約、前提、状況の名前を一つ以上置く"))
+                    problems.append(Problem(where, f"どの決まりによるかの名前が前提、制約、状況、計算のどれにも無い: {name}", f"前提、制約、状況、計算の項目の名前を「、」で区切って書く。できない行でなく頼る決まりが無ければ「{NO_RULE}」にする"))
+            if refused and not any(name in rejecting for name in names):
+                problems.append(Problem(where, "できない行のどの決まりによるかに、制約、前提、状況の名前が無い", "できない行には、拒む決まりになる制約、前提、状況の名前を一つ以上置く"))
 
 
 def premise_links(document: Document) -> list[Path]:
