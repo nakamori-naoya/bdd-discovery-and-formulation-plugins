@@ -111,6 +111,7 @@ fresh; edit "$owner" 's/^(一部屋一日一件\n\n[^\n]*\n)/$1\n列挙：会議
 fresh; edit "$owner" 's/^列挙：取り消す人 = 本人 \| 本人ではない/列挙：取り消す人 = 本人 | 本人/m'; rejects "重なる列挙の値を拒否" "列挙の値に空か重なりがある" check "$owner"
 
 # 反例: BDD
+fresh; edit "$owner" 's/^(When: [^\n]*\n)/$1Then: 取り消される\nWhen: もう一度予約する\n/m'; rejects "二つの When を持つ BDD を拒否" "When が二つ以上ある" check "$owner"
 fresh; edit "$owner" 's/\[BDD-002\]/[BDD-001]/'; rejects "BDD 番号の重複を拒否" "BDD の番号が" check "$owner"
 fresh; edit "$owner" 's/\[BDD-002\]/[BDD-2]/'; rejects "3桁未満の BDD 番号を拒否" "3桁以上の数字" check "$owner"
 fresh; edit "$owner" 's/^### 取り消す日$/### [BDD-009] 取り消す日/m; s/、取り消す日//g'; rejects "BDD の節の外の BDD を拒否" "BDD の節の外にある" check "$owner"
